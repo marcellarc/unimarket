@@ -1,13 +1,14 @@
-import './App.css';
+import { createRouter, RouterProvider } from '@tanstack/react-router'
+import { routeTree } from './routeTree.gen'
 
-export default function App() {
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-black text-white">
-      <h1 className="text-4xl font-bold text-emerald-400 ">
-        Tailwind v4 funcionando! 🌈
-      </h1>
-    </div>
-  );
+const router = createRouter({ routeTree })
+
+declare module '@tanstack/react-router' {
+  interface Register {
+    router: typeof router
+  }
 }
 
-
+export function App() {
+  return <RouterProvider router={router} />
+}
