@@ -23,4 +23,27 @@ public class Cliente {
     private String dsSenha;
 
     // getters e setters
+    public String getNmCliente() {
+        return nmCliente;
+    }
+
+    public void setNmCliente(String nmCliente) {
+        this.nmCliente = nmCliente;
+    }
+
+    public String getDsEmail() {
+        return dsEmail;
+    }
+
+    public void setDsEmail(String dsEmail) {
+        this.dsEmail = dsEmail;
+    }
+
+    public String getDsSenha() {
+        return dsSenha;
+    }
+
+    public void setDsSenha(String dsSenha) {
+        this.dsSenha = dsSenha;
+    }
 }

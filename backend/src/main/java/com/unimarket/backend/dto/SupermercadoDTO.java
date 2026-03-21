@@ -1,45 +1,37 @@
-package com.unimarket.backend.entity;
+package com.unimarket.backend.dto;
 
-import java.time.LocalDateTime;
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotBlank;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.PrePersist;
-import jakarta.persistence.Table;
 
-@Entity
-@Table(name = "supermercados")
-public class Supermercado {
+/**
+ * DTO (Data Transfer Object) responsável por transportar os dados
+ * de cadastro de supermercado entre o front-end (React) e o back-end.
+ *
+ * 🔹 Função principal:
+ * - Receber os dados enviados pelo cliente (JSON da requisição HTTP)
+ * - Garantir que esses dados estejam válidos antes de chegar na camada de serviço
+ */
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long cdMercado;
+public class SupermercadoDTO {
 
+    @NotBlank(message = "O nome do supermercado é obrigatório")
     private String nmMercado;
+
+    @NotBlank(message = "O CNPJ é obrigatório")
     private String dsCnpj;
+
+    @Email(message = "Email inválido")
+    @NotBlank(message = "O email é obrigatório")
     private String dsEmail;
+
+    @NotBlank(message = "A senha é obrigatória")
     private String dsSenha;
+
     private String dsLogradouro;
     private String dsBairro;
 
-    @Column(nullable = false, updatable = false)
-    private LocalDateTime dtCadastro;
-    
-    @PrePersist
-    public void prePersist() {
-        this.dtCadastro = LocalDateTime.now();
-    }
-
-    public Long getCdMercado() {
-        return cdMercado;
-    }   
-
-    public void setCdMercado(Long cdMercado) {
-        this.cdMercado = cdMercado;
-    }
+    // GETTERS E SETTERS
 
     public String getNmMercado() {
         return nmMercado;
@@ -87,9 +79,5 @@ public class Supermercado {
 
     public void setDsBairro(String dsBairro) {
         this.dsBairro = dsBairro;
-    }
-
-    public LocalDateTime getDtCadastro() {
-        return dtCadastro;
     }
 }

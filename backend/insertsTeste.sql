@@ -34,11 +34,11 @@ INSERT INTO produtos (cd_produto, nm_produto, nm_marca, vl_preco, ds_imgproduto,
 -- =========================
 
 INSERT INTO supermercados 
-(cd_mercado, nm_mercado, ds_cnpj, ds_email, ds_senha, ds_logradouro, ds_bairro, dt_cadastro, vl_latitude, vl_longitude)
+(cd_mercado, nm_mercado, ds_cnpj, ds_email, ds_senha, ds_logradouro, ds_bairro, dt_cadastro)
 VALUES
-(1, 'Supermercado Central', '12345678000199', 'central@email.com', '123456', 'Rua A, 120', 'Centro', NOW(), -24.3200, -46.9980),
-(2, 'Mercado Econômico', '98765432000188', 'economico@email.com', '123456', 'Av Brasil, 300', 'Centro', NOW(), -24.3210, -46.9975),
-(3, 'Super Mais', '11223344000177', 'supermais@email.com', '123456', 'Rua das Flores, 50', 'Jardim', NOW(), -24.3195, -46.9968);
+(1, 'Supermercado Central', '12345678000199', 'central@email.com', '123456', 'Rua A, 120', 'Centro', NOW()),
+(2, 'Mercado Econômico', '98765432000188', 'economico@email.com', '123456', 'Av Brasil, 300', 'Centro', NOW()),
+(3, 'Super Mais', '11223344000177', 'supermais@email.com', '123456', 'Rua das Flores, 50', 'Jardim', NOW());
 
 -- =========================
 -- PREÇOS DOS PRODUTOS NOS MERCADOS
