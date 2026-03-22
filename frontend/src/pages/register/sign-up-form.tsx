@@ -1,5 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-// 1. Adicionado o Loader2
+import { useMutation } from '@tanstack/react-query'
 import { Eye, EyeOff, User, Store, Building2, Phone, FileText, UserCircle, Loader2 } from 'lucide-react'
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
@@ -8,13 +8,11 @@ import { Link, useNavigate } from '@tanstack/react-router'
 import { toast } from 'sonner'
 import type { RegisterFormData } from '../-components/type'
 import { registerSchema } from '../-components/schemas'
+import { registerMarket } from '@/services/supermarket'
 
 export function SignUpForm() {
-    console.log('SignUpForm rendering');
-
     const [showPassword, setShowPassword] = useState(false)
     const [showConfirmPassword, setShowConfirmPassword] = useState(false)
-    const [loading, setLoading] = useState(false)
     const navigate = useNavigate()
 
     const {
@@ -32,37 +30,38 @@ export function SignUpForm() {
 
     const role = watch('role')
 
-    async function onSubmit(data: RegisterFormData) {
-        setLoading(true)
-
-        try {
-            // simula delay de requisição para vermos a animação
-            await new Promise((resolve) => setTimeout(resolve, 1500))
-
-            const { confirmPassword, ...registerData } = data
-
-            const mockUser = {
-                id: Date.now(),
-                ...registerData,
+    const { mutate: mutateMarket, isPending } = useMutation({
+        mutationFn: registerMarket,
+        onSuccess: () => {
+            toast.success('Supermercado cadastrado com sucesso!')
+            navigate({ to: '/login' })
+        },
+        onError: (error: any) => {
+            if (error.response?.status === 409 || error.response?.status === 400) {
+                toast.error('Este e-mail ou CNPJ já está cadastrado.')
+            } else {
+                toast.error('Erro ao realizar o cadastro. Tente novamente.')
             }
+            console.error("Erro no cadastro:", error)
+        }
+    })
 
-            console.log('Usuário cadastrado (mock):', mockUser)
-
-            localStorage.setItem('mockUser', JSON.stringify(mockUser))
-
-            toast.success('Cadastro realizado com sucesso!')
-
-            // Opcional: Redirecionar para o login após cadastro com sucesso
-            // navigate({ to: '/login' })
-
-        } catch {
-            toast.error('Erro ao fazer cadastro')
-        } finally {
-            setLoading(false)
+    function onSubmit(data: RegisterFormData) {
+        if (data.role === 'MARKET') {
+            mutateMarket({
+                nmMercado: data.marketName || '',
+                dsCnpj: (data.cnpj || '').replace(/\D/g, ''),
+                dsEmail: data.email,
+                dsSenha: data.password,
+                dsLogradouro: "Endereço pendente",
+                dsBairro: "Bairro pendente",
+                dtCadastro: new Date().toISOString()
+            })
+        } else if (data.role === 'USER') {
+            toast.info('Cadastro de cliente será implementado em breve.')
         }
     }
 
-    // Função para formatar CNPJ
     function formatCNPJ(value: string) {
         const numbers = value.replace(/\D/g, '')
         if (numbers.length <= 14) {
@@ -75,7 +74,6 @@ export function SignUpForm() {
         return value
     }
 
-    // Função para formatar telefone
     function formatPhone(value: string) {
         const numbers = value.replace(/\D/g, '')
         if (numbers.length <= 11) {
@@ -89,31 +87,33 @@ export function SignUpForm() {
     return (
         <div className="flex h-full items-center justify-center bg-background px-6 py-8">
             <form
-                onSubmit={handleSubmit(onSubmit)}
+                onSubmit={handleSubmit(onSubmit, (errosDoZod) => {
+                    console.log("O Zod bloqueou o envio! Veja os erros:", errosDoZod)
+                })}
                 className="w-full max-w-sm space-y-5 text-foreground"
             >
                 <h2 className="mb-8 text-center text-3xl font-bold text-foreground">
-                    Cadastre-se
+                    Registe-se
                 </h2>
 
-                {/* Usuário / Supermercado (Usando cores semânticas) */}
+
                 <div className="flex rounded-full bg-secondary p-1">
                     <button
                         type="button"
                         className={`flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-full py-2 text-sm font-medium transition-colors ${role === 'USER'
-                                ? 'bg-primary text-primary-foreground shadow-sm'
-                                : 'text-muted-foreground hover:text-foreground'
+                            ? 'bg-primary text-primary-foreground shadow-sm'
+                            : 'text-muted-foreground hover:text-foreground'
                             }`}
                         onClick={() => setValue('role', 'USER')}
                     >
-                        <User size={16} /> Usuário
+                        <User size={16} /> Utilizador
                     </button>
 
                     <button
                         type="button"
                         className={`flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-full py-2 text-sm font-medium transition-colors ${role === 'MARKET'
-                                ? 'bg-primary text-primary-foreground shadow-sm'
-                                : 'text-muted-foreground hover:text-foreground'
+                            ? 'bg-primary text-primary-foreground shadow-sm'
+                            : 'text-muted-foreground hover:text-foreground'
                             }`}
                         onClick={() => setValue('role', 'MARKET')}
                     >
@@ -121,10 +121,9 @@ export function SignUpForm() {
                     </button>
                 </div>
 
-                {/* Campos para USUÁRIO */}
+
                 {role === 'USER' && (
                     <>
-                        {/* Nome */}
                         <div className="space-y-1">
                             <Label htmlFor="name" className="text-xs font-semibold">
                                 Nome Completo
@@ -136,107 +135,22 @@ export function SignUpForm() {
                                 />
                                 <Input
                                     id="name"
-                                    placeholder="Seu nome completo"
+                                    placeholder="O seu nome completo"
                                     className="border-primary/30 pl-10 focus-visible:ring-primary"
                                     {...register('name')}
                                 />
                             </div>
-                            {errors.name && 'message' in errors.name && (
+                            {errors.name?.message && (
                                 <p className="text-xs text-destructive">
-                                    {errors.name.message}
-                                </p>
-                            )}
-                        </div>
-
-                        {/* Email */}
-                        <div className="space-y-1">
-                            <Label htmlFor="email" className="text-xs font-semibold">
-                                E-mail
-                            </Label>
-                            <Input
-                                id="email"
-                                placeholder="email@email.com"
-                                className="border-primary/30 focus-visible:ring-primary"
-                                {...register('email')}
-                            />
-                            {errors.email && 'message' in errors.email && (
-                                <p className="text-xs text-destructive">
-                                    {errors.email.message}
-                                </p>
-                            )}
-                        </div>
-
-                        {/* Senha */}
-                        <div className="space-y-1">
-                            <Label htmlFor="password" className="text-xs font-semibold">
-                                Senha
-                            </Label>
-                            <div className="relative">
-                                <Input
-                                    id="password"
-                                    type={showPassword ? 'text' : 'password'}
-                                    className="border-primary/30 focus-visible:ring-primary"
-                                    placeholder="********"
-                                    {...register('password')}
-                                />
-                                <button
-                                    type="button"
-                                    onClick={() => setShowPassword(!showPassword)}
-                                    className="absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer text-muted-foreground hover:text-foreground"
-                                >
-                                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                                </button>
-                            </div>
-                            {errors.password && 'message' in errors.password && (
-                                <p className="text-xs text-destructive">
-                                    {errors.password.message}
-                                </p>
-                            )}
-                            <p className="text-xs text-muted-foreground">
-                                Mín. 8 caracteres com maiúsculas, minúsculas, números e símbolos
-                            </p>
-                        </div>
-
-                        {/* Confirmar Senha */}
-                        <div className="space-y-1">
-                            <Label htmlFor="confirmPassword" className="text-xs font-semibold">
-                                Confirmar Senha
-                            </Label>
-                            <div className="relative">
-                                <Input
-                                    id="confirmPassword"
-                                    type={showConfirmPassword ? 'text' : 'password'}
-                                    className="border-primary/30 focus-visible:ring-primary"
-                                    placeholder="********"
-                                    {...register('confirmPassword')}
-                                />
-                                <button
-                                    type="button"
-                                    onClick={() =>
-                                        setShowConfirmPassword(!showConfirmPassword)
-                                    }
-                                    className="absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer text-muted-foreground hover:text-foreground"
-                                >
-                                    {showConfirmPassword ? (
-                                        <EyeOff size={18} />
-                                    ) : (
-                                        <Eye size={18} />
-                                    )}
-                                </button>
-                            </div>
-                            {errors.confirmPassword && 'message' in errors.confirmPassword && (
-                                <p className="text-xs text-destructive">
-                                    {errors.confirmPassword.message}
+                                    {errors.name.message as string}
                                 </p>
                             )}
                         </div>
                     </>
                 )}
 
-                {/* Campos para SUPERMERCADO */}
                 {role === 'MARKET' && (
                     <>
-                        {/* Nome do Supermercado */}
                         <div className="space-y-1">
                             <Label htmlFor="marketName" className="text-xs font-semibold">
                                 Nome do Supermercado
@@ -253,14 +167,13 @@ export function SignUpForm() {
                                     {...register('marketName')}
                                 />
                             </div>
-                            {errors.marketName && 'message' in errors.marketName && (
+                            {errors.marketName?.message && (
                                 <p className="text-xs text-destructive">
-                                    {errors.marketName.message}
+                                    {errors.marketName.message as string}
                                 </p>
                             )}
                         </div>
 
-                        {/* CNPJ */}
                         <div className="space-y-1">
                             <Label htmlFor="cnpj" className="text-xs font-semibold">
                                 CNPJ
@@ -282,38 +195,15 @@ export function SignUpForm() {
                                     maxLength={18}
                                 />
                             </div>
-                            {errors.cnpj && 'message' in errors.cnpj && (
+                            {errors.cnpj?.message && (
                                 <p className="text-xs text-destructive">
-                                    {errors.cnpj.message}
+                                    {errors.cnpj.message as string}
                                 </p>
                             )}
                         </div>
 
-                        {/* Nome do Responsável */}
-                        <div className="space-y-1">
-                            <Label htmlFor="responsibleName" className="text-xs font-semibold">
-                                Nome do Responsável
-                            </Label>
-                            <div className="relative">
-                                <UserCircle
-                                    size={18}
-                                    className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
-                                />
-                                <Input
-                                    id="responsibleName"
-                                    placeholder="Nome completo do responsável"
-                                    className="border-primary/30 pl-10 focus-visible:ring-primary"
-                                    {...register('responsibleName')}
-                                />
-                            </div>
-                            {errors.responsibleName && 'message' in errors.responsibleName && (
-                                <p className="text-xs text-destructive">
-                                    {errors.responsibleName.message}
-                                </p>
-                            )}
-                        </div>
 
-                        {/* Telefone */}
+
                         <div className="space-y-1">
                             <Label htmlFor="phone" className="text-xs font-semibold">
                                 Telefone
@@ -335,122 +225,113 @@ export function SignUpForm() {
                                     maxLength={15}
                                 />
                             </div>
-                            {errors.phone && 'message' in errors.phone && (
+                            {errors.phone?.message && (
                                 <p className="text-xs text-destructive">
-                                    {errors.phone.message}
-                                </p>
-                            )}
-                        </div>
-
-                        {/* Email */}
-                        <div className="space-y-1">
-                            <Label htmlFor="email" className="text-xs font-semibold">
-                                E-mail
-                            </Label>
-                            <Input
-                                id="email"
-                                placeholder="email@supermercado.com"
-                                className="border-primary/30 focus-visible:ring-primary"
-                                {...register('email')}
-                            />
-                            {errors.email && 'message' in errors.email && (
-                                <p className="text-xs text-destructive">
-                                    {errors.email.message}
-                                </p>
-                            )}
-                        </div>
-
-                        {/* Senha */}
-                        <div className="space-y-1">
-                            <Label htmlFor="password" className="text-xs font-semibold">
-                                Senha
-                            </Label>
-                            <div className="relative">
-                                <Input
-                                    id="password"
-                                    type={showPassword ? 'text' : 'password'}
-                                    className="border-primary/30 focus-visible:ring-primary"
-                                    placeholder="********"
-                                    {...register('password')}
-                                />
-                                <button
-                                    type="button"
-                                    onClick={() => setShowPassword(!showPassword)}
-                                    className="absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer text-muted-foreground hover:text-foreground"
-                                >
-                                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                                </button>
-                            </div>
-                            {errors.password && 'message' in errors.password && (
-                                <p className="text-xs text-destructive">
-                                    {errors.password.message}
-                                </p>
-                            )}
-                            <p className="text-xs text-muted-foreground">
-                                Mín. 8 caracteres com maiúsculas, minúsculas, números e símbolos
-                            </p>
-                        </div>
-
-                        {/* Confirmar Senha */}
-                        <div className="space-y-1">
-                            <Label htmlFor="confirmPassword" className="text-xs font-semibold">
-                                Confirmar Senha
-                            </Label>
-                            <div className="relative">
-                                <Input
-                                    id="confirmPassword"
-                                    type={showConfirmPassword ? 'text' : 'password'}
-                                    className="border-primary/30 focus-visible:ring-primary"
-                                    placeholder="********"
-                                    {...register('confirmPassword')}
-                                />
-                                <button
-                                    type="button"
-                                    onClick={() =>
-                                        setShowConfirmPassword(!showConfirmPassword)
-                                    }
-                                    className="absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer text-muted-foreground hover:text-foreground"
-                                >
-                                    {showConfirmPassword ? (
-                                        <EyeOff size={18} />
-                                    ) : (
-                                        <Eye size={18} />
-                                    )}
-                                </button>
-                            </div>
-                            {errors.confirmPassword && 'message' in errors.confirmPassword && (
-                                <p className="text-xs text-destructive">
-                                    {errors.confirmPassword.message}
+                                    {errors.phone.message as string}
                                 </p>
                             )}
                         </div>
                     </>
                 )}
 
-                {/* 2. Botão Cadastrar atualizado com a Animação e Cores Oficiais */}
+
+                <div className="space-y-1">
+                    <Label htmlFor="email" className="text-xs font-semibold">
+                        E-mail
+                    </Label>
+                    <Input
+                        id="email"
+                        placeholder={role === 'MARKET' ? "email@supermercado.com" : "email@email.com"}
+                        className="border-primary/30 focus-visible:ring-primary"
+                        {...register('email')}
+                    />
+                    {errors.email?.message && (
+                        <p className="text-xs text-destructive">
+                            {errors.email.message as string}
+                        </p>
+                    )}
+                </div>
+
+                <div className="space-y-1">
+                    <Label htmlFor="password" className="text-xs font-semibold">
+                        Senha
+                    </Label>
+                    <div className="relative">
+                        <Input
+                            id="password"
+                            type={showPassword ? 'text' : 'password'}
+                            className="border-primary/30 focus-visible:ring-primary"
+                            placeholder="********"
+                            {...register('password')}
+                        />
+                        <button
+                            type="button"
+                            onClick={() => setShowPassword(!showPassword)}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer text-muted-foreground hover:text-foreground"
+                        >
+                            {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                        </button>
+                    </div>
+                    {errors.password?.message && (
+                        <p className="text-xs text-destructive">
+                            {errors.password.message as string}
+                        </p>
+                    )}
+                    <p className="text-xs text-muted-foreground">
+                        Mín. 8 caracteres com maiúsculas, minúsculas, números e símbolos
+                    </p>
+                </div>
+
+                <div className="space-y-1">
+                    <Label htmlFor="confirmPassword" className="text-xs font-semibold">
+                        Confirmar Senha
+                    </Label>
+                    <div className="relative">
+                        <Input
+                            id="confirmPassword"
+                            type={showConfirmPassword ? 'text' : 'password'}
+                            className="border-primary/30 focus-visible:ring-primary"
+                            placeholder="********"
+                            {...register('confirmPassword')}
+                        />
+                        <button
+                            type="button"
+                            onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer text-muted-foreground hover:text-foreground"
+                        >
+                            {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                        </button>
+                    </div>
+                    {errors.confirmPassword?.message && (
+                        <p className="text-xs text-destructive">
+                            {errors.confirmPassword.message as string}
+                        </p>
+                    )}
+                </div>
+
+
                 <Button
                     type="submit"
                     className="w-full cursor-pointer bg-primary hover:bg-primary/90 text-primary-foreground flex items-center justify-center"
-                    disabled={loading}
+                    disabled={isPending}
                 >
-                    {loading ? (
+                    {isPending ? (
                         <>
                             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            Cadastrando...
+                            A registar...
                         </>
                     ) : (
-                        'Cadastrar'
+                        'Registar'
                     )}
                 </Button>
 
-                {/* Primeiro Divider (OU) */}
                 <div className="flex items-center gap-4 text-xs text-muted-foreground">
                     <div className="h-px flex-1 bg-border" />
                     <span>OU</span>
                     <div className="h-px flex-1 bg-border" />
                 </div>
 
-                {/* Continuar com Google */}
+
                 <Button
                     type="button"
                     variant="outline"
@@ -459,25 +340,23 @@ export function SignUpForm() {
                     Continuar com Google
                 </Button>
 
-                {/* Segundo Divider (OU) */}
+
                 <div className="flex items-center gap-4 text-xs text-muted-foreground">
                     <div className="h-px flex-1 bg-border" />
                     <span>OU</span>
                     <div className="h-px flex-1 bg-border" />
                 </div>
 
-                {/* Continue como convidado */}
                 <div className="text-center">
                     <Button
                         type="button"
                         variant="link"
                         className="h-auto p-0 text-xs text-muted-foreground hover:text-foreground cursor-pointer"
                     >
-                        Continue como convidado
+                        Continuar como convidado
                     </Button>
                 </div>
 
-                {/* Login */}
                 <p className="pt-4 text-center text-xs text-foreground">
                     Já tem uma conta?{' '}
                     <Link to="/login">

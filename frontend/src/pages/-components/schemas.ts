@@ -1,84 +1,73 @@
 import { z } from 'zod';
 
-// Schema de Login
 export const loginSchema = z.object({
     role: z.enum(['USER', 'MARKET'], {
         message: 'Selecione um tipo de conta',
     }),
-    email: z
-        .string()
-        .min(1, 'Email é obrigatório')
-        .email('Email inválido')
-        .toLowerCase(),
-    password: z
-        .string()
-        .min(6, 'A senha deve ter no mínimo 6 caracteres')
-        .max(100, 'A senha deve ter no máximo 100 caracteres'),
+    email: z.string().min(1, 'Email é obrigatório').email('Email inválido').toLowerCase(),
+    password: z.string().min(6, 'A senha deve ter no mínimo 6 caracteres').max(100, 'A senha deve ter no máximo 100 caracteres'),
 });
 
-// Schema de Registro - simplificado com campos opcionais
+// Schema Plano com SuperRefine (A melhor prática para React Hook Form)
 export const registerSchema = z.object({
     role: z.enum(['USER', 'MARKET']),
-    // Campos para USER
+    email: z.string().min(1, 'Email é obrigatório').email('Email inválido').toLowerCase(),
+    password: z.string().min(8, 'Mínimo de 8 caracteres'),
+    confirmPassword: z.string().min(1, 'Confirmação é obrigatória'),
+
+    // Todos os campos são opcionais na base (O TypeScript agradece)
     name: z.string().optional(),
-    // Campos para MARKET
     marketName: z.string().optional(),
     cnpj: z.string().optional(),
-    responsibleName: z.string().optional(),
     phone: z.string().optional(),
-    // Campos comuns
-    email: z
-        .string()
-        .min(1, 'Email é obrigatório')
-        .email('Email inválido')
-        .toLowerCase(),
-    password: z
-        .string()
-        .min(8, 'A senha deve ter no mínimo 8 caracteres')
-        .max(100, 'A senha deve ter no máximo 100 caracteres')
-        .regex(/[A-Z]/, 'A senha deve conter pelo menos uma letra maiúscula')
-        .regex(/[a-z]/, 'A senha deve conter pelo menos uma letra minúscula')
-        .regex(/[0-9]/, 'A senha deve conter pelo menos um número')
-        .regex(/[^A-Za-z0-9]/, 'A senha deve conter pelo menos um caractere especial'),
-    confirmPassword: z.string().min(1, 'Confirmação de senha é obrigatória'),
-}).refine((data) => data.password === data.confirmPassword, {
-    message: 'As senhas não coincidem',
-    path: ['confirmPassword'],
-}).refine((data) => {
-    // Valida campos específicos do USER
+}).superRefine((data, ctx) => {
+    // Validação de Senhas Iguais
+    if (data.password !== data.confirmPassword) {
+        ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: 'As senhas não coincidem',
+            path: ['confirmPassword']
+        });
+    }
+
+    // Validações do USER
     if (data.role === 'USER') {
-        if (!data.name || data.name.length < 3) {
-            return false;
-        }
-        if (!/^[a-zA-ZÀ-ÿ\s]+$/.test(data.name)) {
-            return false;
+        if (!data.name || data.name.trim().length < 3) {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                message: 'O nome deve ter no mínimo 3 caracteres',
+                path: ['name'] // O erro vai aparecer exatamente no input "name"
+            });
         }
     }
-    return true;
-}, {
-    message: 'Nome deve ter no mínimo 3 caracteres e conter apenas letras',
-    path: ['name'],
-}).refine((data) => {
-    // Valida campos específicos do MARKET
+
+    // Validações do MARKET
     if (data.role === 'MARKET') {
-        if (!data.marketName || data.marketName.length < 3) {
-            return false;
+        if (!data.marketName || data.marketName.trim().length < 3) {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                message: 'O nome do supermercado deve ter no mínimo 3 caracteres',
+                path: ['marketName'] // O erro vai aparecer no input "marketName"
+            });
         }
         if (!data.cnpj || !/^\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}$/.test(data.cnpj)) {
-            return false;
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                message: 'CNPJ inválido (Ex: 00.000.000/0000-00)',
+                path: ['cnpj']
+            });
         }
-        if (!data.responsibleName || data.responsibleName.length < 3) {
-            return false;
-        }
-        if (!/^[a-zA-ZÀ-ÿ\s]+$/.test(data.responsibleName)) {
-            return false;
-        }
-        if (!data.phone || !/^\(\d{2}\) \d{4,5}-\d{4}$/.test(data.phone)) {
-            return false;
-        }
+
     }
-    return true;
-}, {
-    message: 'Preencha todos os campos obrigatórios corretamente',
-    path: ['marketName'],
-});
+    if (!data.phone || !/^\(\d{2}\) \d{4,5}-\d{4}$/.test(data.phone)) {
+        ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: 'Telefone inválido (Ex: (11) 90000-0000)',
+            path: ['phone']
+        });
+    }
+}
+);
+
+// Inferimos o tipo diretamente do Zod
+export type RegisterFormData = z.infer<typeof registerSchema>;
