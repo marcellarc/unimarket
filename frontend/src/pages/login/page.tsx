@@ -1,4 +1,4 @@
-import { Branding } from "./branding";
+import { Branding } from "../-components/branding";
 import { SignInForm } from "./sign-in-form";
 
 export function LoginPage() {
