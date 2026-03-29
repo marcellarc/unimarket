@@ -16,5 +16,15 @@ public class Categoria {
 
     private String nmCategoria;
 
-    // getters e setters
+    public Long getCdCategoria() {
+        return cdCategoria;
+    }
+
+    public String getNmCategoria() {
+        return nmCategoria;
+    }
+
+    public void setNmCategoria(String nmCategoria) {
+        this.nmCategoria = nmCategoria;
+    }
 }
