@@ -1,4 +1,4 @@
-package com.unimarket.backend.entity;
+/*package com.unimarket.backend.entity;
 
 import java.time.LocalDateTime;
 
@@ -22,4 +22,4 @@ public class SupermercadoProduto {
     private LocalDateTime dtAtualizacao;
 
     // getters e setters
-}
+}*/
