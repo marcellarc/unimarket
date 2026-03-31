@@ -5,16 +5,16 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
-import com.unimarket.backend.dto.SupermercadoDTO;
-import com.unimarket.backend.entity.Supermercado;
-import com.unimarket.backend.repository.SupermercadoRepository;
+import com.unimarket.backend.dto.MarketDTO;
+import com.unimarket.backend.entity.Market;
+import com.unimarket.backend.repository.MarketRepository;
 
 
 @Service
-public class SupermercadoService {
+public class MarketService {
 
     @Autowired
-    private SupermercadoRepository repository;
+    private MarketRepository repository;
 
     @Autowired
     private ModelMapper modelMapper;
@@ -37,20 +37,16 @@ public class SupermercadoService {
          * - Define a data de cadastro automaticamente
      */
 
-    public Supermercado cadastrar(SupermercadoDTO dto) {
-
-        if (repository.findByDsCnpj(dto.getDsCnpj()).isPresent()) {
+    public Market register(MarketDTO dto) {
+        if (repository.findByCnpj(dto.getCnpj()).isPresent()) {
             throw new RuntimeException("CNPJ já cadastrado");
         }
-
-        if (repository.findByDsEmail(dto.getDsEmail()).isPresent()) {
+        if (repository.findByEmail(dto.getEmail()).isPresent()) {
             throw new RuntimeException("Email já cadastrado");
         }
 
-        Supermercado supermercado = modelMapper.map(dto, Supermercado.class);
-
-        supermercado.setDsSenha(passwordEncoder.encode(dto.getDsSenha()));
-
-        return repository.save(supermercado);
+        Market market = modelMapper.map(dto, Market.class);
+        market.setPassword(passwordEncoder.encode(dto.getPassword()));
+        return repository.save(market);
     }
 }
