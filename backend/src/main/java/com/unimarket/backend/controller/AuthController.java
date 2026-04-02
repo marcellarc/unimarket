@@ -7,13 +7,16 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.unimarket.backend.dto.ClientDTO;
 import com.unimarket.backend.dto.MarketDTO;
 import com.unimarket.backend.dto.login.LoginRequestDTO;
 import com.unimarket.backend.dto.login.LoginResponseDTO;
 import com.unimarket.backend.dto.token.RefreshTokenRequestDTO;
 import com.unimarket.backend.dto.token.TokenResponseDTO;
+import com.unimarket.backend.entity.Cliente;
 import com.unimarket.backend.entity.Market;
 import com.unimarket.backend.service.AuthService;
+import com.unimarket.backend.service.ClientService;
 import com.unimarket.backend.service.MarketService;
 import com.unimarket.backend.service.TokenService;
 
@@ -32,9 +35,42 @@ public class AuthController {
     @Autowired
     private MarketService marketService;
 
-
     @Autowired
     private TokenService tokenService;
+
+    @Autowired
+    private ClientService clientService;
+
+    //cadastro cliente
+    @PostMapping("/register/client")
+    @Operation(summary = "Cadastrar um novo cliente")
+    public Cliente register(@Valid @RequestBody ClientDTO dto) {
+        return clientService.register(dto);
+    }
+
+    //login cliente
+    @PostMapping("/login/client")
+    @Operation(summary = "Login para Clientes")
+    public ResponseEntity<?> loginClient(@RequestBody @Valid LoginRequestDTO dto) {
+        try {
+            Cliente cliente = authService.authenticateClient(dto);
+
+            String accessToken = tokenService.generateToken(cliente);
+            String refreshToken = tokenService.generateRefreshToken(cliente);
+
+            LoginResponseDTO response = new LoginResponseDTO(
+                cliente.getCdCliente(),
+                cliente.getNmCliente(), 
+                cliente.getDsEmail(),
+                accessToken,
+                refreshToken
+            );
+
+            return ResponseEntity.ok(response);
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(401).body(e.getMessage());
+        }
+    }
 
     //cadastro mercado
     @PostMapping("/register/market")

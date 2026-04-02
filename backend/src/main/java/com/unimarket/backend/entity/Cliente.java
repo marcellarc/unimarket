@@ -23,6 +23,14 @@ public class Cliente {
     private String dsSenha;
 
     // getters e setters
+    public Long getCdCliente() {
+        return cdCliente;
+    }
+
+    public void setCdCliente(Long cdCliente) {
+        this.cdCliente = cdCliente;
+    }
+
     public String getNmCliente() {
         return nmCliente;
     }
