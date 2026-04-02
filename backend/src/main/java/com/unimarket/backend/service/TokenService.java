@@ -12,6 +12,7 @@ import com.auth0.jwt.algorithms.Algorithm;
 import com.auth0.jwt.exceptions.JWTCreationException;
 import com.auth0.jwt.exceptions.JWTVerificationException;
 import com.unimarket.backend.entity.Market;
+import com.unimarket.backend.entity.Cliente;
 
 @Service
 public class TokenService {
@@ -33,6 +34,21 @@ public class TokenService {
             throw new RuntimeException("Erro ao gerar token JWT", exception);
         }
     }
+
+    public String generateToken(Cliente cliente) {
+        try {
+            Algorithm algorithm = Algorithm.HMAC256(secret);
+            return JWT.create()
+                    .withIssuer("unimarket-api")
+                    .withSubject(cliente.getDsEmail())
+                    .withClaim("id", cliente.getCdCliente())
+                    .withExpiresAt(genExpirationDate())
+                    .sign(algorithm);
+        } catch (JWTCreationException exception) {
+            throw new RuntimeException("Erro ao gerar token JWT", exception);
+        }
+    }
+
 
  // 🌟 NOVO MÉTODO: Lê o token e devolve o email do mercado se for válido
     public String validateToken(String token) {
@@ -60,6 +76,20 @@ public class TokenService {
             throw new RuntimeException("Erro ao gerar refresh token", exception);
         }
     }
+
+    public String generateRefreshToken(Cliente cliente) {
+        try {
+            Algorithm algorithm = Algorithm.HMAC256(secret);
+            return JWT.create()
+                    .withIssuer("unimarket-api")
+                    .withSubject(cliente.getDsEmail())
+                    .withExpiresAt(genRefreshTokenExpirationDate())
+                    .sign(algorithm);
+        } catch (JWTCreationException exception) {
+            throw new RuntimeException("Erro ao gerar refresh token", exception);
+        }
+    }
+
 
     private Instant genRefreshTokenExpirationDate() {
         return LocalDateTime.now().plusDays(7).toInstant(ZoneOffset.of("-03:00"));

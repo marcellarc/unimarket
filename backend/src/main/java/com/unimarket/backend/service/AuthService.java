@@ -5,14 +5,20 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import com.unimarket.backend.dto.login.LoginRequestDTO;
+import com.unimarket.backend.entity.Cliente;
 import com.unimarket.backend.entity.Market;
+import com.unimarket.backend.repository.ClientRepository;
 import com.unimarket.backend.repository.MarketRepository;
+
 
 @Service
 public class AuthService {
 
     @Autowired
     private MarketRepository marketRepository;
+
+    @Autowired
+    private ClientRepository clientRepository;
 
     @Autowired
     private PasswordEncoder passwordEncoder;
@@ -30,6 +36,19 @@ public class AuthService {
 
         market.setPassword(null); //talvez mudar
         return market;
+    }
+
+    // novo método para Cliente
+    public Cliente authenticateClient(LoginRequestDTO dto) {
+        Cliente client = clientRepository.findByDsEmail(dto.email())
+                .orElseThrow(() -> new RuntimeException("Credenciais inválidas"));
+
+        if (!passwordEncoder.matches(dto.password(), client.getDsSenha())) {
+            throw new RuntimeException("Credenciais inválidas");
+        }
+
+        client.setDsSenha(null); // opcional: evitar expor senha na resposta
+        return client;
     }
 
     public String refreshAccessToken(String refreshToken) {
