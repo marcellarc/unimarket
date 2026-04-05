@@ -4,7 +4,7 @@ import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 
-import com.unimarket.backend.entity.Supermercado;
+import com.unimarket.backend.entity.Mercado;
 
 /**
      * Interface responsável pelo acesso aos dados no banco.
@@ -23,9 +23,9 @@ import com.unimarket.backend.entity.Supermercado;
      * - Persiste os dados do supermercado no banco
  */
 
-public interface SupermercadoRepository extends JpaRepository<Supermercado, Long> {
+public interface MercadoRepository extends JpaRepository<Mercado, Long> {
 
-    Optional<Supermercado> findByDsCnpj(String dsCnpj);
+    Optional<Mercado> findByDsCnpj(String dsCnpj);
 
-    Optional<Supermercado> findByDsEmail(String dsEmail);
+    Optional<Mercado> findByDsEmail(String dsEmail);
 }

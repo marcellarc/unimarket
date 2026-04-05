@@ -13,7 +13,7 @@ import jakarta.validation.constraints.NotBlank;
  * - Garantir que esses dados estejam válidos antes de chegar na camada de serviço
  */
 
-public class SupermercadoDTO {
+public class MercadoDTO {
 
     @NotBlank(message = "O nome do supermercado é obrigatório")
     private String nmMercado;
