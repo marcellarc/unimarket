@@ -11,9 +11,21 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 
+import lombok.Getter;
+import lombok.Setter;
+
+// Entidade que representa um produto do catálogo global
+@Getter
+@Setter
 @Entity
-@Table(name = "produtos")
+@Table(
+    name = "produtos",
+    uniqueConstraints = {
+        @UniqueConstraint(columnNames = "codigo_barras") // impede produto duplicado pelo código de barras
+    }
+)
 public class Produto {
 
     @Id
@@ -21,71 +33,26 @@ public class Produto {
     private Long cdProduto;
 
     private String nmProduto;
-
     private String nmMarca;
-
     private String dsProduto;
-    
     private String dsImgProduto;
 
+    // coluna no banco chamada "codigo_barras", única por produto
+    @Column(name = "codigo_barras", unique = true)
+    private String dsCodBarra;
+
+    // relacionamento com a categoria do produto
     @ManyToOne
     @JoinColumn(name = "cd_categoria")
     private Categoria categoria;
 
+    // preenchido automaticamente na criação, nunca atualizado
     @Column(nullable = false, updatable = false)
     private LocalDateTime dtCadastro;
-    
+
     @PrePersist
     public void prePersist() {
+        // define a data no momento do save
         this.dtCadastro = LocalDateTime.now();
-    }
-
-
-    public Long getCdProduto() {
-        return cdProduto;
-    }
-
-    public String getNmProduto() {
-        return nmProduto;
-    }
-
-    public void setNmProduto(String nmProduto) {
-        this.nmProduto = nmProduto;
-    }
-
-     public String getDsProduto() {
-        return dsProduto;
-    }
-
-    public void setDsProduto(String dsProduto) {
-        this.dsProduto = dsProduto;
-    }
-
-    public String getNmMarca() {
-        return nmMarca;
-    }
-
-    public void setNmMarca(String nmMarca) {
-        this.nmMarca = nmMarca;
-    }
-
-    public String getDsImgproduto() {
-        return dsImgProduto;
-    }
-
-    public void setDsImgproduto(String dsImgproduto) {
-        this.dsImgProduto = dsImgproduto;
-    }
-
-    public Categoria getCategoria() {
-        return categoria;
-    }
-
-    public void setCategoria(Categoria categoria) {
-        this.categoria = categoria;
-    }
-
-    public LocalDateTime getDtCadastro() {
-        return dtCadastro;
     }
 }
