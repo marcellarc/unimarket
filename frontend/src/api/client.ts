@@ -1,15 +1,18 @@
 import axios from 'axios';
+import Cookies from 'js-cookie';
 
 export const api = axios.create({
     baseURL: import.meta.env.VITE_API_URL,
+    withCredentials: true,
     headers: {
         'Content-Type': 'application/json',
     },
 });
 
-// Interceptador: Pega o JWT do LocalStorage e injeta na requisição
+// Interceptador: Pega o JWT do Cookie e injeta na requisição
 api.interceptors.request.use((config) => {
-    const token = localStorage.getItem('authToken');
+    const token = Cookies.get('accessToken');
+
     if (token) {
         config.headers.Authorization = `Bearer ${token}`;
     }
