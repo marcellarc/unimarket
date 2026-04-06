@@ -1,19 +1,18 @@
+import { Button, Input, Label } from '@/components/ui'
+import { useRegister } from '@/hooks/use-register'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useMutation } from '@tanstack/react-query'
-import { Eye, EyeOff, User, Store, Building2, Phone, FileText, UserCircle, Loader2 } from 'lucide-react'
+import { Link } from '@tanstack/react-router'
+import { Building2, Eye, EyeOff, FileText, Loader2, Store, User, UserCircle } from 'lucide-react'
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
-import { Button, Input, Label } from '@/components/ui'
-import { Link, useNavigate } from '@tanstack/react-router'
-import { toast } from 'sonner'
-import type { RegisterFormData } from '../-components/type'
 import { registerSchema } from '../-components/schemas'
-import { registerMarket } from '@/services/supermarket'
+import type { RegisterFormData } from '../-components/type'
 
 export function SignUpForm() {
     const [showPassword, setShowPassword] = useState(false)
     const [showConfirmPassword, setShowConfirmPassword] = useState(false)
-    const navigate = useNavigate()
+
+    const { submit, isPending } = useRegister()
 
     const {
         register,
@@ -30,36 +29,8 @@ export function SignUpForm() {
 
     const role = watch('role')
 
-    const { mutate: mutateMarket, isPending } = useMutation({
-        mutationFn: registerMarket,
-        onSuccess: () => {
-            toast.success('Supermercado cadastrado com sucesso!')
-            navigate({ to: '/login' })
-        },
-        onError: (error: any) => {
-            if (error.response?.status === 409 || error.response?.status === 400) {
-                toast.error('Este e-mail ou CNPJ já está cadastrado.')
-            } else {
-                toast.error('Erro ao realizar o cadastro. Tente novamente.')
-            }
-            console.error("Erro no cadastro:", error)
-        }
-    })
-
     function onSubmit(data: RegisterFormData) {
-        if (data.role === 'MARKET') {
-            mutateMarket({
-                nmMercado: data.marketName || '',
-                dsCnpj: (data.cnpj || '').replace(/\D/g, ''),
-                dsEmail: data.email,
-                dsSenha: data.password,
-                dsLogradouro: "Endereço pendente",
-                dsBairro: "Bairro pendente",
-                dtCadastro: new Date().toISOString()
-            })
-        } else if (data.role === 'USER') {
-            toast.info('Cadastro de cliente será implementado em breve.')
-        }
+        submit(data)
     }
 
     function formatCNPJ(value: string) {
@@ -74,16 +45,6 @@ export function SignUpForm() {
         return value
     }
 
-    function formatPhone(value: string) {
-        const numbers = value.replace(/\D/g, '')
-        if (numbers.length <= 11) {
-            return numbers
-                .replace(/^(\d{2})(\d)/, '($1) $2')
-                .replace(/(\d{4,5})(\d{4})$/, '$1-$2')
-        }
-        return value
-    }
-
     return (
         <div className="flex h-full items-center justify-center bg-background px-6 py-8">
             <form
@@ -93,7 +54,7 @@ export function SignUpForm() {
                 className="w-full max-w-sm space-y-5 text-foreground"
             >
                 <h2 className="mb-8 text-center text-3xl font-bold text-foreground">
-                    Registe-se
+                    Registre-se
                 </h2>
 
 
@@ -106,7 +67,7 @@ export function SignUpForm() {
                             }`}
                         onClick={() => setValue('role', 'USER')}
                     >
-                        <User size={16} /> Utilizador
+                        <User size={16} /> Usuário
                     </button>
 
                     <button
@@ -204,33 +165,8 @@ export function SignUpForm() {
 
 
 
-                        <div className="space-y-1">
-                            <Label htmlFor="phone" className="text-xs font-semibold">
-                                Telefone
-                            </Label>
-                            <div className="relative">
-                                <Phone
-                                    size={18}
-                                    className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
-                                />
-                                <Input
-                                    id="phone"
-                                    placeholder="(00) 00000-0000"
-                                    className="border-primary/30 pl-10 focus-visible:ring-primary"
-                                    {...register('phone')}
-                                    onChange={(e) => {
-                                        const formatted = formatPhone(e.target.value)
-                                        e.target.value = formatted
-                                    }}
-                                    maxLength={15}
-                                />
-                            </div>
-                            {errors.phone?.message && (
-                                <p className="text-xs text-destructive">
-                                    {errors.phone.message as string}
-                                </p>
-                            )}
-                        </div>
+
+
                     </>
                 )}
 
@@ -318,10 +254,10 @@ export function SignUpForm() {
                     {isPending ? (
                         <>
                             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            A registar...
+                            A registrar...
                         </>
                     ) : (
-                        'Registar'
+                        'Registrar'
                     )}
                 </Button>
 

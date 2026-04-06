@@ -20,7 +20,6 @@ export interface MarketRegisterData {
     role: 'MARKET';
     marketName: string;
     cnpj: string;
-    responsibleName: string;
     phone: string;
     email: string;
     password: string;

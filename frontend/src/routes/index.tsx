@@ -1,11 +1,13 @@
-// src/routes/index.tsx
-import { DashboardPage } from '@/pages/dashboard/page'
 import { createFileRoute } from '@tanstack/react-router'
 
 export const Route = createFileRoute('/')({
-  component: RouteComponent,
+  component: Index,
 })
 
-function RouteComponent() {
-  return <DashboardPage />
+function Index() {
+  return (
+    <div>
+      <h3>Bem vindo ao UniMarket!</h3>
+    </div>
+  )
 }

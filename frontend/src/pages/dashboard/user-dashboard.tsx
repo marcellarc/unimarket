@@ -1,42 +1,37 @@
+import logoImg from '@/assets/logo-unimarket.png'
 import {
-    Badge, Button, Card,
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuSeparator,
-    DropdownMenuTrigger,
-    Input,
-} from '@/components/ui';
-import { useNavigate } from '@tanstack/react-router';
+    Badge, Button, Card, Input,
+    DropdownMenu, DropdownMenuContent, DropdownMenuItem,
+    DropdownMenuSeparator, DropdownMenuTrigger,
+} from '@/components/ui'
+import { useLogout } from '@/hooks/use-logout'
+import { useNavigate } from '@tanstack/react-router'
+import Cookies from 'js-cookie'
 import {
-    Bell,
-    ChevronRight,
-    List,
-    LogOut,
-    MapPin,
-    Menu,
-    Percent,
-    Plus,
-    Search,
-    ShoppingCart,
-    Sparkles,
-    Star,
-    Store,
-    Tag,
-    TrendingDown,
-    User,
-} from 'lucide-react';
-import { useState } from 'react';
+    Bell, ChevronDown, ChevronUp,
+    Filter, List, LogOut, MapPin, Package,
+    Plus, Search, ShoppingCart,
+    SlidersHorizontal, Store, Tag,
+    TrendingDown, User, X, Zap, ChevronRight
+} from 'lucide-react'
+import { useState } from 'react'
 
-// mock data - produtos em destaque
-const featuredProducts = [
+const categories = [
+    { id: 'all', label: 'Todos' },
+    { id: 'basics', label: 'Básicos' },
+    { id: 'drinks', label: 'Bebidas' },
+    { id: 'oils', label: 'Óleos' },
+    { id: 'pasta', label: 'Massas' },
+    { id: 'dairy', label: 'Laticínios' },
+    { id: 'meats', label: 'Carnes' },
+    { id: 'cleaning', label: 'Limpeza' },
+]
+
+const allProducts = [
     {
-        id: 1,
-        name: 'Arroz Branco Tio João 5kg',
-        category: 'Alimentos Básicos',
-        lowestPrice: 24.90,
-        averagePrice: 29.90,
-        savings: 16.7,
+        id: 1, name: 'Arroz Branco Tio João 5kg', category: 'basics',
+        lowestPrice: 24.90, averagePrice: 29.90, savings: 16.7,
+        badge: 'Mais buscado',
         markets: [
             { name: 'Supermercado Econômico', price: 24.90, distance: '0.5 km' },
             { name: 'Mercado da Família', price: 26.50, distance: '1.2 km' },
@@ -44,12 +39,9 @@ const featuredProducts = [
         ],
     },
     {
-        id: 2,
-        name: 'Feijão Preto Camil 1kg',
-        category: 'Alimentos Básicos',
-        lowestPrice: 7.99,
-        averagePrice: 9.50,
-        savings: 15.9,
+        id: 2, name: 'Feijão Preto Camil 1kg', category: 'basics',
+        lowestPrice: 7.99, averagePrice: 9.50, savings: 15.9,
+        badge: null,
         markets: [
             { name: 'Mercado da Família', price: 7.99, distance: '1.2 km' },
             { name: 'Supermercado Econômico', price: 8.50, distance: '0.5 km' },
@@ -57,12 +49,9 @@ const featuredProducts = [
         ],
     },
     {
-        id: 3,
-        name: 'Óleo de Soja Liza 900ml',
-        category: 'Óleos e Azeites',
-        lowestPrice: 6.49,
-        averagePrice: 7.90,
-        savings: 17.8,
+        id: 3, name: 'Óleo de Soja Liza 900ml', category: 'oils',
+        lowestPrice: 6.49, averagePrice: 7.90, savings: 17.8,
+        badge: 'Oferta',
         markets: [
             { name: 'Super Compras', price: 6.49, distance: '2.0 km' },
             { name: 'Supermercado Econômico', price: 7.20, distance: '0.5 km' },
@@ -70,426 +59,510 @@ const featuredProducts = [
         ],
     },
     {
-        id: 4,
-        name: 'Macarrão Galo 500g',
-        category: 'Massas',
-        lowestPrice: 3.99,
-        averagePrice: 4.80,
-        savings: 16.9,
+        id: 4, name: 'Macarrão Galo 500g', category: 'pasta',
+        lowestPrice: 3.99, averagePrice: 4.80, savings: 16.9,
+        badge: null,
         markets: [
             { name: 'Supermercado Econômico', price: 3.99, distance: '0.5 km' },
             { name: 'Mercado da Família', price: 4.50, distance: '1.2 km' },
             { name: 'Super Compras', price: 4.99, distance: '2.0 km' },
         ],
     },
-];
+    {
+        id: 5, name: 'Leite Integral Itambé 1L', category: 'dairy',
+        lowestPrice: 4.29, averagePrice: 5.50, savings: 22.0,
+        badge: '30% OFF',
+        markets: [
+            { name: 'Supermercado Econômico', price: 4.29, distance: '0.5 km' },
+            { name: 'Super Compras', price: 4.99, distance: '2.0 km' },
+            { name: 'Mercado da Família', price: 5.50, distance: '1.2 km' },
+        ],
+    },
+    {
+        id: 6, name: 'Refrigerante Coca-Cola 2L', category: 'drinks',
+        lowestPrice: 8.99, averagePrice: 11.00, savings: 18.3,
+        badge: '2 por 1',
+        markets: [
+            { name: 'Mercado da Família', price: 8.99, distance: '1.2 km' },
+            { name: 'Supermercado Econômico', price: 10.50, distance: '0.5 km' },
+            { name: 'Super Compras', price: 11.00, distance: '2.0 km' },
+        ],
+    },
+]
 
-// promoções
-const promotions = [
-    {
-        id: 1,
-        market: 'Supermercado Econômico',
-        discount: '30% OFF',
-        product: 'Leite Integral Itambé 1L',
-        validUntil: '2026-03-10',
-    },
-    {
-        id: 2,
-        market: 'Mercado da Família',
-        discount: '2 por 1',
-        product: 'Refrigerante Coca-Cola 2L',
-        validUntil: '2026-03-08',
-    },
-    {
-        id: 3,
-        market: 'Super Compras',
-        discount: '25% OFF',
-        product: 'Frango Congelado 1kg',
-        validUntil: '2026-03-09',
-    },
-];
+const nearbyMarkets = [
+    { name: 'Supermercado Econômico', distance: '0.5 km', products: 1240, open: true },
+    { name: 'Mercado da Família', distance: '1.2 km', products: 980, open: true },
+    { name: 'Super Compras', distance: '2.0 km', products: 1540, open: false },
+]
 
-// listas de compras
 const shoppingLists = [
-    {
-        id: 1,
-        name: 'Compras do Mês',
-        items: 12,
-        total: 289.50,
-        savings: 45.20,
-    },
-    {
-        id: 2,
-        name: 'Feira da Semana',
-        items: 8,
-        total: 85.90,
-        savings: 12.30,
-    },
-];
+    { id: 1, name: 'Compras do Mês', items: 12, total: 289.50, savings: 45.20 },
+    { id: 2, name: 'Feira da Semana', items: 8, total: 85.90, savings: 12.30 },
+]
 
 export function UserDashboard() {
-    const navigate = useNavigate();
-    const [searchQuery, setSearchQuery] = useState('');
-    const [selectedProduct, setSelectedProduct] = useState<number | null>(null);
+    const navigate = useNavigate()
+    const { logout } = useLogout()
 
-    const handleLogout = () => {
-        localStorage.removeItem('authToken');
-        localStorage.removeItem('userType');
-        navigate({ to: '/login' });
-    };
+    const [searchQuery, setSearchQuery] = useState('')
+    const [selectedCategory, setSelectedCategory] = useState('all')
+    const [showFilters, setShowFilters] = useState(false)
+    const [maxDistance, setMaxDistance] = useState(5)
+    const [maxPrice, setMaxPrice] = useState(100)
+    const [sortBy, setSortBy] = useState<'price' | 'savings'>('price')
+    const [showListPanel, setShowListPanel] = useState(false)
+    const [expandedId, setExpandedId] = useState<number | null>(null)
 
-    const userName = localStorage.getItem('userName') || 'Usuário';
-    const totalSavings = shoppingLists.reduce((acc, list) => acc + list.savings, 0);
+    const userName = Cookies.get('marketName') || Cookies.get('userName') || 'Usuário'
+    const userRole = Cookies.get('userRole')
+    const isLogged = !!Cookies.get('accessToken')
+
+    const filteredProducts = allProducts
+        .filter(p => selectedCategory === 'all' || p.category === selectedCategory)
+        .filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()))
+        .filter(p => p.lowestPrice <= maxPrice)
+        .sort((a, b) =>
+            sortBy === 'price' ? a.lowestPrice - b.lowestPrice : b.savings - a.savings
+        )
+
+    const toggleExpand = (id: number) =>
+        setExpandedId(prev => (prev === id ? null : id))
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-blue-50">
+        <div className="min-h-screen bg-background">
 
-            <header className="bg-white border-b border-gray-200 sticky top-0 z-50 shadow-sm">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                    <div className="flex items-center justify-between h-16">
-
-                        <div className="flex items-center gap-3">
-                            <div className="bg-gradient-to-br from-emerald-500 to-blue-600 p-2 rounded-xl shadow-md">
-                                <ShoppingCart className="size-6 text-white" />
-                            </div>
-                            <h1 className="text-2xl font-bold bg-gradient-to-r from-emerald-600 to-blue-600 bg-clip-text text-transparent">
-                                UniMarket
-                            </h1>
+            {/* ── NAVBAR ── */}
+            <header className="sticky top-0 z-50 bg-card border-b border-border shadow-sm">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6">
+                    <div className="flex items-center gap-4 h-14">
+                        <div className="flex items-center gap-2 shrink-0">
+                            <img src={logoImg} alt="UniMarket" className="w-7 h-7 object-contain" />
+                            <span className="font-bold text-lg text-foreground hidden sm:block">UniMarket</span>
                         </div>
 
-
-                        <div className="hidden md:flex flex-1 max-w-xl mx-8">
-                            <div className="relative w-full">
-                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-5 text-gray-400" />
-                                <Input
-                                    type="text"
-                                    placeholder="Buscar produtos..."
-                                    value={searchQuery}
-                                    onChange={(e) => setSearchQuery(e.target.value)}
-                                    className="pl-10 pr-4 py-2 w-full border-gray-300 focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
-                                />
-                            </div>
+                        <div className="flex-1 relative">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                            <Input
+                                placeholder="Buscar produtos, marcas, categorias..."
+                                value={searchQuery}
+                                onChange={e => setSearchQuery(e.target.value)}
+                                className="pl-9 pr-4 h-9 w-full bg-background"
+                            />
+                            {searchQuery && (
+                                <button
+                                    onClick={() => setSearchQuery('')}
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                                >
+                                    <X className="w-4 h-4" />
+                                </button>
+                            )}
                         </div>
 
+                        <div className="flex items-center gap-1 shrink-0">
+                            <Button variant="ghost" size="icon" className="relative text-muted-foreground">
+                                <Bell className="w-5 h-5" />
+                                <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 bg-destructive text-destructive-foreground text-[9px] rounded-full flex items-center justify-center">3</span>
+                            </Button>
 
-                        <div className="flex items-center gap-3">
-                            <Button variant="ghost" size="icon" className="relative">
-                                <Bell className="size-5" />
-                                <span className="absolute -top-1 -right-1 size-4 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
-                                    3
+                            <Button
+                                variant="ghost" size="icon"
+                                onClick={() => setShowListPanel(!showListPanel)}
+                                className="relative text-muted-foreground"
+                            >
+                                <ShoppingCart className="w-5 h-5" />
+                                <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 bg-primary text-primary-foreground text-[9px] rounded-full flex items-center justify-center">
+                                    {shoppingLists.reduce((a, l) => a + l.items, 0)}
                                 </span>
                             </Button>
 
                             <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
-                                    <Button variant="ghost" size="icon">
-                                        <Menu className="size-5" />
+                                    <Button variant="ghost" className="h-8 w-8 rounded-full p-0">
+                                        <div className="w-full h-full rounded-full bg-primary/10 flex items-center justify-center">
+                                            <User className="w-4 h-4 text-primary" />
+                                        </div>
                                     </Button>
                                 </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end" className="w-56">
-                                    <div className="flex items-center gap-3 p-2">
-                                        <div className="size-10 bg-linear-to-br from-emerald-500 to-blue-600 rounded-full flex items-center justify-center">
-                                            <User className="size-5 text-white" />
-                                        </div>
-                                        <div>
-                                            <p className="font-semibold text-sm">{userName}</p>
-                                            <p className="text-xs text-gray-500">Consumidor</p>
-                                        </div>
+                                <DropdownMenuContent align="end" className="w-52 mt-1">
+                                    <div className="px-3 py-2">
+                                        <p className="text-sm font-medium text-foreground">{userName}</p>
+                                        <p className="text-xs text-muted-foreground">
+                                            {userRole === 'GUEST' ? 'Visitante' : 'Consumidor'}
+                                        </p>
                                     </div>
                                     <DropdownMenuSeparator />
-                                    <DropdownMenuItem>
-                                        <User className="size-4 mr-2" />
-                                        Meu Perfil
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem>
-                                        <List className="size-4 mr-2" />
-                                        Minhas Listas
+                                    {isLogged && (
+                                        <DropdownMenuItem className="cursor-pointer">
+                                            <User className="w-4 h-4 mr-2" /> Meu Perfil
+                                        </DropdownMenuItem>
+                                    )}
+                                    <DropdownMenuItem onClick={() => setShowListPanel(true)} className="cursor-pointer">
+                                        <List className="w-4 h-4 mr-2" /> Minhas Listas
                                     </DropdownMenuItem>
                                     <DropdownMenuSeparator />
-                                    <DropdownMenuItem onClick={handleLogout} className="text-red-600">
-                                        <LogOut className="size-4 mr-2" />
-                                        Sair
+                                    <DropdownMenuItem
+                                        onClick={() => isLogged ? logout() : navigate({ to: '/login' })}
+                                        className="text-destructive cursor-pointer"
+                                    >
+                                        <LogOut className="w-4 h-4 mr-2" />
+                                        {isLogged ? 'Sair' : 'Fazer Login'}
                                     </DropdownMenuItem>
                                 </DropdownMenuContent>
                             </DropdownMenu>
                         </div>
                     </div>
+                </div>
 
-
-                    <div className="md:hidden pb-4">
-                        <div className="relative">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-5 text-gray-400" />
-                            <Input
-                                type="text"
-                                placeholder="Buscar produtos..."
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                className="pl-10 pr-4 py-2 w-full"
-                            />
+                {/* Categorias */}
+                <div className="border-t border-border bg-card">
+                    <div className="max-w-7xl mx-auto px-4 sm:px-6">
+                        <div className="flex items-center gap-2 overflow-x-auto py-2 scrollbar-hide">
+                            {categories.map(cat => (
+                                <button
+                                    key={cat.id}
+                                    onClick={() => setSelectedCategory(cat.id)}
+                                    className={`shrink-0 px-3 py-1 rounded-full text-xs font-medium transition-colors ${selectedCategory === cat.id
+                                        ? 'bg-primary text-primary-foreground'
+                                        : 'bg-muted text-muted-foreground hover:text-foreground'
+                                        }`}
+                                >
+                                    {cat.label}
+                                </button>
+                            ))}
                         </div>
                     </div>
                 </div>
             </header>
 
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
+                <div className="flex gap-6">
 
-            <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-
-                <div className="mb-8">
-                    <h2 className="text-3xl font-bold text-gray-900 mb-2">
-                        Olá, {userName}! 👋
-                    </h2>
-                    <p className="text-gray-600">
-                        Bem-vindo ao seu painel de economia. Aqui você encontra as melhores ofertas!
-                    </p>
-                </div>
-
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                    <Card className="p-6 bg-linear-to-br from-emerald-500 to-emerald-600 text-white border-0 shadow-lg">
-                        <div className="flex items-center justify-between mb-4">
-                            <div className="p-3 bg-white/20 rounded-lg backdrop-blur-sm">
-                                <TrendingDown className="size-6" />
-                            </div>
-                            <Sparkles className="size-5 opacity-70" />
-                        </div>
-                        <p className="text-emerald-100 text-sm mb-1">Economia Total</p>
-                        <p className="text-3xl font-bold">R$ {totalSavings.toFixed(2)}</p>
-                        <p className="text-emerald-100 text-xs mt-2">↓ R$ 12,30 esta semana</p>
-                    </Card>
-
-                    <Card className="p-6 bg-linear-to-br from-blue-500 to-blue-600 text-white border-0 shadow-lg">
-                        <div className="flex items-center justify-between mb-4">
-                            <div className="p-3 bg-white/20 rounded-lg backdrop-blur-sm">
-                                <List className="size-6" />
-                            </div>
-                            <Tag className="size-5 opacity-70" />
-                        </div>
-                        <p className="text-blue-100 text-sm mb-1">Listas Ativas</p>
-                        <p className="text-3xl font-bold">{shoppingLists.length}</p>
-                        <p className="text-blue-100 text-xs mt-2">{shoppingLists.reduce((acc, l) => acc + l.items, 0)} itens no total</p>
-                    </Card>
-
-                    <Card className="p-6 bg-linear-to-br from-purple-500 to-purple-600 text-white border-0 shadow-lg">
-                        <div className="flex items-center justify-between mb-4">
-                            <div className="p-3 bg-white/20 rounded-lg backdrop-blur-sm">
-                                <Percent className="size-6" />
-                            </div>
-                            <Star className="size-5 opacity-70" />
-                        </div>
-                        <p className="text-purple-100 text-sm mb-1">Promoções Ativas</p>
-                        <p className="text-3xl font-bold">{promotions.length}</p>
-                        <p className="text-purple-100 text-xs mt-2">Válidas até 10/03</p>
-                    </Card>
-                </div>
-
-
-                <Card className="mb-8 overflow-hidden border-2 border-orange-200 bg-linear-to-r from-orange-50 to-amber-50">
-                    <div className="p-6">
-                        <div className="flex items-center gap-2 mb-4">
-                            <Tag className="size-5 text-orange-600" />
-                            <h3 className="text-xl font-bold text-gray-900">Promoções Imperdíveis 🔥</h3>
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            {promotions.map((promo) => (
-                                <div key={promo.id} className="bg-white rounded-lg p-4 shadow-sm border border-orange-100">
-                                    <div className="flex items-center justify-between mb-2">
-                                        <Badge className="bg-orange-500 text-white hover:bg-orange-600">
-                                            {promo.discount}
-                                        </Badge>
-                                        <MapPin className="size-4 text-gray-400" />
-                                    </div>
-                                    <p className="font-semibold text-gray-900 mb-1">{promo.product}</p>
-                                    <p className="text-sm text-gray-600 mb-2">{promo.market}</p>
-                                    <p className="text-xs text-gray-500">Válido até {new Date(promo.validUntil).toLocaleDateString('pt-BR')}</p>
+                    {/* ── FILTROS ── */}
+                    {showFilters && (
+                        <aside className="w-56 shrink-0">
+                            <Card className="p-4 border-border space-y-5 sticky top-32">
+                                <div className="flex items-center justify-between">
+                                    <span className="font-semibold text-foreground text-sm">Filtros</span>
+                                    <button onClick={() => setShowFilters(false)} className="text-muted-foreground hover:text-foreground">
+                                        <X className="w-4 h-4" />
+                                    </button>
                                 </div>
-                            ))}
-                        </div>
-                    </div>
-                </Card>
 
-
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
-                    <div className="lg:col-span-2">
-                        <div className="flex items-center justify-between mb-6">
-                            <h3 className="text-2xl font-bold text-gray-900">Produtos em Destaque</h3>
-                            <Button variant="outline" size="sm">
-                                Ver Todos
-                                <ChevronRight className="size-4 ml-2" />
-                            </Button>
-                        </div>
-
-                        <div className="space-y-4">
-                            {featuredProducts.map((product) => (
-                                <Card
-                                    key={product.id}
-                                    className={`p-6 cursor-pointer transition-all duration-200 ${selectedProduct === product.id
-                                        ? 'ring-2 ring-emerald-500 shadow-lg'
-                                        : 'hover:shadow-md'
-                                        }`}
-                                    onClick={() => setSelectedProduct(selectedProduct === product.id ? null : product.id)}
-                                >
-                                    <div className="flex items-start justify-between mb-4">
-                                        <div className="flex-1">
-                                            <div className="flex items-center gap-2 mb-2">
-                                                <h4 className="font-bold text-gray-900">{product.name}</h4>
-                                                <Badge variant="outline" className="text-xs">
-                                                    {product.category}
-                                                </Badge>
-                                            </div>
-                                            <div className="flex items-center gap-4 mb-3">
-                                                <div>
-                                                    <p className="text-xs text-gray-500">Menor Preço</p>
-                                                    <p className="text-2xl font-bold text-emerald-600">
-                                                        R$ {product.lowestPrice.toFixed(2)}
-                                                    </p>
-                                                </div>
-                                                <div>
-                                                    <p className="text-xs text-gray-500 line-through">
-                                                        Média: R$ {product.averagePrice.toFixed(2)}
-                                                    </p>
-                                                    <div className="flex items-center gap-1 text-emerald-600">
-                                                        <TrendingDown className="size-4" />
-                                                        <p className="text-sm font-semibold">
-                                                            Economize {product.savings.toFixed(1)}%
-                                                        </p>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
+                                <div>
+                                    <p className="text-xs font-medium text-muted-foreground mb-2 flex items-center gap-1">
+                                        <MapPin className="w-3 h-3" /> Distância máx.
+                                    </p>
+                                    <input
+                                        type="range" min={1} max={10} value={maxDistance}
+                                        onChange={e => setMaxDistance(Number(e.target.value))}
+                                        className="w-full accent-primary"
+                                    />
+                                    <div className="flex justify-between text-xs text-muted-foreground mt-1">
+                                        <span>1 km</span>
+                                        <span className="text-primary font-medium">{maxDistance} km</span>
+                                        <span>10 km</span>
                                     </div>
+                                </div>
 
-                                    {selectedProduct === product.id && (
-                                        <div className="mt-4 pt-4 border-t border-gray-200 space-y-2">
-                                            <p className="text-sm font-semibold text-gray-700 mb-3">
-                                                Onde comprar:
-                                            </p>
-                                            {product.markets.map((market, idx) => (
-                                                <div
-                                                    key={idx}
-                                                    className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
-                                                >
-                                                    <div className="flex items-center gap-3">
-                                                        <Store className="size-5 text-gray-400" />
+                                <div>
+                                    <p className="text-xs font-medium text-muted-foreground mb-2 flex items-center gap-1">
+                                        <Tag className="w-3 h-3" /> Preço máximo
+                                    </p>
+                                    <input
+                                        type="range" min={5} max={200} value={maxPrice}
+                                        onChange={e => setMaxPrice(Number(e.target.value))}
+                                        className="w-full accent-primary"
+                                    />
+                                    <div className="flex justify-between text-xs text-muted-foreground mt-1">
+                                        <span>R$ 5</span>
+                                        <span className="text-primary font-medium">R$ {maxPrice}</span>
+                                        <span>R$ 200</span>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <p className="text-xs font-medium text-muted-foreground mb-2 flex items-center gap-1">
+                                        <SlidersHorizontal className="w-3 h-3" /> Ordenar por
+                                    </p>
+                                    <div className="space-y-1">
+                                        {[
+                                            { id: 'price', label: 'Menor preço' },
+                                            { id: 'savings', label: 'Maior economia' },
+                                        ].map(opt => (
+                                            <button
+                                                key={opt.id}
+                                                onClick={() => setSortBy(opt.id as any)}
+                                                className={`w-full text-left px-3 py-1.5 rounded text-xs transition-colors ${sortBy === opt.id
+                                                    ? 'bg-primary/10 text-primary font-medium'
+                                                    : 'text-muted-foreground hover:bg-muted'
+                                                    }`}
+                                            >
+                                                {opt.label}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                <Button
+                                    variant="outline" size="sm" className="w-full text-xs"
+                                    onClick={() => { setMaxDistance(5); setMaxPrice(100); setSortBy('price') }}
+                                >
+                                    Limpar filtros
+                                </Button>
+                            </Card>
+                        </aside>
+                    )}
+
+                    {/* ── CONTEÚDO PRINCIPAL ── */}
+                    <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between mb-4">
+                            <div className="flex items-center gap-3">
+                                <Button
+                                    variant={showFilters ? 'default' : 'outline'}
+                                    size="sm"
+                                    onClick={() => setShowFilters(!showFilters)}
+                                    className="text-xs gap-1.5"
+                                >
+                                    <Filter className="w-3.5 h-3.5" /> Filtros
+                                </Button>
+                                <span className="text-sm text-muted-foreground">
+                                    <span className="font-medium text-foreground">{filteredProducts.length}</span> produtos encontrados
+                                </span>
+                            </div>
+
+                            <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                    <Button variant="outline" size="sm" className="text-xs gap-1.5">
+                                        <SlidersHorizontal className="w-3.5 h-3.5" />
+                                        {sortBy === 'price' ? 'Menor preço' : 'Maior economia'}
+                                        <ChevronDown className="w-3 h-3" />
+                                    </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                    <DropdownMenuItem onClick={() => setSortBy('price')}>Menor preço</DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => setSortBy('savings')}>Maior economia</DropdownMenuItem>
+                                </DropdownMenuContent>
+                            </DropdownMenu>
+                        </div>
+
+                        {/*GRID DE PRODUTOS*/}
+                        {filteredProducts.length === 0 ? (
+                            <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
+                                <Package className="w-12 h-12 mb-4 opacity-20" />
+                                <p className="font-medium">Nenhum produto encontrado</p>
+                                <p className="text-sm">Tente ajustar os filtros ou busca</p>
+                            </div>
+                        ) : (
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 items-start">
+                                {filteredProducts.map(product => {
+                                    const isExpanded = expandedId === product.id
+                                    return (
+                                        <div key={product.id} className={`relative ${isExpanded ? 'z-50' : 'z-0'}`}>
+
+                                            <Card
+                                                onClick={() => toggleExpand(product.id)}
+                                                className={`group overflow-visible cursor-pointer flex flex-col transition-colors duration-800 relative z-20 ${isExpanded
+                                                    ? 'border-primary border-b-transparent rounded-b-none shadow-md'
+                                                    : 'border-border hover:shadow-md'
+                                                    }`}
+                                            >
+                                                {/* Imagem placeholder */}
+                                                <div className="h-32 bg-muted flex items-center justify-center relative shrink-0">
+                                                    <Package className="w-12 h-12 text-muted-foreground/30" />
+                                                    {product.badge && (
+                                                        <Badge className="absolute top-2 left-2 bg-primary text-primary-foreground text-[10px] px-1.5 py-0.5">
+                                                            {product.badge}
+                                                        </Badge>
+                                                    )}
+
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                        }}
+                                                        className="absolute top-2 right-2 w-7 h-7 rounded-full bg-card border border-border flex items-center justify-center hover:bg-primary hover:text-primary-foreground hover:border-primary transition-colors"
+                                                    >
+                                                        <Plus className="w-3.5 h-3.5" />
+                                                    </button>
+                                                </div>
+
+                                                <div className="p-4 flex-1 flex flex-col">
+                                                    <h4 className="font-medium text-foreground text-sm leading-tight mb-3 line-clamp-2">
+                                                        {product.name}
+                                                    </h4>
+
+                                                    <div className="flex items-end justify-between mb-3">
                                                         <div>
-                                                            <p className="font-semibold text-sm text-gray-900">
-                                                                {market.name}
+                                                            <p className="text-xs text-muted-foreground">A partir de</p>
+                                                            <p className="text-xl font-bold text-primary">
+                                                                R$ {product.lowestPrice.toFixed(2)}
                                                             </p>
-                                                            <div className="flex items-center gap-1 text-gray-500">
-                                                                <MapPin className="size-3" />
-                                                                <p className="text-xs">{market.distance}</p>
-                                                            </div>
+                                                        </div>
+                                                        <div className="flex items-center gap-1 bg-primary/10 text-primary px-2 py-1 rounded-full">
+                                                            <TrendingDown className="w-3 h-3" />
+                                                            <span className="text-xs font-medium">{product.savings.toFixed(0)}% off</span>
                                                         </div>
                                                     </div>
-                                                    <div className="text-right">
-                                                        <p className="font-bold text-lg text-gray-900">
-                                                            R$ {market.price.toFixed(2)}
-                                                        </p>
-                                                        {idx === 0 && (
-                                                            <Badge className="bg-emerald-500 text-white text-xs mt-1">
-                                                                Melhor Preço
-                                                            </Badge>
-                                                        )}
+
+                                                    <p className="text-xs text-muted-foreground mb-1">
+                                                        em {product.markets.length} mercados •{' '}
+                                                        <span className="text-foreground">{product.markets[0].distance}</span>
+                                                    </p>
+
+
+                                                    <div className={`mt-auto pt-3 flex items-center justify-center text-muted-foreground group-hover:text-primary transition-colors ${!isExpanded ? ' mt-3' : ''}`}>
+                                                        <span className="text-xs font-medium mr-1">
+                                                            {isExpanded ? 'Ocultar mercados' : 'Ver opções'}
+                                                        </span>
+                                                        {isExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
                                                     </div>
                                                 </div>
-                                            ))}
+                                            </Card>
+
+
+                                            <div
+                                                className={`absolute top-[calc(100%-1px)] left-0 right-0 z-10 bg-card rounded-b-lg border-x border-b overflow-hidden transition-all duration-300 ease-in-out ${isExpanded
+                                                    ? 'max-h-[500px] opacity-100 border-primary shadow-xl'
+                                                    : 'max-h-0 opacity-0 border-transparent shadow-none pointer-events-none'
+                                                    }`}
+                                            >
+                                                <div className="p-4 pt-0">
+
+                                                    <div className="pt-2 space-y-2">
+                                                        {product.markets.map((market, idx) => (
+                                                            <div
+                                                                key={idx}
+                                                                className={`flex items-center justify-between p-2 rounded-lg ${idx === 0
+                                                                    ? 'bg-primary/10 ring-1 ring-primary/20'
+                                                                    : 'bg-muted'
+                                                                    }`}
+                                                            >
+                                                                <div className="flex items-center gap-2">
+                                                                    <div className={`p-1.5 rounded-md ${idx === 0 ? 'bg-primary/20' : 'bg-card'}`}>
+                                                                        <Store className={`w-3.5 h-3.5 ${idx === 0 ? 'text-primary' : 'text-muted-foreground'}`} />
+                                                                    </div>
+                                                                    <div>
+                                                                        <p className="text-xs font-medium text-foreground">{market.name}</p>
+                                                                        <div className="flex items-center gap-0.5 text-muted-foreground">
+                                                                            <MapPin className="w-2.5 h-2.5" />
+                                                                            <span className="text-[10px]">{market.distance}</span>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                                <div className="text-right">
+                                                                    <p className={`font-bold text-sm ${idx === 0 ? 'text-primary' : 'text-foreground'}`}>
+                                                                        R$ {market.price.toFixed(2)}
+                                                                    </p>
+                                                                </div>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            </div>
                                         </div>
-                                    )}
-                                </Card>
-                            ))}
+                                    )
+                                })}
+                            </div>
+                        )}
+
+                        {/*Supermercados perto de você*/}
+                        <div className="mt-10">
+                            <div className="flex items-center justify-between mb-4">
+                                <div>
+                                    <h3 className="font-semibold text-foreground">Supermercados perto de você</h3>
+                                    <p className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1">
+                                        <MapPin className="w-3 h-3" /> Santos, SP
+                                    </p>
+                                </div>
+                                <Button variant="outline" size="sm" className="text-xs gap-1.5">
+                                    Ver no mapa <ChevronRight className="w-3.5 h-3.5" />
+                                </Button>
+                            </div>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                {nearbyMarkets.map((market, idx) => (
+                                    <Card
+                                        key={idx}
+                                        className="p-4 border-border hover:shadow-md hover:bg-muted/50 transition-all cursor-pointer"
+                                    >
+                                        <div className="flex items-start justify-between mb-3">
+                                            <div className="p-2 bg-primary/10 rounded-lg">
+                                                <Store className="w-5 h-5 text-primary" />
+                                            </div>
+                                            <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${market.open
+                                                ? 'bg-green-100 text-green-700'
+                                                : 'bg-red-100 text-red-600'
+                                                }`}>
+                                                {market.open ? 'Aberto' : 'Fechado'}
+                                            </span>
+                                        </div>
+                                        <h4 className="font-medium text-foreground text-sm mb-2">{market.name}</h4>
+                                        <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                                            <span className="flex items-center gap-0.5">
+                                                <MapPin className="w-3 h-3" /> {market.distance}
+                                            </span>
+                                            <span className="flex items-center gap-0.5">
+                                                <Package className="w-3 h-3" /> {market.products} produtos
+                                            </span>
+                                        </div>
+                                    </Card>
+                                ))}
+                            </div>
                         </div>
                     </div>
 
+                    {/*PAINEL DE LISTAS*/}
+                    {showListPanel && (
+                        <aside className="w-64 shrink-0">
+                            <Card className="border-border p-4 sticky top-32">
+                                <div className="flex items-center justify-between mb-4">
+                                    <div className="flex items-center gap-2">
+                                        <ShoppingCart className="w-4 h-4 text-primary" />
+                                        <span className="font-semibold text-foreground text-sm">Minhas Listas</span>
+                                    </div>
+                                    <button onClick={() => setShowListPanel(false)} className="text-muted-foreground hover:text-foreground">
+                                        <X className="w-4 h-4" />
+                                    </button>
+                                </div>
 
-                    <div>
-                        <div className="flex items-center justify-between mb-6">
-                            <h3 className="text-xl font-bold text-gray-900">Minhas Listas</h3>
-                            <Button size="sm" className="bg-linear-to-r from-emerald-500 to-blue-600">
-                                <Plus className="size-4 mr-2" />
-                                Nova
-                            </Button>
-                        </div>
-
-                        <div className="space-y-4">
-                            {shoppingLists.map((list) => (
-                                <Card key={list.id} className="p-5 hover:shadow-md transition-shadow cursor-pointer">
-                                    <div className="flex items-start justify-between mb-3">
-                                        <div className="flex items-center gap-2">
-                                            <div className="p-2 bg-emerald-100 rounded-lg">
-                                                <List className="size-4 text-emerald-600" />
+                                <div className="space-y-3">
+                                    {shoppingLists.map(list => (
+                                        <div key={list.id} className="p-3 bg-muted rounded-lg cursor-pointer hover:bg-primary/10 transition-colors">
+                                            <div className="flex items-center justify-between mb-2">
+                                                <p className="font-medium text-foreground text-sm">{list.name}</p>
+                                                <Badge variant="secondary" className="text-[10px]">{list.items} itens</Badge>
                                             </div>
-                                            <div>
-                                                <h4 className="font-bold text-gray-900">{list.name}</h4>
-                                                <p className="text-xs text-gray-500">{list.items} itens</p>
+                                            <div className="flex justify-between text-xs">
+                                                <span className="text-muted-foreground">Total</span>
+                                                <span className="font-medium text-foreground">R$ {list.total.toFixed(2)}</span>
+                                            </div>
+                                            <div className="flex justify-between text-xs mt-0.5">
+                                                <span className="text-primary">Economia</span>
+                                                <span className="font-medium text-primary">R$ {list.savings.toFixed(2)}</span>
                                             </div>
                                         </div>
-                                    </div>
-                                    <div className="space-y-2">
-                                        <div className="flex items-center justify-between">
-                                            <p className="text-sm text-gray-600">Total</p>
-                                            <p className="font-bold text-gray-900">R$ {list.total.toFixed(2)}</p>
-                                        </div>
-                                        <div className="flex items-center justify-between">
-                                            <p className="text-sm text-emerald-600">Economia</p>
-                                            <p className="font-bold text-emerald-600">R$ {list.savings.toFixed(2)}</p>
-                                        </div>
-                                    </div>
-                                    <Button className="w-full mt-4" variant="outline" size="sm">
-                                        Ver Detalhes
-                                    </Button>
-                                </Card>
-                            ))}
+                                    ))}
+                                </div>
 
-                            <Card className="p-6 bg-linear-to-br from-blue-50 to-emerald-50 border-2 border-dashed border-blue-200">
-                                <div className="text-center">
-                                    <div className="inline-flex items-center justify-center size-12 bg-blue-100 rounded-full mb-3">
-                                        <Plus className="size-6 text-blue-600" />
+                                <Button size="sm" className="w-full mt-4 text-xs gap-1.5">
+                                    <Plus className="w-3.5 h-3.5" /> Nova Lista
+                                </Button>
+
+                                <div className="mt-4 p-3 bg-primary/10 rounded-lg">
+                                    <div className="flex items-center gap-1.5 mb-1">
+                                        <Zap className="w-3.5 h-3.5 text-primary" />
+                                        <span className="text-xs font-semibold text-primary">Economia total</span>
                                     </div>
-                                    <p className="font-semibold text-gray-900 mb-2">
-                                        Crie sua primeira lista!
+                                    <p className="text-xl font-bold text-primary">
+                                        R$ {shoppingLists.reduce((a, l) => a + l.savings, 0).toFixed(2)}
                                     </p>
-                                    <p className="text-sm text-gray-600 mb-4">
-                                        Compare preços e economize nas suas compras
-                                    </p>
-                                    <Button className="bg-linear-to-r from-emerald-500 to-blue-600">
-                                        Começar Agora
-                                    </Button>
+                                    <p className="text-[10px] text-muted-foreground mt-0.5">em todas as listas</p>
                                 </div>
                             </Card>
-                        </div>
-                    </div>
+                        </aside>
+                    )}
                 </div>
-
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <Card className="p-6 hover:shadow-lg transition-shadow cursor-pointer border-2 border-transparent hover:border-emerald-200">
-                        <div className="flex items-center gap-4">
-                            <div className="p-4 bg-emerald-100 rounded-xl">
-                                <Search className="size-8 text-emerald-600" />
-                            </div>
-                            <div>
-                                <h4 className="font-bold text-gray-900 mb-1">Buscar Produtos</h4>
-                                <p className="text-sm text-gray-600">
-                                    Encontre os melhores preços em todos os supermercados
-                                </p>
-                            </div>
-                        </div>
-                    </Card>
-
-                    <Card className="p-6 hover:shadow-lg transition-shadow cursor-pointer border-2 border-transparent hover:border-blue-200">
-                        <div className="flex items-center gap-4">
-                            <div className="p-4 bg-blue-100 rounded-xl">
-                                <Store className="size-8 text-blue-600" />
-                            </div>
-                            <div>
-                                <h4 className="font-bold text-gray-900 mb-1">Ver Supermercados</h4>
-                                <p className="text-sm text-gray-600">
-                                    Confira todos os estabelecimentos próximos a você
-                                </p>
-                            </div>
-                        </div>
-                    </Card>
-                </div>
-            </main>
-        </div>
-    );
+            </div>
+        </div >
+    )
 }

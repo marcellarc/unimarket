@@ -12,10 +12,13 @@ import {
     Package,
     Settings,
     Store,
-    User
+    User,
+    Lock
 } from 'lucide-react';
 import { useState } from 'react';
 import { OverviewTab, ProductsTab, ReviewsTab, SettingsTab } from './tabs';
+import { useLogout } from '@/hooks/use-logout';
+import Cookies from 'js-cookie'
 
 type TabType = 'overview' | 'products' | 'reviews' | 'competitors' | 'reports' | 'settings';
 
@@ -37,12 +40,32 @@ const menuItems: MenuItem[] = [
 
 export default function MarketDashboard() {
     const navigate = useNavigate();
+    const { logout } = useLogout()
     const [activeTab, setActiveTab] = useState<TabType>('overview');
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
-    const marketName = 'Supermercado Econômico';
+    const isLogged = Cookies.get('accessToken') !== undefined;
+    const marketName = Cookies.get('marketName') || 'Visitante';
 
     const renderContent = () => {
+        if (!isLogged && (activeTab === 'products' || activeTab === 'settings')) {
+            return (
+                <div className="flex flex-col items-center justify-center py-20 text-center">
+                    <div className="bg-primary/10 p-4 rounded-full mb-4">
+                        <Lock className="w-10 h-10 text-primary" />
+                    </div>
+                    <h2 className="text-xl font-bold text-foreground mb-2">Acesso Restrito</h2>
+                    <p className="text-muted-foreground mb-6 max-w-md">
+                        A aba de {menuItems.find(m => m.id === activeTab)?.label} é exclusiva para supermercados parceiros. Faça login para gerenciar sua loja.
+                    </p>
+                    <Button onClick={() => navigate({ to: '/login' })}>
+                        Fazer Login
+                    </Button>
+                </div>
+            );
+        }
+
+
         switch (activeTab) {
             case 'overview': return <OverviewTab />;
             case 'products': return <ProductsTab />;
@@ -130,15 +153,25 @@ export default function MarketDashboard() {
                             <DropdownMenuContent align="end" className="w-56 mt-1">
                                 <div className="px-3 py-2">
                                     <p className="text-sm font-medium text-foreground">{marketName}</p>
-                                    <p className="text-xs text-muted-foreground">Gestão de Preços</p>
+                                    <p className="text-xs text-muted-foreground">
+                                        {isLogged ? 'Gestão de Preços' : 'Conta de Visitante'}
+                                    </p>
                                 </div>
                                 <DropdownMenuSeparator />
-                                <DropdownMenuItem onClick={() => setActiveTab('settings')} className="cursor-pointer">
-                                    <Settings className="w-4 h-4 mr-2" />Configurações
-                                </DropdownMenuItem>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem className="text-destructive cursor-pointer">
-                                    <LogOut className="w-4 h-4 mr-2" />Sair
+
+                                {/* Só mostra Configurações se estiver logado */}
+                                {isLogged && (
+                                    <>
+                                        <DropdownMenuItem onClick={() => setActiveTab('settings')} className="cursor-pointer">
+                                            <Settings className="w-4 h-4 mr-2" />Configurações
+                                        </DropdownMenuItem>
+                                        <DropdownMenuSeparator />
+                                    </>
+                                )}
+
+                                <DropdownMenuItem onClick={() => logout()} className="text-destructive cursor-pointer">
+                                    <LogOut className="w-4 h-4 mr-2" />
+                                    {isLogged ? 'Sair' : 'Fazer Login'}
                                 </DropdownMenuItem>
                             </DropdownMenuContent>
                         </DropdownMenu>

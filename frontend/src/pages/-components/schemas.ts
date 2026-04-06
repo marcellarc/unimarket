@@ -12,14 +12,13 @@ export const loginSchema = z.object({
 export const registerSchema = z.object({
     role: z.enum(['USER', 'MARKET']),
     email: z.string().min(1, 'Email é obrigatório').email('Email inválido').toLowerCase(),
-    password: z.string().min(8, 'Mínimo de 8 caracteres'),
+    password: z.string(),
     confirmPassword: z.string().min(1, 'Confirmação é obrigatória'),
 
     // Todos os campos são opcionais na base (O TypeScript agradece)
     name: z.string().optional(),
     marketName: z.string().optional(),
     cnpj: z.string().optional(),
-    phone: z.string().optional(),
 }).superRefine((data, ctx) => {
     // Validação de Senhas Iguais
     if (data.password !== data.confirmPassword) {
@@ -59,13 +58,7 @@ export const registerSchema = z.object({
         }
 
     }
-    if (!data.phone || !/^\(\d{2}\) \d{4,5}-\d{4}$/.test(data.phone)) {
-        ctx.addIssue({
-            code: z.ZodIssueCode.custom,
-            message: 'Telefone inválido (Ex: (11) 90000-0000)',
-            path: ['phone']
-        });
-    }
+
 }
 );
 
