@@ -6,7 +6,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import com.unimarket.backend.dto.ClientDTO;
-import com.unimarket.backend.entity.Cliente;
+import com.unimarket.backend.entity.Client;
 import com.unimarket.backend.repository.ClientRepository;
 
 @Service
@@ -21,20 +21,20 @@ public class ClientService {
     @Autowired
     private PasswordEncoder passwordEncoder;
 
-    public Cliente register(ClientDTO dto) {
+    public Client register(ClientDTO dto) {
 
         // Verifica se o email já está cadastrado
-        if (repository.findByDsEmail(dto.getDsEmail()).isPresent()) {
+        if (repository.findByEmail(dto.getEmail()).isPresent()) {
             throw new RuntimeException("Email já cadastrado");
         }
 
         // Converte DTO para Entity
-        Cliente cliente = modelMapper.map(dto, Cliente.class);
+        Client client = modelMapper.map(dto, Client.class);
 
         // Criptografa a senha
-        cliente.setDsSenha(passwordEncoder.encode(dto.getDsSenha()));
+        client.setPassword(passwordEncoder.encode(dto.getPassword()));
 
         // Salva no banco
-        return repository.save(cliente);
+        return repository.save(client);
     }
 }

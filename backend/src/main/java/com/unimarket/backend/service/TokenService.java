@@ -11,8 +11,8 @@ import com.auth0.jwt.JWT;
 import com.auth0.jwt.algorithms.Algorithm;
 import com.auth0.jwt.exceptions.JWTCreationException;
 import com.auth0.jwt.exceptions.JWTVerificationException;
+import com.unimarket.backend.entity.Client;
 import com.unimarket.backend.entity.Market;
-import com.unimarket.backend.entity.Cliente;
 
 @Service
 public class TokenService {
@@ -35,13 +35,13 @@ public class TokenService {
         }
     }
 
-    public String generateToken(Cliente cliente) {
+    public String generateToken(Client client) {
         try {
             Algorithm algorithm = Algorithm.HMAC256(secret);
             return JWT.create()
                     .withIssuer("unimarket-api")
-                    .withSubject(cliente.getDsEmail())
-                    .withClaim("id", cliente.getCdCliente())
+                    .withSubject(client.getEmail())
+                    .withClaim("id", client.getId())
                     .withExpiresAt(genExpirationDate())
                     .sign(algorithm);
         } catch (JWTCreationException exception) {
@@ -77,12 +77,12 @@ public class TokenService {
         }
     }
 
-    public String generateRefreshToken(Cliente cliente) {
+    public String generateRefreshToken(Client client) {
         try {
             Algorithm algorithm = Algorithm.HMAC256(secret);
             return JWT.create()
                     .withIssuer("unimarket-api")
-                    .withSubject(cliente.getDsEmail())
+                    .withSubject(client.getEmail())
                     .withExpiresAt(genRefreshTokenExpirationDate())
                     .sign(algorithm);
         } catch (JWTCreationException exception) {

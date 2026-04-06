@@ -20,7 +20,7 @@ public class Feedback {
 
     @ManyToOne
     @JoinColumn(name = "cd_cliente")
-    private Cliente cliente;
+    private Client cliente;
 
     @ManyToOne
     @JoinColumn(name = "cd_produto")
