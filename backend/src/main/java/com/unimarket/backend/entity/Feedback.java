@@ -24,7 +24,7 @@ public class Feedback {
 
     @ManyToOne
     @JoinColumn(name = "cd_produto")
-    private Produto produto;
+    private Product product;
 
     private Integer vlNota;
 
