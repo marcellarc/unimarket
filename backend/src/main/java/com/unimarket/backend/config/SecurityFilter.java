@@ -8,7 +8,9 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
+import com.unimarket.backend.entity.Client;
 import com.unimarket.backend.entity.Market;
+import com.unimarket.backend.repository.ClientRepository;
 import com.unimarket.backend.repository.MarketRepository;
 import com.unimarket.backend.service.TokenService;
 
@@ -26,36 +28,45 @@ public class SecurityFilter extends OncePerRequestFilter {
     @Autowired
     private MarketRepository marketRepository;
 
+    @Autowired
+    private ClientRepository clientRepository;
+
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
-        
-        // 1. Pega o token que vem do Front-end
+
         var token = this.recoverToken(request);
-        
+
         if (token != null) {
-            // 2. Valida o token e pega o email
             var email = tokenService.validateToken(token);
 
             if (!email.isEmpty()) {
-                // 3. Busca o mercado no banco de dados
+                // 1. Tenta achar como Mercado
                 Market market = marketRepository.findByEmail(email).orElse(null);
 
                 if (market != null) {
-                    // 4. Diz para o Spring Security: "Pode deixar passar, esse cara está logado!"
-                    var authentication = new UsernamePasswordAuthenticationToken(market, null, null);
+                    UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(market, null, null); // Idealmente passar as authorities aqui no último parâmetro
                     SecurityContextHolder.getContext().setAuthentication(authentication);
+                } else {
+                    // 2. Se não achou no Mercado, tenta achar como Cliente!
+                    Client client = clientRepository.findByEmail(email).orElse(null);
+
+                    if (client != null) {
+                        var authentication = new UsernamePasswordAuthenticationToken(client, null, null);
+                        SecurityContextHolder.getContext().setAuthentication(authentication);
+                    }
                 }
             }
         }
-        
-        // 5. Continua o fluxo (vai para o Controller)
+
         filterChain.doFilter(request, response);
     }
 
     // Método auxiliar para limpar a palavra "Bearer " que o React costuma enviar junto com o token
     private String recoverToken(HttpServletRequest request) {
         var authHeader = request.getHeader("Authorization");
-        if (authHeader == null) return null;
+        if (authHeader == null) {
+            return null;
+        }
         return authHeader.replace("Bearer ", "");
     }
 }

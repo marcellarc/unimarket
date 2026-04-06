@@ -24,21 +24,21 @@ public class SecurityConfig {
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
 
         http
-            .cors(Customizer.withDefaults()) // Mantém a conexão com o Front-end aberta
-            .csrf(csrf -> csrf.disable())    // Desabilita CSRF para permitir POSTs
-            .authorizeHttpRequests(auth -> auth
+                .cors(Customizer.withDefaults()) // Mantém a conexão com o Front-end aberta
+                .csrf(csrf -> csrf.disable()) // Desabilita CSRF para permitir POSTs
+                .authorizeHttpRequests(auth -> auth
                 // 1. Rotas Públicas da sua API
                 .requestMatchers("/api/**").permitAll()
                 .requestMatchers("/api/markets/**").permitAll() // Rota de cadastro
-                
+                .requestMatchers("/api/clients/**").permitAll() // Rota de cadastro
+
                 // 2. Rotas do Swagger (Documentação)
                 .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
-                
                 // 3. Demais rotas (Liberadas temporariamente para desenvolvimento)
                 // Quando formos proteger o sistema com JWT, trocaremos para .authenticated()
                 .anyRequest().permitAll()
-            )
-            .addFilterBefore(securityFilter, UsernamePasswordAuthenticationFilter.class);
+                )
+                .addFilterBefore(securityFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }

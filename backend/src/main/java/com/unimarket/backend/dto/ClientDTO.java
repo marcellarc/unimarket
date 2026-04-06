@@ -1,44 +1,43 @@
 package com.unimarket.backend.dto;
 
-import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Email;
-
+import jakarta.validation.constraints.NotBlank;
 
 public class ClientDTO {
 
     @NotBlank(message = "O nome é obrigatório")
-    private String nmCliente;
+    private String name;
 
     @Email(message = "Email inválido")
     @NotBlank(message = "O email é obrigatório")
-    private String dsEmail;
+    private String email;
 
     @NotBlank(message = "A senha é obrigatória")
-    private String dsSenha;
+    private String password;
 
     //GETTERS E SETTERS
-
-    public String getNmCliente() {
-        return nmCliente;
+    public String getName() {
+        return name;
     }
 
-    public void setNmCliente(String nmCliente) {
-        this.nmCliente = nmCliente;
+    public void setName(String name) {
+        this.name = name;
     }
 
-    public String getDsEmail() {
-        return dsEmail;
+    public String getEmail() {
+        return email;
     }
 
-    public void setDsEmail(String dsEmail) {
-        this.dsEmail = dsEmail;
+    public void setEmail(String email) {
+        this.email = email;
     }
 
-    public String getDsSenha() {
-        return dsSenha;
+    public String getPassword() {
+        return password;
     }
 
-    public void setDsSenha(String dsSenha) {
-        this.dsSenha = dsSenha;
+    public void setPassword(String password) {
+        this.password = password;
     }
+
 }

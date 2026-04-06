@@ -20,7 +20,7 @@ public class ListaCompras {
 
     @ManyToOne
     @JoinColumn(name = "cd_cliente")
-    private Cliente cliente;
+    private Client cliente;
 
     private String nmLista;
 

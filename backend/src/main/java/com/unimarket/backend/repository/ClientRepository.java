@@ -4,7 +4,7 @@ import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 
-import com.unimarket.backend.entity.Cliente;
+import com.unimarket.backend.entity.Client;
 
 /**
  * Interface responsável pelo acesso aos dados no banco.
@@ -19,8 +19,8 @@ import com.unimarket.backend.entity.Cliente;
  * - Verifica se já existe um cliete com o mesmo Email
  * - Persiste os dados do cliente no banco
  */
-public interface ClientRepository extends JpaRepository<Cliente, Long> {
+public interface ClientRepository extends JpaRepository<Client, Long> {
 
-    Optional<Cliente> findByDsEmail(String dsEmail);
+    Optional<Client> findByEmail(String email);
 
 }

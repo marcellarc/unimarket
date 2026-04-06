@@ -5,11 +5,10 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import com.unimarket.backend.dto.login.LoginRequestDTO;
-import com.unimarket.backend.entity.Cliente;
+import com.unimarket.backend.entity.Client;
 import com.unimarket.backend.entity.Market;
 import com.unimarket.backend.repository.ClientRepository;
 import com.unimarket.backend.repository.MarketRepository;
-
 
 @Service
 public class AuthService {
@@ -22,7 +21,7 @@ public class AuthService {
 
     @Autowired
     private PasswordEncoder passwordEncoder;
-    
+
     @Autowired
     private TokenService tokenService;
 
@@ -39,21 +38,21 @@ public class AuthService {
     }
 
     // novo método para Cliente
-    public Cliente authenticateClient(LoginRequestDTO dto) {
-        Cliente client = clientRepository.findByDsEmail(dto.email())
+    public Client authenticateClient(LoginRequestDTO dto) {
+        Client client = clientRepository.findByEmail(dto.email())
                 .orElseThrow(() -> new RuntimeException("Credenciais inválidas"));
 
-        if (!passwordEncoder.matches(dto.password(), client.getDsSenha())) {
+        if (!passwordEncoder.matches(dto.password(), client.getPassword())) {
             throw new RuntimeException("Credenciais inválidas");
         }
 
-        client.setDsSenha(null); // opcional: evitar expor senha na resposta
+        client.setPassword(null); // opcional: evitar expor senha na resposta
         return client;
     }
 
     public String refreshAccessToken(String refreshToken) {
         String email = tokenService.validateToken(refreshToken);
-        
+
         if (email.isEmpty()) {
             throw new RuntimeException("Refresh Token inválido ou expirado. Faça login novamente.");
         }
@@ -61,6 +60,6 @@ public class AuthService {
         Market market = marketRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("Mercado não encontrado"));
 
-        return tokenService.generateToken(market); 
+        return tokenService.generateToken(market);
     }
 }
