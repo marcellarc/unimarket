@@ -13,6 +13,7 @@ import jakarta.persistence.Table;
 
 @Entity
 @Table(name = "clients")
+@Schema(description = "Entidade representando um cliente do sistema")
 public class Client {
 
     @Id
