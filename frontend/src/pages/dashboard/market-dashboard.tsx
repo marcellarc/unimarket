@@ -67,7 +67,7 @@ export default function MarketDashboard() {
 
 
         switch (activeTab) {
-            case 'overview': return <OverviewTab />;
+            case 'overview': return <OverviewTab onNavigateToProducts={() => setActiveTab('products')} />;
             case 'products': return <ProductsTab />;
             case 'reviews': return <ReviewsTab />;
             case 'settings': return <SettingsTab />;
@@ -108,7 +108,7 @@ export default function MarketDashboard() {
                                 key={item.id}
                                 onClick={() => setActiveTab(item.id)}
                                 title={!isSidebarOpen ? item.label : undefined}
-                                className={`w-full flex items-center py-2.5 rounded-md transition-all duration-200 ${isActive ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-accent hover:text-foreground'} ${isSidebarOpen ? 'px-3 justify-start' : 'px-0 justify-center'}`}
+                                className={`w-full flex items-center cursor-pointer py-2.5 rounded-md transition-all duration-200 ${isActive ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-accent hover:text-foreground'} ${isSidebarOpen ? 'px-3 justify-start' : 'px-0 justify-center'}`}
                             >
                                 <item.icon className={`w-5 h-5 shrink-0 ${isActive ? 'text-primary' : 'text-muted-foreground'} ${isSidebarOpen ? 'mr-3' : ''}`} />
                                 {isSidebarOpen && (
@@ -130,7 +130,7 @@ export default function MarketDashboard() {
             <div className="flex-1 flex flex-col min-w-0">
                 <header className="h-14 bg-card border-b border-border flex items-center justify-between px-4 sm:px-6 shrink-0">
                     <div className="flex items-center gap-4">
-                        <Button variant="ghost" size="icon" onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="text-muted-foreground hover:text-foreground">
+                        <Button variant="ghost" size="icon" onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="cursor-pointer text-muted-foreground hover:text-foreground">
                             <Menu className="w-5 h-5" />
                         </Button>
                         <span className="text-sm text-muted-foreground hidden sm:inline-flex items-center gap-2">
@@ -144,9 +144,9 @@ export default function MarketDashboard() {
                         </div>
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" className="relative h-8 w-8 rounded-full">
+                                <Button variant="ghost" className="relative h-8 w-8 rounded-full cursor-pointer">
                                     <div className="flex h-full w-full items-center justify-center rounded-full bg-primary/10">
-                                        <User className="w-4 h-4 text-primary" />
+                                        <User className="w-4 h-4 text-primary cursor-pointer" />
                                     </div>
                                 </Button>
                             </DropdownMenuTrigger>
