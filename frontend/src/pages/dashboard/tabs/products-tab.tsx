@@ -1,24 +1,64 @@
 import { useState } from 'react';
-import { Search, Plus, Edit, Trash2, Clock, ListPlus } from 'lucide-react';
+import { Search, Trash2, Clock, AlertCircle, Loader2 } from 'lucide-react';
 import { Badge, Button, Card, Input, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui';
-
-const marketProducts = [
-    { id: 1, name: 'Arroz Branco Tio João 5kg', category: 'Alimentos Básicos', price: 24.90, averageMarketPrice: 29.90, inLists: 145, lastUpdated: 'Hoje, 08:30' },
-    { id: 2, name: 'Feijão Preto Camil 1kg', category: 'Alimentos Básicos', price: 8.50, averageMarketPrice: 9.50, inLists: 98, lastUpdated: 'Ontem, 18:00' },
-    { id: 3, name: 'Óleo de Soja Liza 900ml', category: 'Óleos e Azeites', price: 7.20, averageMarketPrice: 7.00, inLists: 67, lastUpdated: 'Há 3 dias' },
-];
+import { listProducts, searchProductsByMarketId } from '@/services/product';
+import { ProductFormDialog } from '@/pages/dashboard/product-form-dialog';
+import { EditProductDialog } from '@/pages/dashboard/edit-product-dialog';
+import Cookies from 'js-cookie';
+import { useQuery } from '@tanstack/react-query';
 
 export function ProductsTab() {
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedCategory, setSelectedCategory] = useState('all');
 
-    const categories = ['all', ...new Set(marketProducts.map((p) => p.category))];
+    const marketIdStr = Cookies.get('marketId');
+    const marketId = marketIdStr ? parseInt(marketIdStr) : 0;
 
-    const filteredProducts = marketProducts.filter((product) => {
-        const matchesSearch = product.name.toLowerCase().includes(searchQuery.toLowerCase());
-        const matchesCategory = selectedCategory === 'all' || product.category === selectedCategory;
-        return matchesSearch && matchesCategory;
+
+    const {
+        data: products = [],
+        isLoading,
+        isError,
+        error,
+        refetch
+    } = useQuery({
+        queryKey: ['products', marketId],
+        queryFn: () => listProducts(marketId),
+        enabled: !!marketId,
     });
+
+    const {
+        data: searchedProducts = [],
+        isLoading: isSearching,
+    } = useQuery({
+        queryKey: ['searchProductsByMarketId', marketId, searchQuery],
+        queryFn: () => searchProductsByMarketId(marketId, { name: searchQuery }),
+        enabled: searchQuery.length > 0 && !!marketId,
+    });
+
+    const categories = ['all', ...new Set(products.map((p) => p.brand).filter(Boolean))];
+
+    const displayProducts = searchQuery.length > 0 ? searchedProducts : products;
+
+    const filteredProducts = displayProducts.filter((product) => {
+        const matchesCategory = selectedCategory === 'all' || product.brand === selectedCategory;
+        return matchesCategory;
+    });
+
+    if (isError) {
+        return (
+            <div className="flex flex-col items-center justify-center py-12 text-center">
+                <div className="bg-destructive/10 p-4 rounded-full mb-4">
+                    <AlertCircle className="w-10 h-10 text-destructive" />
+                </div>
+                <h3 className="text-lg font-semibold text-foreground mb-2">Erro ao carregar produtos</h3>
+                <p className="text-sm text-muted-foreground mb-6 max-w-md">
+                    {error instanceof Error ? error.message : 'Falha na conexão'}
+                </p>
+                <Button onClick={() => refetch()}>Tentar Novamente</Button>
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-6">
@@ -34,7 +74,7 @@ export function ProductsTab() {
                             placeholder="Buscar produto..."
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            className="pl-9 bg-card"
+                            className="pl-9 bg-card focus-visible:ring-primary"
                         />
                     </div>
                 </div>
@@ -51,73 +91,88 @@ export function ProductsTab() {
                         {cat === 'all' ? 'Todos' : cat}
                     </button>
                 ))}
-                <Button size="sm" className="ml-auto">
-                    <Plus className="w-4 h-4 mr-1" />
-                    <span className="hidden sm:inline">Atualizar Preço / Novo Produto</span>
-                </Button>
+
+                <ProductFormDialog marketId={marketId} />
             </div>
 
             <Card>
-                <Table>
-                    <TableHeader>
-                        <TableRow>
-                            <TableHead>Produto</TableHead>
-                            <TableHead className="hidden md:table-cell">Categoria</TableHead>
-                            <TableHead>Seu Preço</TableHead>
-                            <TableHead className="hidden sm:table-cell">Competitividade</TableHead>
-                            <TableHead className="hidden sm:table-cell text-center">Nas Listas</TableHead>
-                            <TableHead className="hidden md:table-cell text-right">Última Atualização</TableHead>
-                            <TableHead className="w-20">Ações</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {filteredProducts.map((product) => {
-                            const isCompetitive = product.price <= product.averageMarketPrice;
-                            const priceDiff = ((product.averageMarketPrice - product.price) / product.averageMarketPrice) * 100;
-
-                            return (
-                                <TableRow key={product.id}>
-                                    <TableCell>
-                                        <p className="text-sm font-medium text-foreground">{product.name}</p>
-                                    </TableCell>
-                                    <TableCell className="hidden md:table-cell">
-                                        <Badge variant="secondary">{product.category}</Badge>
-                                    </TableCell>
-                                    <TableCell>
-                                        <p className="text-sm font-bold text-foreground">R$ {product.price.toFixed(2)}</p>
-                                    </TableCell>
-                                    <TableCell className="hidden sm:table-cell">
-                                        <p className={`text-xs font-medium ${isCompetitive ? 'text-success' : 'text-destructive'}`}>
-                                            {isCompetitive ? '↓' : '↑'} {Math.abs(priceDiff).toFixed(1)}% {isCompetitive ? 'abaixo da média' : 'acima da média'}
-                                        </p>
-                                    </TableCell>
-                                    <TableCell className="hidden sm:table-cell text-center">
-                                        <div className="flex items-center justify-center gap-1.5 text-muted-foreground">
-                                            <ListPlus className="w-3.5 h-3.5" />
-                                            <span className="text-sm">{product.inLists}</span>
-                                        </div>
-                                    </TableCell>
-                                    <TableCell className="hidden md:table-cell text-right">
-                                        <div className="flex items-center justify-end gap-1.5 text-muted-foreground">
-                                            <Clock className="w-3.5 h-3.5" />
-                                            <span className="text-xs">{product.lastUpdated}</span>
-                                        </div>
-                                    </TableCell>
-                                    <TableCell>
-                                        <div className="flex gap-1">
-                                            <Button variant="ghost" size="icon" className="w-8 h-8">
-                                                <Edit className="w-3.5 h-3.5" />
-                                            </Button>
-                                            <Button variant="ghost" size="icon" className="w-8 h-8">
-                                                <Trash2 className="w-3.5 h-3.5" />
-                                            </Button>
-                                        </div>
+                {isLoading || isSearching ? (
+                    <div className="flex items-center justify-center py-12">
+                        <Loader2 className="w-6 h-6 text-muted-foreground animate-spin" />
+                    </div>
+                ) : (
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Produto</TableHead>
+                                <TableHead className="hidden md:table-cell">Marca</TableHead>
+                                <TableHead>Seu Preço</TableHead>
+                                <TableHead className="hidden sm:table-cell">Estoque</TableHead>
+                                <TableHead className="hidden md:table-cell text-right">Última Atualização</TableHead>
+                                <TableHead className="w-20">Ações</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {filteredProducts.length === 0 ? (
+                                <TableRow>
+                                    <TableCell colSpan={6} className="text-center py-8">
+                                        <p className="text-muted-foreground">Nenhum produto encontrado</p>
                                     </TableCell>
                                 </TableRow>
-                            );
-                        })}
-                    </TableBody>
-                </Table>
+                            ) : (
+                                filteredProducts.map((product) => {
+                                    const formatDate = (dateString: string) => {
+                                        try {
+                                            const date = new Date(dateString);
+                                            return date.toLocaleDateString('pt-BR', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+                                        } catch {
+                                            return dateString;
+                                        }
+                                    };
+
+                                    return (
+                                        <TableRow key={product.id}>
+                                            <TableCell>
+                                                <div>
+                                                    <p className="text-sm font-medium text-foreground">{product.productName}</p>
+                                                    <p className="text-xs text-muted-foreground">{product.marketName}</p>
+                                                </div>
+                                            </TableCell>
+                                            <TableCell className="hidden md:table-cell">
+                                                <Badge variant="secondary">{product.brand}</Badge>
+                                            </TableCell>
+                                            <TableCell>
+                                                <p className="text-sm font-bold text-foreground">
+                                                    R$ {(product.price || 0).toFixed(2)}
+                                                </p>
+                                            </TableCell>
+                                            <TableCell className="hidden sm:table-cell">
+                                                <p className="text-sm text-foreground">{product.stockQuantity || 0} un.</p>
+                                            </TableCell>
+                                            <TableCell className="hidden md:table-cell text-right">
+                                                <div className="flex items-center justify-end gap-1.5 text-muted-foreground">
+                                                    <Clock className="w-3.5 h-3.5" />
+                                                    <span className="text-xs">{formatDate(product.updatedAt)}</span>
+                                                </div>
+                                            </TableCell>
+                                            <TableCell>
+                                                <div className="flex gap-1">
+                                                    <EditProductDialog
+                                                        product={product}
+                                                        marketId={marketId}
+                                                    />
+                                                    <Button variant="ghost" size="icon" className="w-8 h-8 text-destructive hover:text-destructive" title="Deletar">
+                                                        <Trash2 className="w-3.5 h-3.5" />
+                                                    </Button>
+                                                </div>
+                                            </TableCell>
+                                        </TableRow>
+                                    );
+                                })
+                            )}
+                        </TableBody>
+                    </Table>
+                )}
             </Card>
         </div>
     );

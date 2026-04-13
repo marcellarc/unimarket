@@ -1,24 +1,33 @@
 import { Card, Table, TableBody, TableCell, TableHead, TableHeader, TableRow, Button } from '@/components/ui';
-import { Package, Search, Star, ListPlus, BarChart3, Users, Bell } from 'lucide-react';
+import { Package, Search, ListPlus, BarChart3, Users, Bell, Loader2 } from 'lucide-react';
 import { PerformancePanel } from '@/components/performance-panel';
-
-const stats = {
-    totalProducts: 156,
-    totalSearches: 2847,
-    averagePosition: 1.4,
-    addedToLists: 843,
-    activeAlerts: 125,
-    competitorCount: 8,
-};
-
-
-const topProducts = [
-    { id: 1, name: 'Arroz Branco Tio João 5kg', searches: 452, inLists: 145, priceDiff: -5.3 }, // -5.3% significa mais barato que a média
-    { id: 2, name: 'Feijão Preto Camil 1kg', searches: 312, inLists: 98, priceDiff: -2.1 },
-    { id: 3, name: 'Óleo de Soja Liza 900ml', searches: 287, inLists: 87, priceDiff: 1.5 }, // 1.5% mais caro que a média
-];
+import { listProducts } from '@/services/product';
+import Cookies from 'js-cookie';
+import { useQuery } from '@tanstack/react-query'; // Import do TanStack Query
 
 export function OverviewTab() {
+    const marketIdStr = Cookies.get('marketId');
+    const marketId = marketIdStr ? parseInt(marketIdStr) : 0;
+
+    const { data: products = [], isLoading } = useQuery({
+        queryKey: ['products', marketId],
+        queryFn: () => listProducts(marketId),
+        enabled: !!marketId,
+    });
+
+    // mock
+    const stats = {
+        totalProducts: products.length,
+        totalSearches: 0,
+        averagePosition: 1.4,
+        addedToLists: products.length * 10,
+        activeAlerts: 125,
+        competitorCount: 8,
+    };
+
+    //3 primeiros para a tabela de destaque
+    const topProducts = products.slice(0, 3);
+
     return (
         <div className="space-y-6">
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
@@ -55,60 +64,71 @@ export function OverviewTab() {
                 ))}
             </div>
 
-            {/* Main grid (2 colunas para tabela, 1 para sidebar) */}
             <div className="grid lg:grid-cols-3 gap-6">
-
-                {/* Tabela de Top Produtos focada em Engajamento */}
                 <div className="lg:col-span-2 space-y-3">
                     <div className="flex items-center justify-between">
-                        <h2 className="text-base font-medium text-foreground">Produtos Mais Populares</h2>
+                        <h2 className="text-base font-medium text-foreground">Produtos Cadastrados</h2>
                         <Button variant="outline" size="sm">Ver Todos</Button>
                     </div>
 
                     <Card>
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Produto</TableHead>
-                                    <TableHead>Buscas</TableHead>
-                                    <TableHead>Nas Listas</TableHead>
-                                    <TableHead className="text-right">Competitividade</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {topProducts.map((product) => {
-                                    const isCheaper = product.priceDiff <= 0;
-                                    return (
-                                        <TableRow key={product.id}>
-                                            <TableCell>
-                                                <p className="text-sm font-medium text-foreground">{product.name}</p>
-                                            </TableCell>
-                                            <TableCell>
-                                                <div className="flex items-center gap-1.5">
-                                                    <Search className="w-3.5 h-3.5 text-muted-foreground" />
-                                                    <p className="text-sm text-foreground">{product.searches}</p>
-                                                </div>
-                                            </TableCell>
-                                            <TableCell>
-                                                <div className="flex items-center gap-1.5">
-                                                    <ListPlus className="w-3.5 h-3.5 text-muted-foreground" />
-                                                    <p className="text-sm font-medium text-foreground">{product.inLists}</p>
-                                                </div>
-                                            </TableCell>
-                                            <TableCell className="text-right">
-                                                <p className={`text-xs font-medium ${isCheaper ? 'text-success' : 'text-destructive'}`}>
-                                                    {isCheaper ? '↓' : '↑'} {Math.abs(product.priceDiff)}% {isCheaper ? 'abaixo da média' : 'acima da média'}
-                                                </p>
+                        {isLoading ? (
+                            <div className="flex items-center justify-center py-12">
+                                <Loader2 className="w-6 h-6 text-muted-foreground animate-spin" />
+                            </div>
+                        ) : (
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>Produto</TableHead>
+                                        <TableHead>Preço</TableHead>
+                                        <TableHead>Estoque</TableHead>
+                                        <TableHead className="text-right">Última Atualização</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {topProducts.length === 0 ? (
+                                        <TableRow>
+                                            <TableCell colSpan={4} className="text-center py-8">
+                                                <p className="text-muted-foreground">Nenhum produto cadastrado ainda</p>
                                             </TableCell>
                                         </TableRow>
-                                    );
-                                })}
-                            </TableBody>
-                        </Table>
+                                    ) : (
+                                        topProducts.map((product) => {
+                                            const formatDate = (dateString: string) => {
+                                                try {
+                                                    const date = new Date(dateString);
+                                                    return date.toLocaleDateString('pt-BR', { month: 'short', day: 'numeric' });
+                                                } catch {
+                                                    return dateString;
+                                                }
+                                            };
+
+                                            return (
+                                                <TableRow key={product.id}>
+                                                    <TableCell>
+                                                        <p className="text-sm font-medium text-foreground">{product.productName}</p>
+                                                        <p className="text-xs text-muted-foreground">{product.brand}</p>
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        <p className="text-sm font-bold text-foreground">R$ {product.price != null ? Number(product.price).toFixed(2) : '0.00'}</p>
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        <p className="text-sm text-foreground">{product.stockQuantity || 0} un.</p>
+                                                    </TableCell>
+                                                    <TableCell className="text-right">
+                                                        <p className="text-xs text-muted-foreground">{formatDate(product.updatedAt)}</p>
+                                                    </TableCell>
+                                                </TableRow>
+                                            );
+                                        })
+                                    )}
+                                </TableBody>
+                            </Table>
+                        )}
                     </Card>
                 </div>
 
-                {/* Sidebar com Performance e Análise */}
                 <div className="space-y-4">
                     <Card>
                         <div className="p-4">

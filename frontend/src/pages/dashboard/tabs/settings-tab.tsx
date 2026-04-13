@@ -65,7 +65,7 @@ export function SettingsTab() {
                 </div>
 
                 <div className="space-y-6">
-                    <Card className="p-6">
+                    {/*<Card className="p-6">
                         <div className="flex items-center gap-2 mb-6">
                             <Database className="w-5 h-5 text-emerald-600" />
                             <h3 className="text-base font-semibold text-foreground">Sincronização de Preços</h3>
@@ -83,7 +83,7 @@ export function SettingsTab() {
                             </div>
                             <Button variant="outline" className="w-full text-sm">Gerenciar Chaves da API</Button>
                         </div>
-                    </Card>
+                    </Card>*/}
 
 
                     <Card className="p-6">

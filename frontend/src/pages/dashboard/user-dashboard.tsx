@@ -1,20 +1,27 @@
 import logoImg from '@/assets/logo-unimarket.png'
 import {
-    Badge, Button, Card, Input,
+    Badge, Button, Card,
     DropdownMenu, DropdownMenuContent, DropdownMenuItem,
     DropdownMenuSeparator, DropdownMenuTrigger,
+    Input,
 } from '@/components/ui'
 import { useLogout } from '@/hooks/use-logout'
+import { listProducts, searchProductsByMarketId } from '@/services/product'
+import type { MarketProductResponse } from '@/types/product'
+import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
-import Cookies from 'js-cookie'
 import {
-    Bell, ChevronDown, ChevronUp,
-    Filter, List, LogOut, MapPin, Package,
+    Bell, ChevronDown,
+    ChevronRight,
+    Filter, List,
+    Loader2,
+    LogOut, MapPin, Package,
     Plus, Search, ShoppingCart,
     SlidersHorizontal, Store, Tag,
-    TrendingDown, User, X, Zap, ChevronRight
+    User, X, Zap
 } from 'lucide-react'
-import { useState } from 'react'
+import { useCallback, useDeferredValue, useMemo, useState } from 'react'
+import { ProductCard } from './product-card'
 
 const categories = [
     { id: 'all', label: 'Todos' },
@@ -27,73 +34,10 @@ const categories = [
     { id: 'cleaning', label: 'Limpeza' },
 ]
 
-const allProducts = [
-    {
-        id: 1, name: 'Arroz Branco Tio João 5kg', category: 'basics',
-        lowestPrice: 24.90, averagePrice: 29.90, savings: 16.7,
-        badge: 'Mais buscado',
-        markets: [
-            { name: 'Supermercado Econômico', price: 24.90, distance: '0.5 km' },
-            { name: 'Mercado da Família', price: 26.50, distance: '1.2 km' },
-            { name: 'Super Compras', price: 29.90, distance: '2.0 km' },
-        ],
-    },
-    {
-        id: 2, name: 'Feijão Preto Camil 1kg', category: 'basics',
-        lowestPrice: 7.99, averagePrice: 9.50, savings: 15.9,
-        badge: null,
-        markets: [
-            { name: 'Mercado da Família', price: 7.99, distance: '1.2 km' },
-            { name: 'Supermercado Econômico', price: 8.50, distance: '0.5 km' },
-            { name: 'Super Compras', price: 9.90, distance: '2.0 km' },
-        ],
-    },
-    {
-        id: 3, name: 'Óleo de Soja Liza 900ml', category: 'oils',
-        lowestPrice: 6.49, averagePrice: 7.90, savings: 17.8,
-        badge: 'Oferta',
-        markets: [
-            { name: 'Super Compras', price: 6.49, distance: '2.0 km' },
-            { name: 'Supermercado Econômico', price: 7.20, distance: '0.5 km' },
-            { name: 'Mercado da Família', price: 7.99, distance: '1.2 km' },
-        ],
-    },
-    {
-        id: 4, name: 'Macarrão Galo 500g', category: 'pasta',
-        lowestPrice: 3.99, averagePrice: 4.80, savings: 16.9,
-        badge: null,
-        markets: [
-            { name: 'Supermercado Econômico', price: 3.99, distance: '0.5 km' },
-            { name: 'Mercado da Família', price: 4.50, distance: '1.2 km' },
-            { name: 'Super Compras', price: 4.99, distance: '2.0 km' },
-        ],
-    },
-    {
-        id: 5, name: 'Leite Integral Itambé 1L', category: 'dairy',
-        lowestPrice: 4.29, averagePrice: 5.50, savings: 22.0,
-        badge: '30% OFF',
-        markets: [
-            { name: 'Supermercado Econômico', price: 4.29, distance: '0.5 km' },
-            { name: 'Super Compras', price: 4.99, distance: '2.0 km' },
-            { name: 'Mercado da Família', price: 5.50, distance: '1.2 km' },
-        ],
-    },
-    {
-        id: 6, name: 'Refrigerante Coca-Cola 2L', category: 'drinks',
-        lowestPrice: 8.99, averagePrice: 11.00, savings: 18.3,
-        badge: '2 por 1',
-        markets: [
-            { name: 'Mercado da Família', price: 8.99, distance: '1.2 km' },
-            { name: 'Supermercado Econômico', price: 10.50, distance: '0.5 km' },
-            { name: 'Super Compras', price: 11.00, distance: '2.0 km' },
-        ],
-    },
-]
-
 const nearbyMarkets = [
-    { name: 'Supermercado Econômico', distance: '0.5 km', products: 1240, open: true },
-    { name: 'Mercado da Família', distance: '1.2 km', products: 980, open: true },
-    { name: 'Super Compras', distance: '2.0 km', products: 1540, open: false },
+    { id: 1, name: 'Supermercado Econômico', distance: '0.5 km', products: 1240, open: true },
+    { id: 2, name: 'Mercado da Família', distance: '1.2 km', products: 980, open: true },
+    { id: 3, name: 'Super Compras', distance: '2.0 km', products: 1540, open: false },
 ]
 
 const shoppingLists = [
@@ -101,7 +45,14 @@ const shoppingLists = [
     { id: 2, name: 'Feira da Semana', items: 8, total: 85.90, savings: 12.30 },
 ]
 
-export function UserDashboard() {
+interface UserDashboardProps {
+    userName: string
+    isLogged: boolean
+    marketId: number
+    userRole?: string
+}
+
+export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDashboardProps) {
     const navigate = useNavigate()
     const { logout } = useLogout()
 
@@ -114,20 +65,77 @@ export function UserDashboard() {
     const [showListPanel, setShowListPanel] = useState(false)
     const [expandedId, setExpandedId] = useState<number | null>(null)
 
-    const userName = Cookies.get('marketName') || Cookies.get('userName') || 'Usuário'
-    const userRole = Cookies.get('userRole')
-    const isLogged = !!Cookies.get('accessToken')
 
-    const filteredProducts = allProducts
-        .filter(p => selectedCategory === 'all' || p.category === selectedCategory)
-        .filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()))
-        .filter(p => p.lowestPrice <= maxPrice)
-        .sort((a, b) =>
-            sortBy === 'price' ? a.lowestPrice - b.lowestPrice : b.savings - a.savings
-        )
+    const { data: apiProducts = [], isLoading, error } = useQuery({
+        queryKey: ['products', marketId],
+        queryFn: () => listProducts(marketId),
+        enabled: !!marketId,
+    })
 
-    const toggleExpand = (id: number) =>
-        setExpandedId(prev => (prev === id ? null : id))
+
+    const deferredSearch = useDeferredValue(searchQuery)
+    const { data: searchedProducts = [] } = useQuery({
+        queryKey: ['searchProductsByMarketId', marketId, deferredSearch],
+        queryFn: () => searchProductsByMarketId(marketId, { name: deferredSearch }),
+        enabled: deferredSearch.length > 0 && !!marketId,
+    })
+
+    const transformedProducts = useMemo(() => {
+        // Busca no mercado ativa → MarketProductResponse
+        if (deferredSearch.length > 0) {
+            return (searchedProducts as MarketProductResponse[]).map(product => {
+                const price = product.price != null ? Number(product.price) : 0
+                return {
+                    id: product.id,                  // ← id aqui
+                    name: product.productName,
+                    category: 'all',
+                    lowestPrice: price,
+                    averagePrice: price * 1.15,
+                    savings: price * 0.15,
+                    badge: null,
+                    markets: [{
+                        name: product.marketName || 'Market',
+                        price,
+                        distance: '0.5 km',
+                    }],
+                }
+            })
+        }
+
+        // Listagem do mercado → MarketProductResponse
+        return (apiProducts as MarketProductResponse[]).map(product => {
+            const price = product.price != null ? Number(product.price) : 0
+            return {
+                id: product.id,                  // ← id aqui
+                name: product.productName,
+                category: 'all',
+                lowestPrice: price,
+                averagePrice: price * 1.15,
+                savings: price * 0.15,
+                badge: null,
+                markets: [{
+                    name: product.marketName || 'Market',
+                    price,
+                    distance: '0.5 km',
+                }],
+            }
+        })
+    }, [apiProducts, searchedProducts, deferredSearch])
+
+    const filteredProducts = useMemo(() =>
+        transformedProducts
+            .filter(p => selectedCategory === 'all' || p.category === selectedCategory)
+            .filter(p => p.lowestPrice <= maxPrice)
+            .sort((a, b) => sortBy === 'price' ? a.lowestPrice - b.lowestPrice : b.savings - a.savings),
+        [transformedProducts, selectedCategory, maxPrice, sortBy]
+    )
+
+    const toggleExpand = useCallback(
+        (id: number) => setExpandedId(prev => prev === id ? null : id),
+        []
+    )
+
+    console.log()
 
     return (
         <div className="min-h-screen bg-background">
@@ -347,7 +355,18 @@ export function UserDashboard() {
                         </div>
 
                         {/*GRID DE PRODUTOS*/}
-                        {filteredProducts.length === 0 ? (
+                        {isLoading ? (
+                            <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
+                                <Loader2 className="w-12 h-12 mb-4 animate-spin" />
+                                <p className="font-medium">Carregando produtos...</p>
+                            </div>
+                        ) : error ? (
+                            <div className="flex flex-col items-center justify-center py-20 text-destructive">
+                                <Package className="w-12 h-12 mb-4 opacity-50" />
+                                <p className="font-medium">Erro ao carregar produtos</p>
+                                <p className="text-sm">Tente recarregar a página</p>
+                            </div>
+                        ) : filteredProducts.length === 0 ? (
                             <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
                                 <Package className="w-12 h-12 mb-4 opacity-20" />
                                 <p className="font-medium">Nenhum produto encontrado</p>
@@ -355,113 +374,15 @@ export function UserDashboard() {
                             </div>
                         ) : (
                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 items-start">
-                                {filteredProducts.map(product => {
-                                    const isExpanded = expandedId === product.id
-                                    return (
-                                        <div key={product.id} className={`relative ${isExpanded ? 'z-50' : 'z-0'}`}>
-
-                                            <Card
-                                                onClick={() => toggleExpand(product.id)}
-                                                className={`group overflow-visible cursor-pointer flex flex-col transition-colors duration-800 relative z-20 ${isExpanded
-                                                    ? 'border-primary border-b-transparent rounded-b-none shadow-md'
-                                                    : 'border-border hover:shadow-md'
-                                                    }`}
-                                            >
-                                                {/* Imagem placeholder */}
-                                                <div className="h-32 bg-muted flex items-center justify-center relative shrink-0">
-                                                    <Package className="w-12 h-12 text-muted-foreground/30" />
-                                                    {product.badge && (
-                                                        <Badge className="absolute top-2 left-2 bg-primary text-primary-foreground text-[10px] px-1.5 py-0.5">
-                                                            {product.badge}
-                                                        </Badge>
-                                                    )}
-
-                                                    <button
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                        }}
-                                                        className="absolute top-2 right-2 w-7 h-7 rounded-full bg-card border border-border flex items-center justify-center hover:bg-primary hover:text-primary-foreground hover:border-primary transition-colors"
-                                                    >
-                                                        <Plus className="w-3.5 h-3.5" />
-                                                    </button>
-                                                </div>
-
-                                                <div className="p-4 flex-1 flex flex-col">
-                                                    <h4 className="font-medium text-foreground text-sm leading-tight mb-3 line-clamp-2">
-                                                        {product.name}
-                                                    </h4>
-
-                                                    <div className="flex items-end justify-between mb-3">
-                                                        <div>
-                                                            <p className="text-xs text-muted-foreground">A partir de</p>
-                                                            <p className="text-xl font-bold text-primary">
-                                                                R$ {product.lowestPrice.toFixed(2)}
-                                                            </p>
-                                                        </div>
-                                                        <div className="flex items-center gap-1 bg-primary/10 text-primary px-2 py-1 rounded-full">
-                                                            <TrendingDown className="w-3 h-3" />
-                                                            <span className="text-xs font-medium">{product.savings.toFixed(0)}% off</span>
-                                                        </div>
-                                                    </div>
-
-                                                    <p className="text-xs text-muted-foreground mb-1">
-                                                        em {product.markets.length} mercados •{' '}
-                                                        <span className="text-foreground">{product.markets[0].distance}</span>
-                                                    </p>
-
-
-                                                    <div className={`mt-auto pt-3 flex items-center justify-center text-muted-foreground group-hover:text-primary transition-colors ${!isExpanded ? ' mt-3' : ''}`}>
-                                                        <span className="text-xs font-medium mr-1">
-                                                            {isExpanded ? 'Ocultar mercados' : 'Ver opções'}
-                                                        </span>
-                                                        {isExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-                                                    </div>
-                                                </div>
-                                            </Card>
-
-
-                                            <div
-                                                className={`absolute top-[calc(100%-1px)] left-0 right-0 z-10 bg-card rounded-b-lg border-x border-b overflow-hidden transition-all duration-300 ease-in-out ${isExpanded
-                                                    ? 'max-h-[500px] opacity-100 border-primary shadow-xl'
-                                                    : 'max-h-0 opacity-0 border-transparent shadow-none pointer-events-none'
-                                                    }`}
-                                            >
-                                                <div className="p-4 pt-0">
-
-                                                    <div className="pt-2 space-y-2">
-                                                        {product.markets.map((market, idx) => (
-                                                            <div
-                                                                key={idx}
-                                                                className={`flex items-center justify-between p-2 rounded-lg ${idx === 0
-                                                                    ? 'bg-primary/10 ring-1 ring-primary/20'
-                                                                    : 'bg-muted'
-                                                                    }`}
-                                                            >
-                                                                <div className="flex items-center gap-2">
-                                                                    <div className={`p-1.5 rounded-md ${idx === 0 ? 'bg-primary/20' : 'bg-card'}`}>
-                                                                        <Store className={`w-3.5 h-3.5 ${idx === 0 ? 'text-primary' : 'text-muted-foreground'}`} />
-                                                                    </div>
-                                                                    <div>
-                                                                        <p className="text-xs font-medium text-foreground">{market.name}</p>
-                                                                        <div className="flex items-center gap-0.5 text-muted-foreground">
-                                                                            <MapPin className="w-2.5 h-2.5" />
-                                                                            <span className="text-[10px]">{market.distance}</span>
-                                                                        </div>
-                                                                    </div>
-                                                                </div>
-                                                                <div className="text-right">
-                                                                    <p className={`font-bold text-sm ${idx === 0 ? 'text-primary' : 'text-foreground'}`}>
-                                                                        R$ {market.price.toFixed(2)}
-                                                                    </p>
-                                                                </div>
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    )
-                                })}
+                                {filteredProducts.map(product => (
+                                    <ProductCard
+                                        key={product.id}
+                                        product={product}
+                                        isExpanded={expandedId === product.id}
+                                        onToggle={toggleExpand}
+                                    //onAddToList={handleAddToList}
+                                    />
+                                ))}
                             </div>
                         )}
 

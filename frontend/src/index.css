@@ -5,13 +5,11 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
-    /* ... seus radius originais mantidos ... */
     --radius-sm: calc(var(--radius) - 4px);
     --radius-md: calc(var(--radius) - 2px);
     --radius-lg: var(--radius);
     --radius-xl: calc(var(--radius) + 4px);
 
-    /* Cores Padrão do Shadcn */
     --color-background: var(--background);
     --color-foreground: var(--foreground);
     --color-card: var(--card);
@@ -19,11 +17,11 @@
     --color-popover: var(--popover);
     --color-popover-foreground: var(--popover-foreground);
 
-    /* A Mágica Acontece Aqui */
+
     --color-primary: var(--primary);
     --color-primary-foreground: var(--primary-foreground);
 
-    /* Criando a cor exclusiva do UniMarket para o Amarelo */
+
     --color-uniyellow: #FFCF37;
 
     --color-secondary: var(--secondary);
@@ -47,12 +45,10 @@
     --popover: oklch(1 0 0);
     --popover-foreground: oklch(0.145 0 0);
 
-    /* SEU AZUL OFICIAL (Substituindo o OKLCH pelo HEX para precisão) */
     --primary: #0056DF;
     --primary-foreground: #ffffff;
     /* Texto branco em cima do azul */
 
-    /* Dica: Colocar o amarelo como Accent para alguns hover states do shadcn */
     --accent: #FFCF37;
     --accent-foreground: #000000;
 

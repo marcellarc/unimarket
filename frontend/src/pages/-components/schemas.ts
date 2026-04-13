@@ -62,5 +62,33 @@ export const registerSchema = z.object({
 }
 );
 
-// Inferimos o tipo diretamente do Zod
+
 export type RegisterFormData = z.infer<typeof registerSchema>;
+
+export const productSchema = z.object({
+    productName: z.string().min(1, 'Nome do produto é obrigatório'),
+    brand: z.string().min(1, 'Marca é obrigatória'),
+    description: z.string(),
+    imageUrl: z.string().url('Insira uma URL válida').or(z.literal('')),
+    categoryId: z.number().min(1, 'Selecione uma categoria'),
+    barCode: z.string()
+        .regex(/^\d{13}$/, 'Deve conter exatamente 13 dígitos numéricos')
+        .or(z.literal(''))
+        .transform(val => val === '' ? null : val)
+        .nullable(),
+});
+
+export type ProductFormData = z.infer<typeof productSchema>;
+
+export const marketProductSchema = z.object({
+    productName: z.string().min(2, 'Nome obrigatório'),
+    brand: z.string().min(1, 'Marca obrigatória'),
+    description: z.string().optional(),
+    imageUrl: z.string().url('URL inválida').or(z.literal('')).optional(),
+    categoryId: z.number().min(1),
+    barCode: z.string().length(13, 'Deve ter 13 dígitos').or(z.literal('')).optional(),
+    /*price: z.number().positive('Preço deve ser maior que zero').optional(),
+    stockQuantity: z.number().int().min(0, 'Estoque não pode ser negativo').optional(),*/
+})
+
+export type MarketProductFormData = z.infer<typeof marketProductSchema>
