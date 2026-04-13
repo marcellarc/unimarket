@@ -49,7 +49,7 @@
     --primary-foreground: #ffffff;
     /* Texto branco em cima do azul */
 
-    --accent: #FFCF37;
+    --accent: #ffd037c5;
     --accent-foreground: #000000;
 
     --secondary: oklch(0.97 0 0);
@@ -75,7 +75,7 @@
     --primary: #0056DF;
     --primary-foreground: #ffffff;
 
-    --accent: #FFCF37;
+    --accent: #ffd037c5;
     --accent-foreground: #000000;
 
     --secondary: oklch(0.269 0 0);
