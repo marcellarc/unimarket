@@ -1,11 +1,6 @@
-import { api } from "@/api/client"
-import type { LoginRequest, LoginResponse } from "./auth"
-
-export interface RegisterUserRequest {
-    name: string
-    email: string
-    password: string
-}
+import { api } from '@/api/client'
+import type { RegisterUserRequest, LoginUserResponse } from '@/types/user'
+import type { LoginRequest } from '@/types/auth'
 
 export async function registerUser(data: RegisterUserRequest) {
     const response = await api.post('/api/auth/register/client', data)
@@ -13,6 +8,6 @@ export async function registerUser(data: RegisterUserRequest) {
 }
 
 export async function loginUser(data: LoginRequest) {
-    const response = await api.post<LoginResponse>('/api/auth/login/client', data)
+    const response = await api.post<LoginUserResponse>('/api/auth/login/client', data)
     return response.data
 }

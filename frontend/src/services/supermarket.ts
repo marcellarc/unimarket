@@ -1,14 +1,6 @@
-import { api } from "@/api/client"
-import type { LoginRequest, LoginResponse } from "./auth"
-
-export interface RegisterMarketRequest {
-    name: string
-    cnpj: string
-    email: string
-    password: string
-    streetAddress?: string
-    neighborhood?: string
-}
+import { api } from '@/api/client'
+import type { RegisterMarketRequest, LoginMarketResponse } from '@/types/supermarket'
+import type { LoginRequest } from '@/types/auth'
 
 export async function registerMarket(data: RegisterMarketRequest) {
     const response = await api.post('/api/auth/register/market', data)
@@ -16,6 +8,6 @@ export async function registerMarket(data: RegisterMarketRequest) {
 }
 
 export async function loginMarket(data: LoginRequest) {
-    const response = await api.post<LoginResponse>('/api/auth/login/market', data)
+    const response = await api.post<LoginMarketResponse>('/api/auth/login/market', data)
     return response.data
 }
