@@ -1,6 +1,6 @@
 # UniMarket
 
-Sistema web para comparação de preços em supermercados locais, conectando consumidores a ofertas competitivas e ajudando supermercados a gerenciarem seus catálogos de produtos.
+Sistema web para comparação de preços em supermercados locais, conectando consumidores a ofertas competitivas e ajudando supermercados a gerenciarem seus catálogos de produtos
 
 ## Tecnologias Utilizadas
 
