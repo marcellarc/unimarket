@@ -4,6 +4,8 @@
 
 # Java
 /backend/target
+/backend/email.properties
+/backend/configure-email.ps1
 
 # IDEs
 .vscode

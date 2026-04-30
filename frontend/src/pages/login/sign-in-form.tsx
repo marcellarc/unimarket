@@ -1,5 +1,16 @@
-import { Button, Input, Label } from '@/components/ui'
+import {
+    Button,
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+    Input,
+    Label,
+} from '@/components/ui'
 import { useAuth } from '@/hooks/use-auth'
+import { requestPasswordRecovery, resetPassword } from '@/services/auth'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Link, useNavigate } from '@tanstack/react-router'
 import Cookies from 'js-cookie'
@@ -12,6 +23,13 @@ import type { LoginFormData } from './type'
 
 export function SignInForm() {
     const [showPassword, setShowPassword] = useState(false)
+    const [recoveryOpen, setRecoveryOpen] = useState(false)
+    const [recoveryEmail, setRecoveryEmail] = useState('')
+    const [recoveryCode, setRecoveryCode] = useState('')
+    const [newPassword, setNewPassword] = useState('')
+    const [codeSent, setCodeSent] = useState(false)
+    const [isRecovering, setIsRecovering] = useState(false)
+    const [isResetting, setIsResetting] = useState(false)
     const navigate = useNavigate()
     const { login, isLoggingIn } = useAuth()
 
@@ -30,6 +48,7 @@ export function SignInForm() {
     })
 
     const role = watch('role')
+    const emailValue = watch('email')
 
     function onSubmit(data: LoginFormData) {
         login({
@@ -49,6 +68,65 @@ export function SignInForm() {
 
         toast.info('Navegando como visitante')
         navigate({ to: '/dashboard' })
+    }
+
+    function openRecoveryDialog() {
+        setRecoveryEmail(emailValue || '')
+        setRecoveryCode('')
+        setNewPassword('')
+        setCodeSent(false)
+        setRecoveryOpen(true)
+    }
+
+    async function handleSendRecoveryCode() {
+        if (!recoveryEmail) {
+            toast.error('Informe seu e-mail')
+            return
+        }
+
+        try {
+            setIsRecovering(true)
+            await requestPasswordRecovery(recoveryEmail)
+            setCodeSent(true)
+            toast.success('Se o e-mail estiver cadastrado, o código foi enviado')
+        } catch (error: any) {
+            const message = error.response?.data?.message ?? 'Não foi possível solicitar a recuperação'
+            toast.error(message)
+        } finally {
+            setIsRecovering(false)
+        }
+    }
+
+    async function handleResetPassword() {
+        if (!recoveryEmail || !recoveryCode || !newPassword) {
+            toast.error('Preencha e-mail, código e nova senha')
+            return
+        }
+
+        if (newPassword.length < 6) {
+            toast.error('A nova senha deve ter pelo menos 6 caracteres')
+            return
+        }
+
+        try {
+            setIsResetting(true)
+            await resetPassword({
+                email: recoveryEmail,
+                code: recoveryCode,
+                newPassword,
+            })
+            toast.success('Senha redefinida com sucesso')
+            setRecoveryOpen(false)
+        } catch (error: any) {
+            const responseData = error.response?.data
+            const message =
+                typeof responseData === 'string'
+                    ? responseData
+                    : responseData?.message ?? 'Código inválido ou expirado'
+            toast.error(message)
+        } finally {
+            setIsResetting(false)
+        }
     }
 
     return (
@@ -122,7 +200,12 @@ export function SignInForm() {
                 </div>
 
                 <div className="text-left">
-                    <Button type="button" variant="link" className="h-auto p-0 text-xs text-primary cursor-pointer">
+                    <Button
+                        type="button"
+                        variant="link"
+                        className="h-auto p-0 text-xs text-primary cursor-pointer"
+                        onClick={openRecoveryDialog}
+                    >
                         Esqueceu sua senha?
                     </Button>
                 </div>
@@ -178,6 +261,71 @@ export function SignInForm() {
                     </Link>
                 </p>
             </form>
+
+            <Dialog open={recoveryOpen} onOpenChange={setRecoveryOpen}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Recuperar senha</DialogTitle>
+                        <DialogDescription>
+                            Enviaremos um código para o e-mail cadastrado.
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="space-y-4">
+                        <div className="space-y-1.5">
+                            <Label htmlFor="recoveryEmail">E-mail</Label>
+                            <Input
+                                id="recoveryEmail"
+                                type="email"
+                                value={recoveryEmail}
+                                onChange={(event) => setRecoveryEmail(event.target.value)}
+                                placeholder="email@email.com"
+                            />
+                        </div>
+
+                        {codeSent && (
+                            <>
+                                <div className="space-y-1.5">
+                                    <Label htmlFor="recoveryCode">Código</Label>
+                                    <Input
+                                        id="recoveryCode"
+                                        value={recoveryCode}
+                                        onChange={(event) => setRecoveryCode(event.target.value)}
+                                        placeholder="000000"
+                                        maxLength={6}
+                                    />
+                                </div>
+
+                                <div className="space-y-1.5">
+                                    <Label htmlFor="newPassword">Nova senha</Label>
+                                    <Input
+                                        id="newPassword"
+                                        type="password"
+                                        value={newPassword}
+                                        onChange={(event) => setNewPassword(event.target.value)}
+                                        placeholder="Mínimo 6 caracteres"
+                                    />
+                                </div>
+                            </>
+                        )}
+                    </div>
+
+                    <DialogFooter>
+                        <Button type="button" variant="outline" onClick={() => setRecoveryOpen(false)}>
+                            Cancelar
+                        </Button>
+                        {!codeSent ? (
+                            <Button type="button" onClick={handleSendRecoveryCode} disabled={isRecovering}>
+                                {isRecovering ? 'Enviando...' : 'Enviar código'}
+                            </Button>
+                        ) : (
+                            <Button type="button" onClick={handleResetPassword} disabled={isResetting}>
+                                {isResetting ? 'Redefinindo...' : 'Redefinir senha'}
+                            </Button>
+                        )}
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     )
 }

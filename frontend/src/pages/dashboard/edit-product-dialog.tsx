@@ -32,7 +32,7 @@ export function EditProductDialog({ product, marketId, onSuccess }: EditProductD
 
         try {
             setLoading(true);
-            await updateProductPriceAndStock(marketId, product.id, formData);
+            await updateProductPriceAndStock(marketId, product.productId, formData);
             setOpen(false);
             onSuccess?.();
         } catch (error) {

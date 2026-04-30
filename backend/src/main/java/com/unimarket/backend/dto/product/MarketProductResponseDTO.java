@@ -12,6 +12,8 @@ public class MarketProductResponseDTO {
     // ID do vínculo entre mercado e produto
     private Long id;
 
+    private Long productId;
+
     // nome do mercado
     private String marketName;
 
