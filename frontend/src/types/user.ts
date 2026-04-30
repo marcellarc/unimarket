@@ -7,3 +7,16 @@ export interface RegisterUserRequest {
 }
 
 export type LoginUserResponse = LoginResponse
+
+export interface UserProfile {
+    id: number
+    name: string
+    email: string
+    createdAt?: string
+}
+
+export interface UpdateUserProfileRequest {
+    name?: string
+    email?: string
+    password?: string
+}
