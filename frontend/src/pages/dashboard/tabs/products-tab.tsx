@@ -184,7 +184,7 @@ export function ProductsTab() {
                                         </TableCell>
                                         <TableCell className="pr-5">
                                             <div className="flex items-center justify-end gap-1">
-                                                <EditProductDialog product={product} marketId={marketId} />
+                                                <EditProductDialog product={product} marketId={marketId} onSuccess={refetch} />
                                                 <Button
                                                     variant="ghost"
                                                     size="icon"

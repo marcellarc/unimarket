@@ -1,5 +1,5 @@
 import { Button, Card, Input, Label, Switch } from '@/components/ui';
-import { Store, Bell, Lock, MapPin, Clock, Save, Database } from 'lucide-react';
+import { Store, Bell, MapPin, Save } from 'lucide-react';
 
 export function SettingsTab() {
     const marketName = 'Supermercado Econômico';
