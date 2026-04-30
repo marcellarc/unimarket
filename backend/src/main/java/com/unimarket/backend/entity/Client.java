@@ -36,6 +36,12 @@ public class Client {
     @Schema(description = "Timestamp de quando o mercado foi criado")
     private LocalDateTime createdAt;
 
+    @Column(name = "reset_code", length = 6)
+    private String resetCode;
+
+    @Column(name = "reset_code_expires_at")
+    private LocalDateTime resetCodeExpiresAt;
+
     @PrePersist
     public void prePersist() {
         this.createdAt = LocalDateTime.now();
@@ -81,6 +87,22 @@ public class Client {
 
     public void setCreatedAt(LocalDateTime createdAt) {
         this.createdAt = createdAt;
+    }
+
+    public String getResetCode() {
+        return resetCode;
+    }
+
+    public void setResetCode(String resetCode) {
+        this.resetCode = resetCode;
+    }
+
+    public LocalDateTime getResetCodeExpiresAt() {
+        return resetCodeExpiresAt;
+    }
+
+    public void setResetCodeExpiresAt(LocalDateTime resetCodeExpiresAt) {
+        this.resetCodeExpiresAt = resetCodeExpiresAt;
     }
     
 }

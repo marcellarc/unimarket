@@ -1,7 +1,7 @@
 import { memo, useCallback } from 'react'
 import { Badge, Card } from '@/components/ui'
 import {
-    ChevronDown, ChevronUp, MapPin,
+    Bell, ChevronDown, ChevronUp, MapPin,
     Package, Plus, Store, TrendingDown,
 } from 'lucide-react'
 
@@ -27,6 +27,7 @@ interface ProductCardProps {
     isExpanded: boolean
     onToggle: (id: number) => void
     onAddToList?: (product: TransformedProduct) => void
+    onCreateAlert?: (product: TransformedProduct) => void
 }
 
 export const ProductCard = memo(function ProductCard({
@@ -34,6 +35,7 @@ export const ProductCard = memo(function ProductCard({
     isExpanded,
     onToggle,
     onAddToList,
+    onCreateAlert,
 }: ProductCardProps) {
     const handleToggle = useCallback(() => {
         onToggle(product.id)
@@ -44,7 +46,10 @@ export const ProductCard = memo(function ProductCard({
         onAddToList?.(product)
     }, [onAddToList, product])
 
-    const savingsPercent = product.savings.toFixed(0)
+    const handleAlert = useCallback((e: React.MouseEvent) => {
+        e.stopPropagation()
+        onCreateAlert?.(product)
+    }, [onCreateAlert, product])
 
     return (
         <div className={`relative ${isExpanded ? 'z-50' : 'z-0'}`}>
@@ -65,13 +70,25 @@ export const ProductCard = memo(function ProductCard({
                         </Badge>
                     )}
 
-                    <button
-                        onClick={handleAdd}
-                        aria-label={`Adicionar ${product.name} à lista`}
-                        className="absolute top-2 right-2 w-7 h-7 rounded-full bg-card border border-border flex items-center justify-center hover:bg-primary hover:text-primary-foreground hover:border-primary transition-colors"
-                    >
-                        <Plus className="w-3.5 h-3.5" />
-                    </button>
+                    <div className="absolute top-2 right-2 flex gap-1.5">
+                        <button
+                            onClick={handleAlert}
+                            aria-label={`Criar alerta para ${product.name}`}
+                            title="Criar alerta de preço"
+                            className="w-7 h-7 rounded-full bg-card border border-border flex items-center justify-center hover:bg-primary hover:text-primary-foreground hover:border-primary transition-colors"
+                        >
+                            <Bell className="w-3.5 h-3.5" />
+                        </button>
+
+                        <button
+                            onClick={handleAdd}
+                            aria-label={`Adicionar ${product.name} à lista`}
+                            title="Adicionar a minha lista"
+                            className="w-7 h-7 rounded-full bg-card border border-border flex items-center justify-center hover:bg-primary hover:text-primary-foreground hover:border-primary transition-colors"
+                        >
+                            <Plus className="w-3.5 h-3.5" />
+                        </button>
+                    </div>
                 </div>
 
                 <div className="p-4 flex-1 flex flex-col">

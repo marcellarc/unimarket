@@ -1,14 +1,23 @@
 import logoImg from '@/assets/logo-unimarket.png'
 import {
     Badge, Button, Card,
+    Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
     DropdownMenu, DropdownMenuContent, DropdownMenuItem,
     DropdownMenuSeparator, DropdownMenuTrigger,
     Input,
 } from '@/components/ui'
 import { useLogout } from '@/hooks/use-logout'
+import {
+    createPriceAlert,
+    listNotifications,
+    listPriceAlerts,
+    markNotificationsAsRead,
+} from '@/services/notification'
+import type { PriceNotificationResponse } from '@/types/notification'
 import { listProducts, searchProductsByMarketId } from '@/services/product'
 import type { MarketProductResponse } from '@/types/product'
-import { useQuery } from '@tanstack/react-query'
+import type { TransformedProduct } from './product-card'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import {
     Bell, ChevronDown,
@@ -20,7 +29,8 @@ import {
     SlidersHorizontal, Store, Tag,
     User, X, Zap
 } from 'lucide-react'
-import { useCallback, useDeferredValue, useMemo, useState } from 'react'
+import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
+import { toast } from 'sonner'
 import { ProductCard } from './product-card'
 
 const categories = [
@@ -55,6 +65,7 @@ interface UserDashboardProps {
 export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDashboardProps) {
     const navigate = useNavigate()
     const { logout } = useLogout()
+    const queryClient = useQueryClient()
 
     const [searchQuery, setSearchQuery] = useState('')
     const [selectedCategory, setSelectedCategory] = useState('all')
@@ -64,6 +75,11 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
     const [sortBy, setSortBy] = useState<'price' | 'savings'>('price')
     const [showListPanel, setShowListPanel] = useState(false)
     const [expandedId, setExpandedId] = useState<number | null>(null)
+    const [alertProduct, setAlertProduct] = useState<TransformedProduct | null>(null)
+    const [desiredPrice, setDesiredPrice] = useState('')
+    const notifiedBrowserIds = useRef(new Set<number>())
+
+    const canUseNotifications = isLogged && userRole === 'USER'
 
 
     const { data: apiProducts = [], isLoading, error } = useQuery({
@@ -80,6 +96,97 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
         enabled: deferredSearch.length > 0 && !!marketId,
     })
 
+    const { data: priceAlerts = [] } = useQuery({
+        queryKey: ['priceAlerts'],
+        queryFn: listPriceAlerts,
+        enabled: canUseNotifications,
+    })
+
+    const { data: notifications = [] } = useQuery({
+        queryKey: ['notifications'],
+        queryFn: listNotifications,
+        enabled: canUseNotifications,
+        refetchInterval: canUseNotifications ? 15000 : false,
+    })
+
+    const unreadCount = notifications.filter(notification => !notification.read).length
+
+    const activeAlertByProductId = useMemo(() => {
+        return new Set(
+            priceAlerts
+                .filter(alert => alert.active)
+                .map(alert => alert.marketProductId),
+        )
+    }, [priceAlerts])
+
+    useEffect(() => {
+        if (!canUseNotifications || typeof window === 'undefined' || !('Notification' in window)) {
+            return
+        }
+
+        notifications
+            .filter(notification => !notification.read && !notifiedBrowserIds.current.has(notification.id))
+            .forEach(notification => {
+                notifiedBrowserIds.current.add(notification.id)
+
+                if (Notification.permission === 'granted') {
+                    new Notification(notification.title, {
+                        body: notification.message,
+                        tag: `price-alert-${notification.id}`,
+                    })
+                }
+            })
+    }, [canUseNotifications, notifications])
+
+    const createAlertMutation = useMutation({
+        mutationFn: () => {
+            if (!alertProduct) {
+                throw new Error('Produto nao selecionado')
+            }
+
+            return createPriceAlert({
+                marketProductId: alertProduct.id,
+                desiredPrice: Number(desiredPrice),
+            })
+        },
+        onSuccess: async () => {
+            toast.success('Alerta de preço criado')
+            setAlertProduct(null)
+            setDesiredPrice('')
+            await queryClient.invalidateQueries({ queryKey: ['priceAlerts'] })
+            await queryClient.invalidateQueries({ queryKey: ['notifications'] })
+
+            if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'default') {
+                Notification.requestPermission()
+            }
+        },
+        onError: () => {
+            toast.error('Não foi possível criar o alerta')
+        },
+    })
+
+    const markAsReadMutation = useMutation({
+        mutationFn: markNotificationsAsRead,
+        onMutate: async () => {
+            await queryClient.cancelQueries({ queryKey: ['notifications'] })
+            const previousNotifications = queryClient.getQueryData<PriceNotificationResponse[]>(['notifications'])
+
+            queryClient.setQueryData<PriceNotificationResponse[]>(['notifications'], current =>
+                current?.map(notification => ({ ...notification, read: true })) ?? [],
+            )
+
+            return { previousNotifications }
+        },
+        onError: (_error, _variables, context) => {
+            if (context?.previousNotifications) {
+                queryClient.setQueryData(['notifications'], context.previousNotifications)
+            }
+
+            toast.error('Não foi possível marcar as notificações como lidas')
+        },
+        onSettled: () => queryClient.invalidateQueries({ queryKey: ['notifications'] }),
+    })
+
     const transformedProducts = useMemo(() => {
         // Busca no mercado ativa → MarketProductResponse
         if (deferredSearch.length > 0) {
@@ -92,7 +199,7 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
                     lowestPrice: price,
                     averagePrice: price * 1.15,
                     savings: price * 0.15,
-                    badge: null,
+                    badge: activeAlertByProductId.has(product.id) ? 'Alerta ativo' : null,
                     markets: [{
                         name: product.marketName || 'Market',
                         price,
@@ -112,7 +219,7 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
                 lowestPrice: price,
                 averagePrice: price * 1.15,
                 savings: price * 0.15,
-                badge: null,
+                badge: activeAlertByProductId.has(product.id) ? 'Alerta ativo' : null,
                 markets: [{
                     name: product.marketName || 'Market',
                     price,
@@ -120,7 +227,7 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
                 }],
             }
         })
-    }, [apiProducts, searchedProducts, deferredSearch])
+    }, [apiProducts, searchedProducts, deferredSearch, activeAlertByProductId])
 
     const filteredProducts = useMemo(() =>
         transformedProducts
@@ -135,7 +242,38 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
         []
     )
 
-    console.log()
+    const handleCreateAlert = useCallback((product: TransformedProduct) => {
+        if (!canUseNotifications) {
+            toast.info('Entre como usuario para criar alertas de preço')
+            navigate({ to: '/login' })
+            return
+        }
+
+        setAlertProduct(product)
+        setDesiredPrice(product.lowestPrice > 0 ? product.lowestPrice.toFixed(2) : '')
+    }, [canUseNotifications, navigate])
+
+    const submitAlert = useCallback(() => {
+        const numericPrice = Number(desiredPrice)
+
+        if (!alertProduct || !Number.isFinite(numericPrice) || numericPrice <= 0) {
+            toast.error('Informe um preço desejado valido')
+            return
+        }
+
+        createAlertMutation.mutate()
+    }, [alertProduct, createAlertMutation, desiredPrice])
+
+    const handleAddToList = useCallback((product: TransformedProduct) => {
+        setShowListPanel(true)
+        toast.success(`${product.name} adicionado a sua lista`)
+    }, [])
+
+    const handleMarkNotificationsAsRead = useCallback((event: React.MouseEvent<HTMLButtonElement>) => {
+        event.preventDefault()
+        event.stopPropagation()
+        markAsReadMutation.mutate()
+    }, [markAsReadMutation])
 
     return (
         <div className="min-h-screen bg-background">
@@ -168,10 +306,57 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
                         </div>
 
                         <div className="flex items-center gap-1 shrink-0">
-                            <Button variant="ghost" size="icon" className="relative text-muted-foreground">
-                                <Bell className="w-5 h-5" />
-                                <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 bg-destructive text-destructive-foreground text-[9px] rounded-full flex items-center justify-center">3</span>
-                            </Button>
+                            <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                    <Button variant="ghost" size="icon" className="relative text-muted-foreground">
+                                        <Bell className="w-5 h-5" />
+                                        {unreadCount > 0 && (
+                                            <span className="absolute -top-0.5 -right-0.5 min-w-3.5 h-3.5 px-1 bg-destructive text-destructive-foreground text-[9px] rounded-full flex items-center justify-center">
+                                                {unreadCount}
+                                            </span>
+                                        )}
+                                    </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end" className="w-80 mt-1">
+                                    <div className="px-3 py-2 flex items-center justify-between gap-3">
+                                        <div>
+                                            <p className="text-sm font-medium text-foreground">Notificações</p>
+                                            <p className="text-xs text-muted-foreground">{unreadCount} Não lida{unreadCount !== 1 ? 's' : ''}</p>
+                                        </div>
+                                        {unreadCount > 0 && (
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                className="h-7 px-2 text-xs cursor-pointer"
+                                                disabled={markAsReadMutation.isPending}
+                                                onClick={handleMarkNotificationsAsRead}
+                                            >
+                                                {markAsReadMutation.isPending ? 'Marcando...' : 'Marcar como lidas'}
+                                            </Button>
+                                        )}
+                                    </div>
+                                    <DropdownMenuSeparator />
+                                    {!canUseNotifications ? (
+                                        <div className="px-3 py-4 text-sm text-muted-foreground">
+                                            Faça login como usuário para receber alertas de preço.
+                                        </div>
+                                    ) : notifications.length === 0 ? (
+                                        <div className="px-3 py-4 text-sm text-muted-foreground">
+                                            Não há notificações.
+                                        </div>
+                                    ) : (
+                                        notifications.slice(0, 5).map(notification => (
+                                            <DropdownMenuItem key={notification.id} className="items-start gap-2 py-3 cursor-default">
+                                                <span className={`mt-1 h-2 w-2 shrink-0 rounded-full ${notification.read ? 'bg-muted' : 'bg-primary'}`} />
+                                                <div className="min-w-0">
+                                                    <p className="text-sm font-medium text-foreground">{notification.productName}</p>
+                                                    <p className="text-xs text-muted-foreground leading-relaxed">{notification.message}</p>
+                                                </div>
+                                            </DropdownMenuItem>
+                                        ))
+                                    )}
+                                </DropdownMenuContent>
+                            </DropdownMenu>
 
                             <Button
                                 variant="ghost" size="icon"
@@ -380,7 +565,8 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
                                         product={product}
                                         isExpanded={expandedId === product.id}
                                         onToggle={toggleExpand}
-                                    //onAddToList={handleAddToList}
+                                        onAddToList={handleAddToList}
+                                        onCreateAlert={handleCreateAlert}
                                     />
                                 ))}
                             </div>
@@ -484,6 +670,52 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
                     )}
                 </div>
             </div>
+
+            <Dialog open={!!alertProduct} onOpenChange={(open) => !open && setAlertProduct(null)}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Alerta de preço</DialogTitle>
+                        <DialogDescription>
+                            Avise quando o produto chegar no valor desejado.
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    {alertProduct && (
+                        <div className="space-y-4">
+                            <div className="rounded-lg border border-border p-3">
+                                <p className="text-sm font-medium text-foreground">{alertProduct.name}</p>
+                                <p className="text-xs text-muted-foreground mt-1">
+                                    Preço atual: R$ {alertProduct.lowestPrice.toFixed(2)}
+                                </p>
+                            </div>
+
+                            <div className="space-y-2">
+                                <label htmlFor="desiredPrice" className="text-xs font-medium text-muted-foreground">
+                                    Preço desejado
+                                </label>
+                                <Input
+                                    id="desiredPrice"
+                                    type="number"
+                                    min="0.01"
+                                    step="0.01"
+                                    value={desiredPrice}
+                                    onChange={(event) => setDesiredPrice(event.target.value)}
+                                    placeholder="Ex.: 9.99"
+                                />
+                            </div>
+                        </div>
+                    )}
+
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setAlertProduct(null)}>
+                            Cancelar
+                        </Button>
+                        <Button onClick={submitAlert} disabled={createAlertMutation.isPending}>
+                            {createAlertMutation.isPending ? 'Salvando...' : 'Criar alerta'}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div >
     )
 }

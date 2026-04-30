@@ -47,7 +47,7 @@ public class MarketProductController {
     // Endpoint para listar todos os produtos de um mercado
     @Operation(summary = "Listar produtos de um mercado")
     @GetMapping
-    public ResponseEntity<List<ProductResponseDTO>> listProducts(
+    public ResponseEntity<List<MarketProductResponseDTO>> listProducts(
             @PathVariable Long marketId // ID do mercado
     ) {
         return ResponseEntity.ok(marketProductService.listProductByMarket(marketId)); // retorna 200
@@ -56,7 +56,7 @@ public class MarketProductController {
     // Endpoint para buscar produtos de um mercado pelo nome
     @Operation(summary = "Buscar produtos por nome")
     @GetMapping("/search")
-    public ResponseEntity<List<ProductResponseDTO>> searchProducts(
+    public ResponseEntity<List<MarketProductResponseDTO>> searchProducts(
             @PathVariable Long marketId, // ID do mercado
             @RequestParam String name // nome ou parte do nome do produto
     ) {
@@ -66,7 +66,7 @@ public class MarketProductController {
     // Endpoint para buscar um produto específico de um mercado pelo ID
     @Operation(summary = "Buscar produto por ID")
     @GetMapping("/{productId}")
-    public ResponseEntity<ProductResponseDTO> searchProductById(
+    public ResponseEntity<MarketProductResponseDTO> searchProductById(
             @PathVariable Long marketId, // ID do mercado
             @PathVariable Long productId // ID do produto
     ) {
