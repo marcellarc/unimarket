@@ -36,6 +36,9 @@ public class MarketProductService {
     @Autowired
     private CategoryRepository categoryRepository;
 
+    @Autowired
+    private PriceAlertService priceAlertService;
+
     // Cadastra produto e cria o vínculo com o mercado
     public ProductResponseDTO createProduct(ProductRequestDTO dto, Long marketId) {
 
@@ -90,7 +93,7 @@ public class MarketProductService {
     }
 
     // Lista todos os produtos vinculados a um mercado específico
-    public List<ProductResponseDTO> listProductByMarket(Long marketId) {
+    public List<MarketProductResponseDTO> listProductByMarket(Long marketId) {
 
         // verifica se o mercado existe
         marketRepository.findById(marketId)
@@ -99,12 +102,12 @@ public class MarketProductService {
         // busca todos os vínculos do mercado e mapeia para DTO
         return marketProductRepository.findByMarketId(marketId)
                 .stream()
-                .map(vinculo -> toResponse(vinculo.getProduct()))
+                .map(this::toMercadoProdutoResponse)
                 .collect(Collectors.toList());
     }
 
     // Busca produtos de um mercado pelo nome
-    public List<ProductResponseDTO> findProducts(Long marketId, String name) {
+    public List<MarketProductResponseDTO> findProducts(Long marketId, String name) {
 
         // verifica se o mercado existe
         marketRepository.findById(marketId)
@@ -115,12 +118,12 @@ public class MarketProductService {
                 .stream()
                 .filter(vinculo -> vinculo.getProduct().getName()
                         .toLowerCase().contains(name.toLowerCase())) // filtra ignorando maiúsculas/minúsculas
-                .map(vinculo -> toResponse(vinculo.getProduct()))
+                .map(this::toMercadoProdutoResponse)
                 .collect(Collectors.toList());
     }
 
     // Busca um produto específico de um mercado pelo ID do produto
-    public ProductResponseDTO findProductById(Long marketId, Long productId) {
+    public MarketProductResponseDTO findProductById(Long marketId, Long productId) {
 
         // verifica se o vínculo entre o mercado e o produto existe
         MarketProduct vinculo = marketProductRepository
@@ -128,7 +131,7 @@ public class MarketProductService {
                 .orElseThrow(() -> new RuntimeException("Produto não encontrado para este mercado"));
 
         // retorna os dados do produto vinculado
-        return toResponse(vinculo.getProduct());
+        return toMercadoProdutoResponse(vinculo);
     }
 
     // Converte entidade Product para ProductResponseDTO
@@ -164,6 +167,7 @@ public class MarketProductService {
 
         // salva o vínculo atualizado no banco
         MarketProduct atualizado = marketProductRepository.save(vinculo);
+        priceAlertService.evaluateMarketProduct(atualizado);
 
         // converte e retorna o response
         return toMercadoProdutoResponse(atualizado);
@@ -173,6 +177,7 @@ public class MarketProductService {
     private MarketProductResponseDTO toMercadoProdutoResponse(MarketProduct vinculo) {
         MarketProductResponseDTO response = new MarketProductResponseDTO();
         response.setId(vinculo.getId());
+        response.setProductId(vinculo.getProduct().getId());
         response.setMarketName(vinculo.getMarket().getName()); // nome do mercado
         response.setProductName(vinculo.getProduct().getName()); // nome do produto
         response.setBrand(vinculo.getProduct().getBrand());   // marca do produto

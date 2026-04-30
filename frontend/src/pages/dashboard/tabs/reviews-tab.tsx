@@ -8,7 +8,6 @@ import {
     TrendingUp,
     AlertCircle,
     Check,
-    X,
 } from 'lucide-react';
 import { Badge, Button, Card, Input, Textarea } from '@/components/ui';
 

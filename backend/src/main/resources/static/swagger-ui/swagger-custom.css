@@ -1,0 +1,85 @@
+body.swagger-ui {
+    background:
+        radial-gradient(circle at top left, rgba(0, 86, 223, 0.14), transparent 34%),
+        linear-gradient(180deg, #f7faff 0%, #eef4ff 100%);
+}
+
+.swagger-ui .topbar {
+    background: linear-gradient(90deg, #003c9f 0%, #0056df 100%);
+    border-bottom: 3px solid #ffcf37;
+    padding: 10px 0;
+}
+
+.swagger-ui .topbar-wrapper::before {
+    content: "UniMarket Docs";
+    color: #ffffff;
+    font-size: 1.15rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    margin-right: 18px;
+}
+
+.swagger-ui .topbar .download-url-wrapper {
+    display: none;
+}
+
+.swagger-ui .info {
+    margin: 24px 0 32px;
+    padding: 24px 28px;
+    background: #ffffff;
+    border: 1px solid #dbe7ff;
+    border-radius: 14px;
+    box-shadow: 0 16px 32px rgba(0, 42, 110, 0.08);
+}
+
+.swagger-ui .info .title {
+    color: #003c9f;
+    font-weight: 800;
+}
+
+.swagger-ui .info .description,
+.swagger-ui .info p,
+.swagger-ui .renderedMarkdown p {
+    color: #334155;
+}
+
+.swagger-ui .scheme-container {
+    background: #ffffff;
+    border: 1px solid #dbe7ff;
+    border-radius: 12px;
+    box-shadow: 0 10px 24px rgba(0, 42, 110, 0.06);
+}
+
+.swagger-ui .opblock-tag {
+    color: #003c9f;
+    border-bottom-color: #dbe7ff;
+}
+
+.swagger-ui .opblock-tag:hover {
+    background: rgba(0, 86, 223, 0.04);
+}
+
+.swagger-ui .opblock {
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+}
+
+.swagger-ui .btn.authorize {
+    border-color: #0056df;
+    color: #0056df;
+}
+
+.swagger-ui .btn.authorize svg {
+    fill: #0056df;
+}
+
+.swagger-ui .btn.execute {
+    background: #0056df;
+    border-color: #0056df;
+}
+
+.swagger-ui .btn.execute:hover {
+    background: #0047bb;
+    border-color: #0047bb;
+}

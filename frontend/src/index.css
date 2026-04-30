@@ -96,4 +96,22 @@
     body {
         @apply bg-background text-foreground;
     }
+
+    button:not(:disabled),
+    [role="button"]:not([aria-disabled="true"]),
+    a[href],
+    select,
+    summary,
+    input[type="checkbox"],
+    input[type="radio"],
+    input[type="range"],
+    input[type="submit"],
+    input[type="button"] {
+        cursor: pointer;
+    }
+
+    button:disabled,
+    [aria-disabled="true"] {
+        cursor: not-allowed;
+    }
 }
