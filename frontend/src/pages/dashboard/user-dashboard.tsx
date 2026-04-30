@@ -81,7 +81,6 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
 
     const canUseNotifications = isLogged && userRole === 'USER'
 
-
     const { data: apiProducts = [], isLoading, error } = useQuery({
         queryKey: ['products', marketId],
         queryFn: () => listProducts(marketId),
@@ -237,6 +236,10 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
         [transformedProducts, selectedCategory, maxPrice, sortBy]
     )
 
+    const totalListItems = shoppingLists.reduce((total, list) => total + list.items, 0)
+    const totalListSavings = shoppingLists.reduce((total, list) => total + list.savings, 0)
+    const activeAlertCount = priceAlerts.filter(alert => alert.active).length
+
     const toggleExpand = useCallback(
         (id: number) => setExpandedId(prev => prev === id ? null : id),
         []
@@ -275,8 +278,17 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
         markAsReadMutation.mutate()
     }, [markAsReadMutation])
 
+    const handleOpenProfile = useCallback(() => {
+        if (!isLogged) {
+            navigate({ to: '/login' })
+            return
+        }
+
+        navigate({ to: '/profile' })
+    }, [isLogged, navigate])
+
     return (
-        <div className="min-h-screen bg-background">
+        <div className="min-h-screen bg-muted/30">
 
             {/* ── NAVBAR ── */}
             <header className="sticky top-0 z-50 bg-card border-b border-border shadow-sm">
@@ -365,7 +377,7 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
                             >
                                 <ShoppingCart className="w-5 h-5" />
                                 <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 bg-primary text-primary-foreground text-[9px] rounded-full flex items-center justify-center">
-                                    {shoppingLists.reduce((a, l) => a + l.items, 0)}
+                                    {totalListItems}
                                 </span>
                             </Button>
 
@@ -386,7 +398,7 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
                                     </div>
                                     <DropdownMenuSeparator />
                                     {isLogged && (
-                                        <DropdownMenuItem className="cursor-pointer">
+                                        <DropdownMenuItem onClick={handleOpenProfile} className="cursor-pointer">
                                             <User className="w-4 h-4 mr-2" /> Meu Perfil
                                         </DropdownMenuItem>
                                     )}
@@ -429,11 +441,62 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
             </header>
 
             <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
-                <div className="flex gap-6">
+                <section className="mb-6 rounded-lg border border-border bg-card p-5 shadow-sm">
+                    <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+                        <div>
+                            <div className="flex flex-wrap items-center gap-2">
+                                <Badge variant="secondary" className="gap-1">
+                                    <MapPin className="w-3 h-3" />
+                                    Santos, SP
+                                </Badge>
+                                <Badge variant="outline">Consumidor</Badge>
+                            </div>
+                            <h1 className="mt-3 text-2xl font-bold text-foreground">
+                                Olá, {userName}. Encontre o melhor preço antes de comprar.
+                            </h1>
+                            <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
+                                Compare produtos, acompanhe mercados próximos e deixe o UniMarket avisar quando o preço ficar bom.
+                            </p>
+                        </div>
+
+                        <div className="grid grid-cols-3 gap-3 text-center">
+                            <div className="rounded-lg border border-border bg-background px-4 py-3">
+                                <p className="text-lg font-bold text-foreground">{filteredProducts.length}</p>
+                                <p className="text-xs text-muted-foreground">produtos</p>
+                            </div>
+                            <div className="rounded-lg border border-border bg-background px-4 py-3">
+                                <p className="text-lg font-bold text-foreground">{activeAlertCount}</p>
+                                <p className="text-xs text-muted-foreground">alertas</p>
+                            </div>
+                            <div className="rounded-lg border border-border bg-background px-4 py-3">
+                                <p className="text-lg font-bold text-primary">R$ {totalListSavings.toFixed(2)}</p>
+                                <p className="text-xs text-muted-foreground">economia</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="mt-5 flex flex-col gap-3 border-t border-border pt-4 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="flex flex-wrap gap-2">
+                            <Button size="sm" onClick={() => setShowListPanel(true)}>
+                                <ShoppingCart className="w-4 h-4" />
+                                Minhas listas
+                            </Button>
+                            <Button variant="outline" size="sm" onClick={handleOpenProfile}>
+                                <User className="w-4 h-4" />
+                                Perfil e preferências
+                            </Button>
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                            {unreadCount > 0 ? `${unreadCount} notificacao${unreadCount !== 1 ? 'es' : ''} aguardando leitura` : 'Tudo em dia nas notificacoes'}
+                        </div>
+                    </div>
+                </section>
+
+                <div className="flex flex-col gap-6 lg:flex-row">
 
                     {/* ── FILTROS ── */}
                     {showFilters && (
-                        <aside className="w-56 shrink-0">
+                        <aside className="w-full shrink-0 lg:w-56">
                             <Card className="p-4 border-border space-y-5 sticky top-32">
                                 <div className="flex items-center justify-between">
                                     <span className="font-semibold text-foreground text-sm">Filtros</span>
@@ -620,7 +683,7 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
 
                     {/*PAINEL DE LISTAS*/}
                     {showListPanel && (
-                        <aside className="w-64 shrink-0">
+                        <aside className="w-full shrink-0 lg:w-64">
                             <Card className="border-border p-4 sticky top-32">
                                 <div className="flex items-center justify-between mb-4">
                                     <div className="flex items-center gap-2">
@@ -661,7 +724,7 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
                                         <span className="text-xs font-semibold text-primary">Economia total</span>
                                     </div>
                                     <p className="text-xl font-bold text-primary">
-                                        R$ {shoppingLists.reduce((a, l) => a + l.savings, 0).toFixed(2)}
+                                        R$ {totalListSavings.toFixed(2)}
                                     </p>
                                     <p className="text-[10px] text-muted-foreground mt-0.5">em todas as listas</p>
                                 </div>
