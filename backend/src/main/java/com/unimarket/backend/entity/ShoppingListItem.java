@@ -2,56 +2,61 @@ package com.unimarket.backend.entity;
 
 import java.time.LocalDateTime;
 
-import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
 
-// Entidade que representa uma categoria de produtos
+// Entidade que representa um item dentro de uma lista de compras
 @Getter
 @Setter
 @Entity
-@Table(name = "categories")
-@Schema(description = "Entidade representando uma categoria de produtos")
-public class Category {
+@Table(name = "shopping_list_item")
+public class ShoppingListItem {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Schema(description = "Identificador único da categoria", example = "1")
     private Long id;
 
-    // nome da categoria — obrigatório e único no sistema
-    @Column(nullable = false, unique = true)
-    @Schema(description = "Nome da categoria", example = "Alimentos")
-    private String name;
+    // lista de compras à qual o item pertence
+    @ManyToOne
+    @JoinColumn(name = "shopping_list_id", nullable = false)
+    private ShoppingList shoppingList;
 
-    // preenchido automaticamente na criação, nunca atualizado
-    @Column(name = "created_at", nullable = false, updatable = false)
-    @Schema(description = "Timestamp de quando a categoria foi criada")
-    private LocalDateTime createdAt;
+    // vínculo entre mercado e produto — define qual produto de qual mercado foi adicionado
+    @ManyToOne
+    @JoinColumn(name = "market_product_id", nullable = false)
+    private MarketProduct marketProduct;
+
+    // quantidade do produto na lista
+    @Column(nullable = false)
+    private Integer quantity;
 
     // atualizado automaticamente a cada alteração no registro
     @Column(name = "updated_at", nullable = false)
-    @Schema(description = "Timestamp da última atualização da categoria")
     private LocalDateTime updatedAt;
 
-    // nulo significa que a categoria está ativa — soft delete
+    // preenchido automaticamente na criação, nunca atualizado
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private LocalDateTime createdAt;
+
+    // nulo significa que o item está ativo — soft delete
     @Column(name = "deleted_at")
-    @Schema(description = "Timestamp de quando a categoria foi deletada")
     private LocalDateTime deletedAt;
 
     @PrePersist
     public void prePersist() {
         // define a data no momento do save
         this.createdAt = LocalDateTime.now();
-        this.updatedAt = LocalDateTime.now(); // inicializa junto com createdAt
+        this.updatedAt = LocalDateTime.now();
     }
 
     @PreUpdate
