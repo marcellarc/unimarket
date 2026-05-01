@@ -9,7 +9,14 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.PrePersist;
+import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
+import lombok.Getter;
+import lombok.Setter;
+
+// Entidade que representa um cliente do sistema
+@Getter
+@Setter
 
 @Entity
 @Table(name = "clients")
@@ -29,80 +36,44 @@ public class Client {
     @Schema(description = "E-mail do cliente", example = "cliente@gmail.com")
     private String email;
 
+    // senha armazenada sempre com hash (BCrypt)
     @Column(name = "password", nullable = false)
     @Schema(description = "Senha criptografada para autenticação")
     private String password;
 
-    @Schema(description = "Timestamp de quando o mercado foi criado")
+    // preenchido automaticamente na criação, nunca atualizado
+    @Column(name = "created_at", nullable = false, updatable = false)
+    @Schema(description = "Timestamp de quando o cliente foi criado")
     private LocalDateTime createdAt;
 
+    // atualizado automaticamente a cada alteração no registro
+    @Column(name = "updated_at", nullable = false)
+    @Schema(description = "Timestamp da última atualização do cliente")
+    private LocalDateTime updatedAt;
+
+    // nulo significa que o cliente está ativo — soft delete
+    @Column(name = "deleted_at")
+    @Schema(description = "Timestamp de quando o cliente foi deletado")
+    private LocalDateTime deletedAt;
+
+    // código de 6 dígitos enviado para redefinição de senha
     @Column(name = "reset_code", length = 6)
     private String resetCode;
 
+    // data de expiração do código de redefinição de senha
     @Column(name = "reset_code_expires_at")
     private LocalDateTime resetCodeExpiresAt;
 
     @PrePersist
     public void prePersist() {
+        // define a data no momento do save
         this.createdAt = LocalDateTime.now();
+        this.updatedAt = LocalDateTime.now(); // inicializa junto com createdAt
     }
 
-    // getters e setters
-
-    public Long getId() {
-        return id;
+    @PreUpdate
+    public void preUpdate() {
+        // atualiza a data a cada alteração no registro
+        this.updatedAt = LocalDateTime.now();
     }
-
-    public void setId(Long id) {
-        this.id = id;
-    }
-
-    public String getName() {
-        return name;
-    }
-
-    public void setName(String name) {
-        this.name = name;
-    }
-
-    public String getEmail() {
-        return email;
-    }
-
-    public void setEmail(String email) {
-        this.email = email;
-    }
-
-    public String getPassword() {
-        return password;
-    }
-
-    public void setPassword(String password) {
-        this.password = password;
-    }
-
-    public LocalDateTime getCreatedAt() {
-        return createdAt;
-    }
-
-    public void setCreatedAt(LocalDateTime createdAt) {
-        this.createdAt = createdAt;
-    }
-
-    public String getResetCode() {
-        return resetCode;
-    }
-
-    public void setResetCode(String resetCode) {
-        this.resetCode = resetCode;
-    }
-
-    public LocalDateTime getResetCodeExpiresAt() {
-        return resetCodeExpiresAt;
-    }
-
-    public void setResetCodeExpiresAt(LocalDateTime resetCodeExpiresAt) {
-        this.resetCodeExpiresAt = resetCodeExpiresAt;
-    }
-    
 }
