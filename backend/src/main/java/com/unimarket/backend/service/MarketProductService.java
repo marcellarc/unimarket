@@ -186,4 +186,17 @@ public class MarketProductService {
         response.setUpdatedAt(vinculo.getUpdatedAt());
         return response;
     }
+
+
+    // realiza o soft delete do vínculo entre mercado e produto
+    public void deleteMarketProduct(Long marketId, Long productId) {
+
+        // verifica se o vínculo existe
+        MarketProduct vinculo = marketProductRepository
+                .findByMarketIdAndProductId(marketId, productId)
+                .orElseThrow(() -> new RuntimeException("Vínculo entre mercado e produto não encontrado"));
+
+        // @SQLDelete intercepta e executa UPDATE deleted_at em vez de DELETE
+        marketProductRepository.delete(vinculo);
+    }
 }

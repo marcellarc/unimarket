@@ -37,4 +37,14 @@ public class ClientService {
         // Salva no banco
         return repository.save(client);
     }
+
+
+    // realiza o soft delete do cliente
+    public void deleteClient(Long id) {
+        // verifica se o cliente existe
+        Client client = repository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Cliente não encontrado"));
+        // @SQLDelete intercepta e executa UPDATE deleted_at em vez de DELETE
+        repository.delete(client);
+    }
 }

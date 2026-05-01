@@ -2,6 +2,9 @@ package com.unimarket.backend.entity;
 
 import java.time.LocalDateTime;
 
+import org.hibernate.annotations.SQLDelete;
+import org.hibernate.annotations.SQLRestriction;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -18,6 +21,12 @@ import lombok.Setter;
 // Entidade que representa uma lista de compras de um cliente
 @Getter
 @Setter
+
+// Implementação de soft delete: ao invés de remover o registro, marca como deletado
+@SQLDelete(sql = "UPDATE shopping_list SET deleted_at = NOW() WHERE id = ?")
+// Garante que apenas listas não deletadas sejam retornadas nas consultas
+@SQLRestriction("deleted_at IS NULL")
+
 @Entity
 @Table(name = "shopping_list")
 public class ShoppingList {
