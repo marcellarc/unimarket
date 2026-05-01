@@ -7,9 +7,10 @@ import org.springframework.stereotype.Service;
 
 import com.unimarket.backend.dto.MarketDTO;
 import com.unimarket.backend.entity.Market;
+import com.unimarket.backend.repository.MarketProductRepository;
 import com.unimarket.backend.repository.MarketRepository;
 
-
+// classe responsável pela lógica de negócio do Market
 @Service
 public class MarketService {
 
@@ -17,36 +18,45 @@ public class MarketService {
     private MarketRepository repository;
 
     @Autowired
+    private MarketProductRepository marketProductRepository;
+
+    @Autowired
     private ModelMapper modelMapper;
 
     @Autowired
     private PasswordEncoder passwordEncoder;
 
-    /**
-         * Classe responsável pela lógica de negócio do sistema.
-         * 
-         * O Service atua como intermediário entre o Controller e o Repository:
-         * - Recebe os dados vindos do Controller (DTO)
-         * - Aplica regras de negócio (validações, tratamentos, etc.)
-         * - Realiza transformações necessárias (ex: criptografia de senha)
-         * - Envia os dados para o Repository salvar no banco
-         * 
-         * Exemplo neste contexto:
-         * - Verifica se o CNPJ já está cadastrado
-         * - Criptografa a senha do supermercado
-         * - Define a data de cadastro automaticamente
-     */
-
+    // registra um novo mercado verificando duplicatas de CNPJ e email
     public Market register(MarketDTO dto) {
+
+        // verifica se o CNPJ já está cadastrado
         if (repository.findByCnpj(dto.getCnpj()).isPresent()) {
             throw new RuntimeException("CNPJ já cadastrado");
         }
+
+        // verifica se o email já está cadastrado
         if (repository.findByEmail(dto.getEmail()).isPresent()) {
             throw new RuntimeException("Email já cadastrado");
         }
 
+        // converte DTO para entidade e criptografa a senha
         Market market = modelMapper.map(dto, Market.class);
         market.setPassword(passwordEncoder.encode(dto.getPassword()));
         return repository.save(market);
+    }
+
+    // realiza o soft delete do mercado e de todos os seus vínculos com produtos
+    public void deleteMarket(Long id) {
+
+        // verifica se o mercado existe
+        Market market = repository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Mercado não encontrado"));
+
+        // soft delete de todos os vínculos do mercado com produtos
+        marketProductRepository.findByMarketId(id)
+                .forEach(vinculo -> marketProductRepository.delete(vinculo));
+
+        // soft delete do mercado
+        repository.delete(market);
     }
 }

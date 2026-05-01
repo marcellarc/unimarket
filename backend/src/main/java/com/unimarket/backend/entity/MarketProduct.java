@@ -2,6 +2,9 @@ package com.unimarket.backend.entity;
 
 import java.time.LocalDateTime;
 
+import org.hibernate.annotations.SQLDelete;
+import org.hibernate.annotations.SQLRestriction;
+
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -20,6 +23,12 @@ import lombok.Setter;
 // Entidade que representa o vínculo entre um mercado e um produto
 @Getter
 @Setter
+
+// Implementação de soft delete: ao invés de remover o registro, marca como deletado
+@SQLDelete(sql = "UPDATE market_products SET deleted_at = NOW() WHERE id = ?")
+// Garante que apenas vínculos não deletados sejam retornados nas consultas
+@SQLRestriction("deleted_at IS NULL")
+
 @Entity
 @Table(
     name = "market_products",

@@ -5,6 +5,7 @@ import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -83,5 +84,17 @@ public class MarketProductController {
     ) {
         MarketProductResponseDTO response = marketProductService.updateProductPriceAndStock(marketId, productId, dto);
         return ResponseEntity.ok(response); // retorna 200
+    }
+
+
+    // endpoint para deletar o vínculo entre mercado e produto
+    @Operation(summary = "Deletar vínculo entre mercado e produto")
+    @DeleteMapping("/{productId}")
+    public ResponseEntity<Void> deleteMarketProduct(
+            @PathVariable Long marketId,  // ID do mercado
+            @PathVariable Long productId  // ID do produto
+    ) {
+        marketProductService.deleteMarketProduct(marketId, productId);
+        return ResponseEntity.noContent().build(); // retorna 204
     }
 }
