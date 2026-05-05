@@ -1,6 +1,5 @@
 package com.unimarket.backend.dto.product;
 
-import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
 import lombok.Setter;
@@ -11,11 +10,11 @@ import lombok.Setter;
 public class ProductRequestDTO {
 
     // nome do produto
-    @NotBlank(message = "Nome do produto é obrigatório")
+    //@NotBlank(message = "Nome do produto é obrigatório")
     private String productName;
 
     // marca do produto
-    @NotBlank(message = "Marca do produto é obrigatória")
+    //@NotBlank(message = "Marca do produto é obrigatória")
     private String brand;
 
     // descrição detalhada do produto
