@@ -3,6 +3,7 @@ package com.unimarket.backend.config;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -27,6 +28,7 @@ public class SecurityConfig {
                 .cors(Customizer.withDefaults()) // Mantém a conexão com o Front-end aberta
                 .csrf(csrf -> csrf.disable()) // Desabilita CSRF para permitir POSTs
                 .authorizeHttpRequests(auth -> auth
+                .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                 // 1. Rotas Públicas da sua API
                 .requestMatchers("/api/**").permitAll()
                 .requestMatchers("/api/markets/**").permitAll() // Rota de cadastro
