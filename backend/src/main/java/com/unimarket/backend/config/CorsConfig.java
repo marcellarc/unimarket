@@ -14,10 +14,13 @@ public class CorsConfig {
             @Override
             public void addCorsMappings(CorsRegistry registry) {
                 registry.addMapping("/**")
-                        .allowedOrigins(
-                                "http://localhost:5173",
-                                "http://127.0.0.1:5173",
-                                "https://unimarket-develop.vercel.app"
+                        .allowedOriginPatterns(
+                                "http://localhost:*",
+                                "http://127.0.0.1:*",
+                                "https://unimarket-develop.vercel.app",
+                                "https://unimarket-git-develop-marcellarcs-projects.vercel.app",
+                                "https://unimarket-develop.app",
+                                "https://*.vercel.app"
                         )
                         .allowedMethods("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
                         .allowedHeaders("*")
