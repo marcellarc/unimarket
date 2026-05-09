@@ -7,6 +7,7 @@ import {
     listPriceAlerts,
     markNotificationsAsRead,
 } from '@/services/notification'
+import { findLocationByCep } from '@/services/location'
 import { getCurrentUserProfile, updateCurrentUserProfile } from '@/services/user'
 import type { PriceNotificationResponse } from '@/types/notification'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -19,17 +20,19 @@ import {
     Calendar,
     CheckCircle2,
     Home,
+    ImagePlus,
+    KeyRound,
     Loader2,
     LocateFixed,
     LogOut,
     MapPin,
     Navigation,
     Save,
+    Search,
     ShieldCheck,
     ShoppingCart,
     SlidersHorizontal,
     Trash2,
-    User,
     Zap,
 } from 'lucide-react'
 import type { ComponentType } from 'react'
@@ -59,6 +62,34 @@ function getStoredString(key: string, fallback: string) {
     return window.localStorage.getItem(key) ?? fallback
 }
 
+function getStoredNumber(key: string) {
+    if (typeof window === 'undefined') {
+        return null
+    }
+
+    const value = window.localStorage.getItem(key)
+    const parsedValue = value ? Number(value) : NaN
+    return Number.isFinite(parsedValue) ? parsedValue : null
+}
+
+function onlyDigits(value: string) {
+    return value.replace(/\D/g, '')
+}
+
+function formatCep(value: string) {
+    const digits = onlyDigits(value).slice(0, 8)
+    return digits.length > 5 ? `${digits.slice(0, 5)}-${digits.slice(5)}` : digits
+}
+
+function getInitials(value: string) {
+    return value
+        .split(' ')
+        .filter(Boolean)
+        .slice(0, 2)
+        .map(part => part[0]?.toUpperCase())
+        .join('') || 'U'
+}
+
 const shoppingSummary = {
     lists: 2,
     items: 20,
@@ -72,9 +103,18 @@ export function ProfilePage() {
 
     const [name, setName] = useState(Cookies.get('userName') || '')
     const [email, setEmail] = useState(Cookies.get('userEmail') || '')
-    const [password, setPassword] = useState('')
-    const [city, setCity] = useState(() => getStoredString('unimarket.profile.city', 'Santos, SP'))
+    const [currentPassword, setCurrentPassword] = useState('')
+    const [newPassword, setNewPassword] = useState('')
+    const [confirmPassword, setConfirmPassword] = useState('')
+    const [profileImageUrl, setProfileImageUrl] = useState(() => getStoredString('unimarket.profile.imageUrl', ''))
+    const [zipCode, setZipCode] = useState(() => getStoredString('unimarket.profile.zipCode', ''))
+    const [streetAddress, setStreetAddress] = useState(() => getStoredString('unimarket.profile.streetAddress', ''))
+    const [city, setCity] = useState(() => getStoredString('unimarket.profile.city', 'Santos'))
+    const [state, setState] = useState(() => getStoredString('unimarket.profile.state', 'SP'))
     const [neighborhood, setNeighborhood] = useState(() => getStoredString('unimarket.profile.neighborhood', ''))
+    const [latitude, setLatitude] = useState<number | null>(() => getStoredNumber('unimarket.profile.latitude'))
+    const [longitude, setLongitude] = useState<number | null>(() => getStoredNumber('unimarket.profile.longitude'))
+    const [locationSource, setLocationSource] = useState(() => getStoredString('unimarket.profile.locationSource', ''))
     const [searchRadius, setSearchRadius] = useState(() => Number(getStoredString('unimarket.profile.radius', '5')))
     const [priceAlertsEnabled, setPriceAlertsEnabled] = useState(() =>
         getStoredBoolean('unimarket.priceAlertsEnabled', true),
@@ -103,12 +143,18 @@ export function ProfilePage() {
 
     const unreadNotifications = notifications.filter(notification => !notification.read).length
     const activeAlerts = priceAlerts.filter(alert => alert.active)
+    const hasSavedLocation = Boolean(zipCode && city && state)
+    const locationStatus = latitude != null && longitude != null
+        ? 'Localidade precisa ativa para ordenar mercados por distância.'
+        : hasSavedLocation
+            ? 'Localidade pronta. A busca usará seu CEP, cidade e UF.'
+            : 'Informe seu CEP para ativar a busca por supermercados próximos.'
 
     const profileScore = useMemo(() => {
-        const filledFields = [name, email, city, neighborhood].filter(Boolean).length
+        const filledFields = [name, email, profileImageUrl, zipCode, city, state, neighborhood].filter(Boolean).length
         const enabledPreferences = [priceAlertsEnabled, weeklySummaryEnabled, browserPushEnabled].filter(Boolean).length
-        return Math.min(100, Math.round(((filledFields + enabledPreferences) / 7) * 100))
-    }, [browserPushEnabled, city, email, name, neighborhood, priceAlertsEnabled, weeklySummaryEnabled])
+        return Math.min(100, Math.round(((filledFields + enabledPreferences) / 10) * 100))
+    }, [browserPushEnabled, city, email, name, neighborhood, priceAlertsEnabled, profileImageUrl, state, weeklySummaryEnabled, zipCode])
 
     useEffect(() => {
         if (!profile) {
@@ -117,6 +163,26 @@ export function ProfilePage() {
 
         setName(profile.name)
         setEmail(profile.email)
+        setProfileImageUrl(profile.profileImageUrl ?? getStoredString('unimarket.profile.imageUrl', ''))
+        setStreetAddress(profile.streetAddress ?? getStoredString('unimarket.profile.streetAddress', ''))
+        setNeighborhood(profile.neighborhood ?? getStoredString('unimarket.profile.neighborhood', ''))
+        setCity(profile.city ?? getStoredString('unimarket.profile.city', 'Santos'))
+        setState(profile.state ?? getStoredString('unimarket.profile.state', 'SP'))
+        setZipCode(profile.zipCode ? formatCep(profile.zipCode) : getStoredString('unimarket.profile.zipCode', ''))
+        setLocationSource(profile.locationSource ?? getStoredString('unimarket.profile.locationSource', ''))
+
+        if (profile.latitude != null && profile.longitude != null) {
+            setLatitude(profile.latitude)
+            setLongitude(profile.longitude)
+        } else if (profile.zipCode || profile.city || profile.neighborhood) {
+            setLatitude(null)
+            setLongitude(null)
+        }
+
+        if (profile.searchRadiusKm != null) {
+            setSearchRadius(profile.searchRadiusKm)
+        }
+
         Cookies.set('userName', profile.name, cookieOptions)
         Cookies.set('userEmail', profile.email, cookieOptions)
     }, [profile])
@@ -126,33 +192,89 @@ export function ProfilePage() {
             return
         }
 
+        window.localStorage.setItem('unimarket.profile.zipCode', formatCep(zipCode))
+        window.localStorage.setItem('unimarket.profile.streetAddress', streetAddress)
         window.localStorage.setItem('unimarket.profile.city', city)
+        window.localStorage.setItem('unimarket.profile.state', state)
         window.localStorage.setItem('unimarket.profile.neighborhood', neighborhood)
+        window.localStorage.setItem('unimarket.profile.imageUrl', profileImageUrl)
+        if (latitude != null && longitude != null) {
+            window.localStorage.setItem('unimarket.profile.latitude', String(latitude))
+            window.localStorage.setItem('unimarket.profile.longitude', String(longitude))
+        } else {
+            window.localStorage.removeItem('unimarket.profile.latitude')
+            window.localStorage.removeItem('unimarket.profile.longitude')
+        }
+        window.localStorage.setItem('unimarket.profile.locationSource', locationSource)
         window.localStorage.setItem('unimarket.profile.radius', String(searchRadius))
         window.localStorage.setItem('unimarket.priceAlertsEnabled', String(priceAlertsEnabled))
         window.localStorage.setItem('unimarket.weeklySummaryEnabled', String(weeklySummaryEnabled))
         window.localStorage.setItem('unimarket.browserPushEnabled', String(browserPushEnabled))
-    }, [browserPushEnabled, city, neighborhood, priceAlertsEnabled, searchRadius, weeklySummaryEnabled])
+    }, [browserPushEnabled, city, latitude, locationSource, longitude, neighborhood, priceAlertsEnabled, profileImageUrl, searchRadius, state, streetAddress, weeklySummaryEnabled, zipCode])
 
     const updateProfileMutation = useMutation({
         mutationFn: () => updateCurrentUserProfile({
             name: name.trim(),
             email: email.trim(),
-            password: password.trim() || undefined,
+            currentPassword: currentPassword.trim() || undefined,
+            password: newPassword.trim() || undefined,
+            profileImageUrl: profileImageUrl.trim(),
+            zipCode: onlyDigits(zipCode) || undefined,
+            streetAddress: streetAddress.trim(),
+            neighborhood: neighborhood.trim(),
+            city: city.trim(),
+            state: state.trim().toUpperCase(),
+            latitude: latitude ?? undefined,
+            longitude: longitude ?? undefined,
+            locationSource: locationSource.trim() || undefined,
+            searchRadiusKm: searchRadius,
         }),
         onSuccess: async (updatedProfile) => {
             Cookies.set('userName', updatedProfile.name, cookieOptions)
             Cookies.set('userEmail', updatedProfile.email, cookieOptions)
-            setPassword('')
+            setProfileImageUrl(updatedProfile.profileImageUrl ?? '')
+            setCurrentPassword('')
+            setNewPassword('')
+            setConfirmPassword('')
             toast.success('Perfil atualizado')
             await queryClient.invalidateQueries({ queryKey: ['userProfile'] })
+            await queryClient.invalidateQueries({ queryKey: ['nearbyMarkets'] })
         },
         onError: (error: any) => {
             const responseData = error.response?.data
             const errorMessage =
                 typeof responseData === 'string'
                     ? responseData
-                    : responseData?.message ?? responseData?.error ?? 'Nao foi possivel atualizar o perfil'
+                    : responseData?.message ?? responseData?.error ?? 'Não foi possível atualizar o perfil.'
+            toast.error(errorMessage)
+        },
+    })
+
+    const lookupCepMutation = useMutation({
+        mutationFn: () => findLocationByCep(zipCode),
+        onSuccess: (location) => {
+            setZipCode(formatCep(location.zipCode))
+            setStreetAddress(location.streetAddress ?? '')
+            setNeighborhood(location.neighborhood ?? '')
+            setCity(location.city ?? '')
+            setState(location.state ?? '')
+            setLatitude(location.latitude ?? null)
+            setLongitude(location.longitude ?? null)
+            setLocationSource(location.source ?? 'BRASIL_API_CEP')
+
+            if (location.hasCoordinates) {
+                toast.success('Endereço encontrado. A busca por mercados próximos foi refinada.')
+                return
+            }
+
+            toast.success('Endereço encontrado. A busca usará cidade e UF quando não houver coordenadas.')
+        },
+        onError: (error: any) => {
+            const responseData = error.response?.data
+            const errorMessage =
+                typeof responseData === 'string'
+                    ? responseData
+                    : responseData?.message ?? responseData?.error ?? 'Não foi possível localizar este CEP.'
             toast.error(errorMessage)
         },
     })
@@ -173,7 +295,7 @@ export function ProfilePage() {
             if (context?.previousNotifications) {
                 queryClient.setQueryData(['notifications'], context.previousNotifications)
             }
-            toast.error('Nao foi possivel marcar as notificacoes como lidas')
+            toast.error('Não foi possível marcar as notificações como lidas.')
         },
         onSettled: () => queryClient.invalidateQueries({ queryKey: ['notifications'] }),
     })
@@ -184,16 +306,66 @@ export function ProfilePage() {
             toast.success('Alerta desativado')
             await queryClient.invalidateQueries({ queryKey: ['priceAlerts'] })
         },
-        onError: () => toast.error('Nao foi possivel desativar o alerta'),
+        onError: () => toast.error('Não foi possível desativar o alerta.'),
     })
 
     function handleSaveProfile() {
         if (name.trim().length < 2 || email.trim().length === 0) {
-            toast.error('Informe nome e email validos')
+            toast.error('Informe um nome e um e-mail válidos.')
             return
         }
 
+        if (newPassword || confirmPassword || currentPassword) {
+            if (!currentPassword) {
+                toast.error('Informe sua senha atual para alterá-la.')
+                return
+            }
+
+            if (newPassword.length < 6) {
+                toast.error('A nova senha deve ter pelo menos 6 caracteres.')
+                return
+            }
+
+            if (newPassword !== confirmPassword) {
+                toast.error('A confirmação de senha não confere.')
+                return
+            }
+        }
+
         updateProfileMutation.mutate()
+    }
+
+    function handleProfileImageFile(file?: File) {
+        if (!file) {
+            return
+        }
+
+        if (!file.type.startsWith('image/')) {
+            toast.error('Escolha um arquivo de imagem.')
+            return
+        }
+
+        if (file.size > 1_500_000) {
+            toast.error('A imagem deve ter até 1,5 MB.')
+            return
+        }
+
+        const reader = new FileReader()
+        reader.onload = () => {
+            if (typeof reader.result === 'string') {
+                setProfileImageUrl(reader.result)
+            }
+        }
+        reader.readAsDataURL(file)
+    }
+
+    function handleLookupCep() {
+        if (onlyDigits(zipCode).length !== 8) {
+            toast.error('Informe um CEP com 8 dígitos.')
+            return
+        }
+
+        lookupCepMutation.mutate()
     }
 
     async function handleBrowserPushChange(checked: boolean) {
@@ -208,13 +380,19 @@ export function ProfilePage() {
 
     function handleUseCurrentLocation() {
         if (typeof navigator === 'undefined' || !navigator.geolocation) {
-            toast.error('Localizacao indisponivel neste navegador')
+            toast.error('Localização indisponível neste navegador.')
             return
         }
 
         navigator.geolocation.getCurrentPosition(
-            () => toast.success('Localizacao autorizada para melhorar as buscas'),
-            () => toast.error('Nao foi possivel acessar sua localizacao'),
+            (position) => {
+                setLatitude(position.coords.latitude)
+                setLongitude(position.coords.longitude)
+                setLocationSource('BROWSER_GEOLOCATION')
+                toast.success('Localização autorizada. A busca por mercados próximos foi refinada.')
+            },
+            () => toast.error('Não foi possível acessar sua localização. Use o CEP como alternativa.'),
+            { enableHighAccuracy: true, timeout: 10000 },
         )
     }
 
@@ -226,7 +404,7 @@ export function ProfilePage() {
                         <img src={logoImg} alt="UniMarket" className="h-8 w-8 object-contain" />
                         <div>
                             <p className="text-sm font-bold text-foreground">UniMarket</p>
-                            <p className="text-xs text-muted-foreground">Perfil do consumidor</p>
+                            <p className="text-xs text-muted-foreground">Perfil do cliente</p>
                         </div>
                     </div>
 
@@ -246,8 +424,12 @@ export function ProfilePage() {
                 <section className="mb-6 rounded-lg border border-border bg-card p-5 shadow-sm">
                     <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
                         <div className="flex items-center gap-4">
-                            <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-lg bg-primary/10">
-                                <User className="h-8 w-8 text-primary" />
+                            <div className="relative flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-primary/10 text-lg font-bold text-primary">
+                                {profileImageUrl ? (
+                                    <img src={profileImageUrl} alt={name || 'Perfil'} className="h-full w-full object-cover" />
+                                ) : (
+                                    getInitials(name)
+                                )}
                             </div>
                             <div>
                                 <div className="flex flex-wrap items-center gap-2">
@@ -258,7 +440,7 @@ export function ProfilePage() {
                                     </Badge>
                                 </div>
                                 <p className="mt-1 text-sm text-muted-foreground">
-                                    Ajuste seus dados, alertas e localidade para comparar melhor os mercados perto de voce.
+                                    Mantenha sua localidade atualizada para encontrar supermercados próximos e comparar preços com mais precisão.
                                 </p>
                             </div>
                         </div>
@@ -286,18 +468,70 @@ export function ProfilePage() {
                             <div className="border-b border-border p-5">
                                 <div className="flex items-center gap-2">
                                     <ShieldCheck className="h-5 w-5 text-primary" />
-                                    <h2 className="text-base font-semibold text-foreground">Conta e seguranca</h2>
+                                    <h2 className="text-base font-semibold text-foreground">Dados da conta</h2>
                                 </div>
                             </div>
 
                             <div className="space-y-4 p-5">
                                 {isProfileLoading ? (
-                                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                        <Loader2 className="h-4 w-4 animate-spin" />
-                                        Carregando perfil...
+                                    <div className="space-y-4">
+                                        <div className="flex items-center gap-4">
+                                            <div className="h-16 w-16 animate-pulse rounded-lg bg-muted" />
+                                            <div className="flex-1 space-y-2">
+                                                <div className="h-4 w-40 animate-pulse rounded bg-muted" />
+                                                <div className="h-3 w-64 animate-pulse rounded bg-muted" />
+                                            </div>
+                                        </div>
+                                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                                            <div className="h-10 animate-pulse rounded bg-muted" />
+                                            <div className="h-10 animate-pulse rounded bg-muted" />
+                                        </div>
                                     </div>
                                 ) : (
                                     <>
+                                        <div className="flex flex-col gap-4 rounded-lg border border-border bg-muted/30 p-4 sm:flex-row sm:items-center">
+                                            <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-primary/10 text-xl font-bold text-primary">
+                                                {profileImageUrl ? (
+                                                    <img src={profileImageUrl} alt={name || 'Foto do perfil'} className="h-full w-full object-cover" />
+                                                ) : (
+                                                    getInitials(name)
+                                                )}
+                                            </div>
+                                            <div className="min-w-0 flex-1 space-y-3">
+                                                <div>
+                                                    <p className="text-sm font-medium text-foreground">Foto do perfil</p>
+                                                    <p className="text-xs text-muted-foreground">
+                                                        Use uma foto ou imagem que ajude a reconhecer sua conta.
+                                                    </p>
+                                                </div>
+                                                <div className="grid gap-2 sm:grid-cols-[1fr_auto_auto]">
+                                                    <Input
+                                                        value={profileImageUrl.startsWith('data:') ? 'Imagem enviada do dispositivo' : profileImageUrl}
+                                                        onChange={(event) => setProfileImageUrl(event.target.value)}
+                                                        placeholder="URL da imagem"
+                                                        disabled={profileImageUrl.startsWith('data:')}
+                                                    />
+                                                    <Button variant="outline" asChild>
+                                                        <label>
+                                                            <ImagePlus className="h-4 w-4" />
+                                                            Enviar foto
+                                                            <input
+                                                                type="file"
+                                                                accept="image/*"
+                                                                className="sr-only"
+                                                                onChange={(event) => handleProfileImageFile(event.target.files?.[0])}
+                                                            />
+                                                        </label>
+                                                    </Button>
+                                                    {profileImageUrl && (
+                                                        <Button variant="ghost" type="button" onClick={() => setProfileImageUrl('')}>
+                                                            Remover
+                                                        </Button>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+
                                         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                                             <div className="space-y-2">
                                                 <Label htmlFor="profile-name">Nome</Label>
@@ -311,7 +545,7 @@ export function ProfilePage() {
                                             <div className="space-y-2">
                                                 <Label htmlFor="profile-email" className="flex items-center gap-1.5">
                                                     <AtSign className="h-3.5 w-3.5" />
-                                                    Email
+                                                    E-mail
                                                 </Label>
                                                 <Input
                                                     id="profile-email"
@@ -320,17 +554,6 @@ export function ProfilePage() {
                                                     onChange={(event) => setEmail(event.target.value)}
                                                 />
                                             </div>
-                                        </div>
-
-                                        <div className="space-y-2">
-                                            <Label htmlFor="profile-password">Nova senha</Label>
-                                            <Input
-                                                id="profile-password"
-                                                type="password"
-                                                value={password}
-                                                onChange={(event) => setPassword(event.target.value)}
-                                                placeholder="Deixe em branco para manter a senha atual"
-                                            />
                                         </div>
 
                                         <div className="flex flex-col gap-3 border-t border-border pt-4 sm:flex-row sm:items-center sm:justify-between">
@@ -355,7 +578,7 @@ export function ProfilePage() {
                                                 ) : (
                                                     <>
                                                         <Save className="h-4 w-4" />
-                                                        Salvar alteracoes
+                                                        Salvar dados
                                                     </>
                                                 )}
                                             </Button>
@@ -368,8 +591,70 @@ export function ProfilePage() {
                         <Card className="gap-0 rounded-lg p-0">
                             <div className="border-b border-border p-5">
                                 <div className="flex items-center gap-2">
+                                    <KeyRound className="h-5 w-5 text-primary" />
+                                    <h2 className="text-base font-semibold text-foreground">Segurança</h2>
+                                </div>
+                            </div>
+
+                            <div className="space-y-4 p-5">
+                                <div className="rounded-lg border border-border bg-muted/40 p-4">
+                                    <p className="text-sm font-medium text-foreground">Alteração de senha</p>
+                                    <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                                        Por segurança, confirme sua senha atual antes de definir uma nova. Deixe estes campos em branco se não quiser alterar a senha.
+                                    </p>
+                                </div>
+
+                                <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                                    <div className="space-y-2">
+                                        <Label htmlFor="current-password">Senha atual</Label>
+                                        <Input
+                                            id="current-password"
+                                            type="password"
+                                            value={currentPassword}
+                                            onChange={(event) => setCurrentPassword(event.target.value)}
+                                            autoComplete="current-password"
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="new-password">Nova senha</Label>
+                                        <Input
+                                            id="new-password"
+                                            type="password"
+                                            value={newPassword}
+                                            onChange={(event) => setNewPassword(event.target.value)}
+                                            autoComplete="new-password"
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="confirm-password">Confirmar nova senha</Label>
+                                        <Input
+                                            id="confirm-password"
+                                            type="password"
+                                            value={confirmPassword}
+                                            onChange={(event) => setConfirmPassword(event.target.value)}
+                                            autoComplete="new-password"
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="flex justify-end border-t border-border pt-4">
+                                    <Button onClick={handleSaveProfile} disabled={updateProfileMutation.isPending}>
+                                        {updateProfileMutation.isPending ? (
+                                            <Loader2 className="h-4 w-4 animate-spin" />
+                                        ) : (
+                                            <Save className="h-4 w-4" />
+                                        )}
+                                        Salvar segurança
+                                    </Button>
+                                </div>
+                            </div>
+                        </Card>
+
+                        <Card className="gap-0 rounded-lg p-0">
+                            <div className="border-b border-border p-5">
+                                <div className="flex items-center gap-2">
                                     <Bell className="h-5 w-5 text-primary" />
-                                    <h2 className="text-base font-semibold text-foreground">Notificacoes</h2>
+                                    <h2 className="text-base font-semibold text-foreground">Notificações</h2>
                                 </div>
                             </div>
 
@@ -377,13 +662,13 @@ export function ProfilePage() {
                                 <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
                                     <PreferenceSwitch
                                         checked={priceAlertsEnabled}
-                                        description="Avisos quando produtos atingirem o preco desejado."
-                                        label="Alertas de preco"
+                                        description="Avisos quando produtos atingirem o preço desejado."
+                                        label="Alertas de preço"
                                         onCheckedChange={setPriceAlertsEnabled}
                                     />
                                     <PreferenceSwitch
                                         checked={browserPushEnabled}
-                                        description="Notificacoes do navegador para alertas importantes."
+                                        description="Notificações do navegador para alertas importantes."
                                         label="Push no navegador"
                                         onCheckedChange={handleBrowserPushChange}
                                     />
@@ -399,7 +684,7 @@ export function ProfilePage() {
                                     <div className="flex items-center justify-between gap-3 border-b border-border p-4">
                                         <div>
                                             <h3 className="text-sm font-semibold text-foreground">Alertas ativos</h3>
-                                            <p className="text-xs text-muted-foreground">{activeAlerts.length} produto{activeAlerts.length !== 1 ? 's' : ''} monitorado{activeAlerts.length !== 1 ? 's' : ''}</p>
+                                            <p className="text-xs text-muted-foreground">{activeAlerts.length} produto{activeAlerts.length !== 1 ? 's' : ''} monitorado{activeAlerts.length !== 1 ? 's' : ''}.</p>
                                         </div>
                                         {unreadNotifications > 0 && (
                                             <Button
@@ -453,6 +738,53 @@ export function ProfilePage() {
                             </div>
 
                             <div className="space-y-4 p-5">
+                                <div className="grid grid-cols-1 gap-3 rounded-lg border border-border bg-muted/40 p-4 sm:grid-cols-[1fr_auto] sm:items-end">
+                                    <div className="space-y-2">
+                                        <Label htmlFor="profile-cep">CEP de referência</Label>
+                                        <Input
+                                            id="profile-cep"
+                                            inputMode="numeric"
+                                            value={formatCep(zipCode)}
+                                            onChange={(event) => setZipCode(formatCep(event.target.value))}
+                                            placeholder="00000-000"
+                                        />
+                                    </div>
+                                    <Button
+                                        variant="outline"
+                                        onClick={handleLookupCep}
+                                        disabled={lookupCepMutation.isPending}
+                                    >
+                                        {lookupCepMutation.isPending ? (
+                                            <Loader2 className="h-4 w-4 animate-spin" />
+                                        ) : (
+                                            <Search className="h-4 w-4" />
+                                        )}
+                                        Buscar CEP
+                                    </Button>
+                                </div>
+
+                                <div className="grid grid-cols-1 gap-4 sm:grid-cols-[minmax(0,1fr)_96px]">
+                                    <div className="space-y-2">
+                                        <Label htmlFor="profile-street">Endereço</Label>
+                                        <Input
+                                            id="profile-street"
+                                            value={streetAddress}
+                                            onChange={(event) => setStreetAddress(event.target.value)}
+                                            placeholder="Rua, avenida ou ponto de referência"
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="profile-state">UF</Label>
+                                        <Input
+                                            id="profile-state"
+                                            maxLength={2}
+                                            value={state}
+                                            onChange={(event) => setState(event.target.value.toUpperCase())}
+                                            placeholder="SP"
+                                        />
+                                    </div>
+                                </div>
+
                                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                                     <div className="space-y-2">
                                         <Label htmlFor="profile-city">Cidade</Label>
@@ -492,12 +824,24 @@ export function ProfilePage() {
                                 <div className="flex flex-col gap-3 rounded-lg bg-muted p-4 sm:flex-row sm:items-center sm:justify-between">
                                     <div>
                                         <p className="text-sm font-medium text-foreground">Busca por proximidade</p>
-                                        <p className="text-xs text-muted-foreground">Use a localizacao do navegador para priorizar mercados perto de voce.</p>
+                                        <p className="text-xs text-muted-foreground">
+                                            {locationStatus}
+                                        </p>
                                     </div>
-                                    <Button variant="outline" onClick={handleUseCurrentLocation}>
-                                        <LocateFixed className="h-4 w-4" />
-                                        Usar localizacao
-                                    </Button>
+                                    <div className="flex flex-col gap-2 sm:flex-row">
+                                        <Button variant="outline" onClick={handleUseCurrentLocation}>
+                                            <LocateFixed className="h-4 w-4" />
+                                            Usar localização atual
+                                        </Button>
+                                        <Button onClick={handleSaveProfile} disabled={updateProfileMutation.isPending}>
+                                            {updateProfileMutation.isPending ? (
+                                                <Loader2 className="h-4 w-4 animate-spin" />
+                                            ) : (
+                                                <Save className="h-4 w-4" />
+                                            )}
+                                            Salvar localidade
+                                        </Button>
+                                    </div>
                                 </div>
                             </div>
                         </Card>
@@ -517,7 +861,7 @@ export function ProfilePage() {
                                 <SummaryRow icon={ShoppingCart} label="Itens em listas" value={String(shoppingSummary.items)} />
                                 <SummaryRow icon={Home} label="Listas criadas" value={String(shoppingSummary.lists)} />
                                 <SummaryRow icon={Zap} label="Economia estimada" value={`R$ ${shoppingSummary.savings.toFixed(2)}`} />
-                                <SummaryRow icon={Bell} label="Notificacoes novas" value={String(unreadNotifications)} />
+                                <SummaryRow icon={Bell} label="Notificações novas" value={String(unreadNotifications)} />
                             </div>
                         </Card>
 
@@ -528,8 +872,10 @@ export function ProfilePage() {
                             </div>
                             <div className="space-y-3 text-sm">
                                 <div className="rounded-lg bg-muted p-3">
-                                    <p className="font-medium text-foreground">{city}</p>
-                                    <p className="text-xs text-muted-foreground">{neighborhood || 'Bairro nao informado'} · ate {searchRadius} km</p>
+                                    <p className="font-medium text-foreground">{city}{state ? `, ${state}` : ''}</p>
+                                    <p className="text-xs text-muted-foreground">
+                                        {neighborhood || 'Bairro não informado'} - {zipCode ? formatCep(zipCode) : 'CEP não informado'} - até {searchRadius} km
+                                    </p>
                                 </div>
                                 <div className="rounded-lg bg-muted p-3">
                                     <p className="font-medium text-foreground">
@@ -544,7 +890,7 @@ export function ProfilePage() {
 
                         <Button className="w-full" onClick={() => navigate({ to: '/dashboard' })}>
                             <Navigation className="h-4 w-4" />
-                            Voltar para comparar precos
+                            Voltar para comparar preços
                         </Button>
                     </aside>
                 </div>

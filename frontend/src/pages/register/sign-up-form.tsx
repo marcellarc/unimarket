@@ -1,16 +1,19 @@
 import { Button, Input, Label } from '@/components/ui'
 import { useRegister } from '@/hooks/use-register'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Link } from '@tanstack/react-router'
+import { Link, useNavigate } from '@tanstack/react-router'
+import Cookies from 'js-cookie'
 import { Building2, Eye, EyeOff, FileText, Loader2, Store, User, UserCircle } from 'lucide-react'
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
+import { toast } from 'sonner'
 import { registerSchema } from '../-components/schemas'
 import type { RegisterFormData } from '../-components/type'
 
 export function SignUpForm() {
     const [showPassword, setShowPassword] = useState(false)
     const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+    const navigate = useNavigate()
 
     const { submit, isPending } = useRegister()
 
@@ -33,6 +36,20 @@ export function SignUpForm() {
         submit(data)
     }
 
+    function handleGuestLogin() {
+        Cookies.remove('accessToken')
+        Cookies.remove('refreshToken')
+        Cookies.remove('marketName')
+        Cookies.remove('marketId')
+        Cookies.set('userRole', 'GUEST', {
+            expires: 1,
+            secure: import.meta.env.PROD,
+            sameSite: 'strict' as const,
+        })
+        toast.info('Boas-vindas ao modo visitante')
+        navigate({ to: '/dashboard' })
+    }
+
     function formatCNPJ(value: string) {
         const numbers = value.replace(/\D/g, '')
         if (numbers.length <= 14) {
@@ -46,39 +63,44 @@ export function SignUpForm() {
     }
 
     return (
-        <div className="flex h-full items-center justify-center bg-background px-6 py-8">
+        <div className="flex w-full items-center justify-center py-8">
             <form
                 onSubmit={handleSubmit(onSubmit, (errosDoZod) => {
                     console.log("O Zod bloqueou o envio! Veja os erros:", errosDoZod)
                 })}
-                className="w-full max-w-sm space-y-5 text-foreground"
+                className="w-full max-w-[384px] space-y-5 text-foreground"
             >
-                <h2 className="mb-8 text-center text-3xl font-bold text-foreground">
-                    Registre-se
-                </h2>
+                <div className="space-y-2">
+                    <h2 className="auth-title whitespace-nowrap text-[2rem] font-extrabold leading-tight text-primary sm:text-[2.35rem]">
+                        Crie sua conta
+                    </h2>
+                    <p className="auth-support text-sm text-muted-foreground">
+                        Entre como cliente ou cadastre seu supermercado no UniMarket.
+                    </p>
+                </div>
 
 
-                <div className="flex rounded-full bg-secondary p-1">
+                <div className="flex rounded-full border border-primary/15 bg-slate-100 p-1 shadow-sm dark:bg-white/10">
                     <button
                         type="button"
-                        className={`flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-full py-2 text-sm font-medium transition-colors ${role === 'USER'
+                        className={`flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-full py-2 text-sm font-semibold transition-colors ${role === 'USER'
                             ? 'bg-primary text-primary-foreground shadow-sm'
-                            : 'text-muted-foreground hover:text-foreground'
+                            : 'text-slate-500 hover:text-slate-800 dark:text-slate-300 dark:hover:text-white'
                             }`}
                         onClick={() => setValue('role', 'USER')}
                     >
-                        <User size={16} /> Usuário
+                        <User size={14} /> Usuário
                     </button>
 
                     <button
                         type="button"
-                        className={`flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-full py-2 text-sm font-medium transition-colors ${role === 'MARKET'
+                        className={`flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-full py-2 text-sm font-semibold transition-colors ${role === 'MARKET'
                             ? 'bg-primary text-primary-foreground shadow-sm'
-                            : 'text-muted-foreground hover:text-foreground'
+                            : 'text-slate-500 hover:text-slate-800 dark:text-slate-300 dark:hover:text-white'
                             }`}
                         onClick={() => setValue('role', 'MARKET')}
                     >
-                        <Store size={16} /> Supermercado
+                        <Store size={14} /> Supermercado
                     </button>
                 </div>
 
@@ -87,7 +109,7 @@ export function SignUpForm() {
                     <>
                         <div className="space-y-1">
                             <Label htmlFor="name" className="text-xs font-semibold">
-                                Nome Completo
+                                Nome completo
                             </Label>
                             <div className="relative">
                                 <UserCircle
@@ -97,7 +119,7 @@ export function SignUpForm() {
                                 <Input
                                     id="name"
                                     placeholder="O seu nome completo"
-                                    className="border-primary/30 pl-10 focus-visible:ring-primary"
+                                    className="rounded-full border-primary/30 bg-white pl-10 shadow-sm focus-visible:ring-primary dark:bg-white/10"
                                     {...register('name')}
                                 />
                             </div>
@@ -114,7 +136,7 @@ export function SignUpForm() {
                     <>
                         <div className="space-y-1">
                             <Label htmlFor="marketName" className="text-xs font-semibold">
-                                Nome do Supermercado
+                                Nome do supermercado
                             </Label>
                             <div className="relative">
                                 <Building2
@@ -124,7 +146,7 @@ export function SignUpForm() {
                                 <Input
                                     id="marketName"
                                     placeholder="Nome do estabelecimento"
-                                    className="border-primary/30 pl-10 focus-visible:ring-primary"
+                                    className="rounded-full border-primary/30 bg-white pl-10 shadow-sm focus-visible:ring-primary dark:bg-white/10"
                                     {...register('marketName')}
                                 />
                             </div>
@@ -147,7 +169,7 @@ export function SignUpForm() {
                                 <Input
                                     id="cnpj"
                                     placeholder="00.000.000/0000-00"
-                                    className="border-primary/30 pl-10 focus-visible:ring-primary"
+                                    className="rounded-full border-primary/30 bg-white pl-10 shadow-sm focus-visible:ring-primary dark:bg-white/10"
                                     {...register('cnpj')}
                                     onChange={(e) => {
                                         const formatted = formatCNPJ(e.target.value)
@@ -178,7 +200,7 @@ export function SignUpForm() {
                     <Input
                         id="email"
                         placeholder={role === 'MARKET' ? "email@supermercado.com" : "email@email.com"}
-                        className="border-primary/30 focus-visible:ring-primary"
+                        className="rounded-full border-primary/30 bg-white px-5 shadow-sm focus-visible:ring-primary dark:bg-white/10"
                         {...register('email')}
                     />
                     {errors.email?.message && (
@@ -196,14 +218,14 @@ export function SignUpForm() {
                         <Input
                             id="password"
                             type={showPassword ? 'text' : 'password'}
-                            className="border-primary/30 focus-visible:ring-primary"
+                            className="rounded-full border-primary/30 bg-white px-5 pr-11 shadow-sm focus-visible:ring-primary dark:bg-white/10"
                             placeholder="********"
                             {...register('password')}
                         />
                         <button
                             type="button"
                             onClick={() => setShowPassword(!showPassword)}
-                            className="absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer text-muted-foreground hover:text-foreground"
+                            className="absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer text-muted-foreground hover:text-foreground dark:hover:text-white"
                         >
                             {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                         </button>
@@ -220,20 +242,20 @@ export function SignUpForm() {
 
                 <div className="space-y-1">
                     <Label htmlFor="confirmPassword" className="text-xs font-semibold">
-                        Confirmar Senha
+                        Confirmar senha
                     </Label>
                     <div className="relative">
                         <Input
                             id="confirmPassword"
                             type={showConfirmPassword ? 'text' : 'password'}
-                            className="border-primary/30 focus-visible:ring-primary"
+                            className="rounded-full border-primary/30 bg-white px-5 pr-11 shadow-sm focus-visible:ring-primary dark:bg-white/10"
                             placeholder="********"
                             {...register('confirmPassword')}
                         />
                         <button
                             type="button"
                             onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                            className="absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer text-muted-foreground hover:text-foreground"
+                            className="absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer text-muted-foreground hover:text-foreground dark:hover:text-white"
                         >
                             {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                         </button>
@@ -248,16 +270,16 @@ export function SignUpForm() {
 
                 <Button
                     type="submit"
-                    className="w-full cursor-pointer bg-primary hover:bg-primary/90 text-primary-foreground flex items-center justify-center"
+                    className="w-full cursor-pointer rounded-full bg-primary text-primary-foreground shadow-lg shadow-primary/20 hover:bg-primary/90"
                     disabled={isPending}
                 >
                     {isPending ? (
                         <>
                             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            A registrar...
+                            Criando conta...
                         </>
                     ) : (
-                        'Registrar'
+                        'Criar conta'
                     )}
                 </Button>
 
@@ -271,7 +293,7 @@ export function SignUpForm() {
                 <Button
                     type="button"
                     variant="outline"
-                    className="w-full cursor-pointer border-border text-foreground hover:bg-secondary"
+                    className="w-full cursor-pointer rounded-full border-primary/20 bg-white/80 text-foreground hover:border-primary/40 dark:bg-white/10"
                 >
                     Continuar com Google
                 </Button>
@@ -287,9 +309,10 @@ export function SignUpForm() {
                     <Button
                         type="button"
                         variant="link"
+                        onClick={handleGuestLogin}
                         className="h-auto p-0 text-xs text-muted-foreground hover:text-foreground cursor-pointer"
                     >
-                        Continuar como convidado
+                        Entrar como visitante
                     </Button>
                 </div>
 

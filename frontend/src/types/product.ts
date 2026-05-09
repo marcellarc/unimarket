@@ -32,6 +32,7 @@ export interface MarketProductSearchParams {
 export interface MarketProductResponse {
     id: number
     productId: number
+    marketId: number
     marketName: string
     productName: string
     brand: string

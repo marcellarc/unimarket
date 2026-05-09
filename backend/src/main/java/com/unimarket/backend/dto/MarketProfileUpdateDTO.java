@@ -1,37 +1,23 @@
 package com.unimarket.backend.dto;
 
 import jakarta.validation.constraints.Email;
-import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 
-/**
- * DTO (Data Transfer Object) responsável por transportar os dados
- * de cadastro de supermercado entre o front-end (React) e o back-end.
- *
- * 🔹 Função principal:
- * - Receber os dados enviados pelo cliente (JSON da requisição HTTP)
- * - Garantir que esses dados estejam válidos antes de chegar na camada de serviço
- */
-public class MarketDTO {
+public class MarketProfileUpdateDTO {
 
-    @NotBlank(message = "O nome do supermercado é obrigatório")
+    @Size(min = 2, message = "O nome deve ter pelo menos 2 caracteres")
     private String name;
 
-    @NotBlank(message = "O CNPJ é obrigatório")
-    private String cnpj;
-
-    @Email(message = "Email inválido")
-    @NotBlank(message = "O email é obrigatório")
+    @Email(message = "Email invalido")
     private String email;
 
-    @NotBlank(message = "A senha é obrigatória")
-    private String password;
-
     private String streetAddress;
-    
+
     private String neighborhood;
 
     private String city;
 
+    @Size(min = 2, max = 2, message = "UF deve ter 2 letras")
     private String state;
 
     private String zipCode;
@@ -40,7 +26,8 @@ public class MarketDTO {
 
     private Double longitude;
 
-    // GETTERS E SETTERS
+    @Size(min = 6, message = "A senha deve ter pelo menos 6 caracteres")
+    private String password;
 
     public String getName() {
         return name;
@@ -50,28 +37,12 @@ public class MarketDTO {
         this.name = name;
     }
 
-    public String getCnpj() {
-        return cnpj;
-    }
-
-    public void setCnpj(String cnpj) {
-        this.cnpj = cnpj;
-    }
-
     public String getEmail() {
         return email;
     }
 
     public void setEmail(String email) {
         this.email = email;
-    }
-
-    public String getPassword() {
-        return password;
-    }
-
-    public void setPassword(String password) {
-        this.password = password;
     }
 
     public String getStreetAddress() {
@@ -128,5 +99,13 @@ public class MarketDTO {
 
     public void setLongitude(Double longitude) {
         this.longitude = longitude;
+    }
+
+    public String getPassword() {
+        return password;
+    }
+
+    public void setPassword(String password) {
+        this.password = password;
     }
 }

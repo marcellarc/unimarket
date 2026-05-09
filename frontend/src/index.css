@@ -89,12 +89,18 @@
 }
 
 @layer base {
+    html {
+        scroll-behavior: smooth;
+    }
+
     * {
         @apply border-border outline-ring/50;
     }
 
     body {
         @apply bg-background text-foreground;
+        font-family: Inter, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        text-rendering: optimizeLegibility;
     }
 
     button:not(:disabled),
@@ -113,5 +119,41 @@
     button:disabled,
     [aria-disabled="true"] {
         cursor: not-allowed;
+    }
+}
+
+@keyframes auth-float {
+    0%, 100% {
+        transform: translate3d(0, 0, 0) rotate(0deg);
+    }
+
+    50% {
+        transform: translate3d(var(--float-x, 0.5rem), var(--float-y, -0.75rem), 0) rotate(var(--float-rotate, 4deg));
+    }
+}
+
+.auth-floating-icon {
+    animation: auth-float var(--float-duration, 4s) ease-in-out infinite;
+    animation-delay: var(--float-delay, 0s);
+}
+
+.auth-title,
+.auth-wordmark {
+    font-family: Inter, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    letter-spacing: 0;
+}
+
+.auth-support {
+    font-family: Inter, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    letter-spacing: 0;
+}
+
+@keyframes auth-illustration-float {
+    0%, 100% {
+        transform: translateY(0);
+    }
+
+    50% {
+        transform: translateY(-10px);
     }
 }

@@ -1,5 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { SignUpForm } from '@/pages/register/sign-up-form'
+import { RegisterPage } from '@/pages/register/page'
 import { isAuthenticated } from '@/utils/auth'
 
 export const Route = createFileRoute('/register')({
@@ -10,7 +10,7 @@ export const Route = createFileRoute('/register')({
 function RouteComponent() {
   return (
 
-    <SignUpForm />
+    <RegisterPage />
 
   )
 }

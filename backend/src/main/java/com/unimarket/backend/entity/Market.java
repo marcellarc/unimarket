@@ -29,6 +29,22 @@ public class Market {
     @Schema(description = "Nome do mercado", example = "UniMarket")
     private String name;
 
+    @Column(name = "official_name")
+    @Schema(description = "Razão social obtida pelo CNPJ", example = "UniMarket LTDA")
+    private String officialName;
+
+    @Column(name = "trade_name")
+    @Schema(description = "Nome fantasia obtido pelo CNPJ", example = "UniMarket")
+    private String tradeName;
+
+    @Column(name = "registration_status")
+    @Schema(description = "Situação cadastral do CNPJ", example = "ATIVA")
+    private String registrationStatus;
+
+    @Column(name = "main_activity", length = 500)
+    @Schema(description = "Atividade econômica principal do CNPJ")
+    private String mainActivity;
+
     @Column(name = "cnpj", unique = true, nullable = false, length = 14)
     @Schema(description = "Documento CNPJ (sem traços ou símbolos)", example = "12345678000199")
     private String cnpj;
@@ -48,6 +64,26 @@ public class Market {
     @Column(name = "neighborhood")
     @Schema(description = "Bairro do mercado", example = "Downtown")
     private String neighborhood;
+
+    @Column(name = "city")
+    @Schema(description = "Cidade do mercado", example = "Santos")
+    private String city;
+
+    @Column(name = "state", length = 2)
+    @Schema(description = "UF do mercado", example = "SP")
+    private String state;
+
+    @Column(name = "zip_code", length = 12)
+    @Schema(description = "CEP do mercado", example = "11000000")
+    private String zipCode;
+
+    @Column(name = "latitude")
+    @Schema(description = "Latitude do mercado", example = "-23.9608")
+    private Double latitude;
+
+    @Column(name = "longitude")
+    @Schema(description = "Longitude do mercado", example = "-46.3336")
+    private Double longitude;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     @Schema(description = "Timestamp de quando o mercado foi criado")
