@@ -1,4 +1,4 @@
-package com.unimarket.backend.entity.Product;
+package com.unimarket.backend.entity.product;
 
 import java.time.LocalDateTime;
 

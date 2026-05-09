@@ -8,7 +8,7 @@ import org.springframework.stereotype.Service;
 import com.unimarket.backend.dto.MarketDTO;
 import com.unimarket.backend.entity.Market;
 import com.unimarket.backend.repository.MarketRepository;
-import com.unimarket.backend.repository.Product.MarketProductRepository;
+import com.unimarket.backend.repository.product.MarketProductRepository;
 
 // classe responsável pela lógica de negócio do Market
 @Service
