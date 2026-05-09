@@ -16,12 +16,12 @@ public class OpenApiConfig {
         return new OpenAPI()
                 .info(new Info()
                         .title("UniMarket API")
-                        .description("Documentacao oficial da API do UniMarket para autenticacao, clientes, mercados e alertas.")
+                        .description("Documentação oficial da API do UniMarket para autenticação, clientes, mercados e alertas.")
                         .version("v1")
                         .contact(new Contact()
                                 .name("Equipe UniMarket")
-                                .email("suporte@unimarket.local"))
+                                .email("unimarketsup@gmail.com"))
                         .license(new License()
-                                .name("Uso academico e interno")));
+                                .name("Uso acadêmico e interno")));
     }
 }

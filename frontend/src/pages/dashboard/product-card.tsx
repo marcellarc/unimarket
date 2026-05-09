@@ -126,7 +126,7 @@ export const ProductCard = memo(function ProductCard({
 
                     <div className="mt-auto pt-3 flex items-center justify-center text-muted-foreground group-hover:text-primary transition-colors">
                         <span className="text-xs font-medium mr-1">
-                            {isExpanded ? 'Ocultar mercados' : 'Ver opções'}
+                            {isExpanded ? 'Ocultar mercados' : 'Comparar mercados'}
                         </span>
                         {isExpanded
                             ? <ChevronUp className="w-3.5 h-3.5" />
@@ -144,7 +144,10 @@ export const ProductCard = memo(function ProductCard({
                     : 'max-h-0 opacity-0 border-transparent shadow-none pointer-events-none'
                     }`}
             >
-                <div className="p-4 pt-2 space-y-2">
+                <div className="space-y-3 p-4 pt-2">
+                    <p className="text-xs font-medium text-muted-foreground">
+                        Mercados que vendem este produto
+                    </p>
                     {product.markets.map((market, idx) => (
                         <MarketRow
                             key={`${market.name}-${idx}`}

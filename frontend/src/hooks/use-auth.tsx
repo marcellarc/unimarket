@@ -30,13 +30,17 @@ export function useAuth() {
         if (role === 'MARKET') {
             Cookies.set('marketName', data.name, cookieOptions(1))
             Cookies.set('marketId', String(data.id), cookieOptions(1))
+            Cookies.set('marketEmail', data.email, cookieOptions(1))
             Cookies.remove('userName')
             Cookies.remove('userId')
+            Cookies.remove('userEmail')
         } else {
             Cookies.set('userName', data.name, cookieOptions(1))
             Cookies.set('userId', String(data.id), cookieOptions(1))
+            Cookies.set('userEmail', data.email, cookieOptions(1))
             Cookies.remove('marketName')
             Cookies.remove('marketId')
+            Cookies.remove('marketEmail')
         }
     }
 
@@ -46,6 +50,8 @@ export function useAuth() {
         Cookies.remove('refreshToken')
         Cookies.remove('marketName')
         Cookies.remove('userName')
+        Cookies.remove('marketEmail')
+        Cookies.remove('userEmail')
         Cookies.remove('marketId')
         Cookies.remove('userId')
         Cookies.remove('userRole')
@@ -57,6 +63,8 @@ export function useAuth() {
             accessToken: Cookies.get('accessToken'),
             marketName: Cookies.get('marketName'),
             userName: Cookies.get('userName'),
+            userEmail: Cookies.get('userEmail'),
+            marketEmail: Cookies.get('marketEmail'),
             marketId: Cookies.get('marketId'),
             userId: Cookies.get('userId'),
             userRole: Cookies.get('userRole'),

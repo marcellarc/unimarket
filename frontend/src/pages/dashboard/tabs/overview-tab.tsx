@@ -1,5 +1,5 @@
-import { Card, Table, TableBody, TableCell, TableHead, TableHeader, TableRow, Button } from '@/components/ui';
-import { Package, Search, ListPlus, Users, Bell, Loader2, ArrowRight, TrendingUp } from 'lucide-react';
+import { Card, Table, TableBody, TableCell, TableHead, TableHeader, TableRow, Button, Skeleton } from '@/components/ui';
+import { Package, Search, ListPlus, Users, Bell, ArrowRight, TrendingUp } from 'lucide-react';
 import { PerformancePanel } from '@/components/performance-panel';
 import { listProducts } from '@/services/product';
 import Cookies from 'js-cookie';
@@ -95,8 +95,18 @@ export function OverviewTab({ onNavigateToProducts }: OverviewTabProps) {
 
                     <Card className="overflow-hidden">
                         {isLoading ? (
-                            <div className="flex items-center justify-center py-12">
-                                <Loader2 className="w-5 h-5 text-muted-foreground animate-spin" />
+                            <div className="space-y-3 p-5">
+                                {Array.from({ length: 3 }).map((_, index) => (
+                                    <div key={index} className="grid grid-cols-[1fr_90px_80px_90px] gap-4 rounded-lg border border-border p-3">
+                                        <div className="space-y-2">
+                                            <Skeleton className="h-4 w-3/4" />
+                                            <Skeleton className="h-3 w-1/2" />
+                                        </div>
+                                        <Skeleton className="h-5 w-16" />
+                                        <Skeleton className="h-5 w-14" />
+                                        <Skeleton className="h-5 w-16" />
+                                    </div>
+                                ))}
                             </div>
                         ) : (
                             <Table>
