@@ -1,10 +1,10 @@
 import axios from 'axios';
 import Cookies from 'js-cookie';
 
-const apiBaseUrl = '/';
+const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || '/api';
 
 export const api = axios.create({
-    baseURL: apiBaseUrl,
+    baseURL: apiBaseUrl.replace(/\/$/, ''),
     withCredentials: true,
     headers: {
         'Content-Type': 'application/json',
