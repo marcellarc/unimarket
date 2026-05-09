@@ -1,6 +1,13 @@
 HELP.md
 target/
 .mvn/wrapper/maven-wrapper.jar
+email.properties
+configure-email.ps1
+.env
+.env.*
+!.env.example
+src/main/resources/application-local.properties
+src/main/resources/application-*.local.properties
 !**/src/main/**/target/
 !**/src/test/**/target/
 

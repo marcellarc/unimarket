@@ -7,7 +7,7 @@
 $env:MAIL_HOST = "smtp.gmail.com"
 $env:MAIL_PORT = "587"
 $env:MAIL_USERNAME = "unimarketsup@gmail.com"
-$env:MAIL_PASSWORD = "oafo yfnw ojlv jdoj"
+$env:MAIL_PASSWORD = "sua-senha-de-app-do-gmail"
 $env:MAIL_FROM = $env:MAIL_USERNAME
 
 Write-Host "Variaveis de email configuradas para esta janela do PowerShell."
