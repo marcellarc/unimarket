@@ -5,7 +5,7 @@ import java.time.LocalDateTime;
 import org.hibernate.annotations.SQLDelete;
 import org.hibernate.annotations.SQLRestriction;
 
-import com.unimarket.backend.entity.Product.MarketProduct;
+import com.unimarket.backend.entity.product.MarketProduct;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;

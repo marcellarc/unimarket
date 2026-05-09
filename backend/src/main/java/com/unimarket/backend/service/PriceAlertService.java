@@ -13,10 +13,10 @@ import com.unimarket.backend.dto.notification.PriceNotificationResponseDTO;
 import com.unimarket.backend.entity.Client;
 import com.unimarket.backend.entity.PriceAlert;
 import com.unimarket.backend.entity.PriceNotification;
-import com.unimarket.backend.entity.Product.MarketProduct;
+import com.unimarket.backend.entity.product.MarketProduct;
 import com.unimarket.backend.repository.PriceAlertRepository;
 import com.unimarket.backend.repository.PriceNotificationRepository;
-import com.unimarket.backend.repository.Product.MarketProductRepository;
+import com.unimarket.backend.repository.product.MarketProductRepository;
 
 @Service
 public class PriceAlertService {

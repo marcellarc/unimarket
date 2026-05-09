@@ -14,12 +14,12 @@ import com.unimarket.backend.dto.product.ProductRequestDTO;
 import com.unimarket.backend.dto.product.ProductResponseDTO;
 import com.unimarket.backend.entity.Category;
 import com.unimarket.backend.entity.Market;
-import com.unimarket.backend.entity.Product.MarketProduct;
-import com.unimarket.backend.entity.Product.Product;
+import com.unimarket.backend.entity.product.MarketProduct;
+import com.unimarket.backend.entity.product.Product;
 import com.unimarket.backend.repository.CategoryRepository;
 import com.unimarket.backend.repository.MarketRepository;
-import com.unimarket.backend.repository.Product.MarketProductRepository;
-import com.unimarket.backend.repository.Product.ProductRepository;
+import com.unimarket.backend.repository.product.MarketProductRepository;
+import com.unimarket.backend.repository.product.ProductRepository;
 
 // Classe responsável pelas regras de negócio do vínculo entre Mercado e Produto
 @Service
