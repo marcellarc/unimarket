@@ -7,6 +7,19 @@
 /backend/email.properties
 /backend/configure-email.ps1
 
+# Local secrets and environment overrides
+.env
+.env.*
+!.env.example
+/backend/.env
+/backend/.env.*
+!/backend/.env.example
+/frontend/.env
+/frontend/.env.*
+!/frontend/.env.example
+/backend/src/main/resources/application-local.properties
+/backend/src/main/resources/application-*.local.properties
+
 # IDEs
 .vscode
 .idea
