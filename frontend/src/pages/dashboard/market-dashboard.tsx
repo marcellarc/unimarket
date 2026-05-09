@@ -82,10 +82,10 @@ export default function MarketDashboard() {
     };
 
     return (
-        <div className="flex h-screen bg-background overflow-hidden">
+        <div className="flex h-screen overflow-hidden bg-muted/30">
 
-            <aside className={`bg-card border-r border-border flex flex-col transition-all duration-300 ease-in-out shrink-0 z-10 ${isSidebarOpen ? 'w-64' : 'w-20'}`}>
-                <div className="h-14 flex items-center justify-center border-b border-border shrink-0">
+            <aside className={`bg-card border-r border-t-4 border-border border-t-uniyellow flex flex-col transition-all duration-300 ease-in-out shrink-0 z-10 ${isSidebarOpen ? 'w-64' : 'w-20'}`}>
+                <div className="h-16 flex items-center justify-center border-b border-border shrink-0">
 
                     <img
                         src={logoImg}
@@ -96,6 +96,9 @@ export default function MarketDashboard() {
                     {isSidebarOpen && (
                         <span className="font-semibold text-lg text-foreground ml-2 truncate transition-opacity duration-300">
                             UniMarket
+                            <span className="ml-2 rounded-full bg-uniyellow/20 px-2 py-0.5 text-[10px] font-semibold text-primary">
+                                Parceiro
+                            </span>
                         </span>
                     )}
                 </div>
@@ -128,13 +131,13 @@ export default function MarketDashboard() {
             </aside>
 
             <div className="flex-1 flex flex-col min-w-0">
-                <header className="h-14 bg-card border-b border-border flex items-center justify-between px-4 sm:px-6 shrink-0">
+                <header className="h-16 bg-card border-b border-border flex items-center justify-between px-4 sm:px-6 shrink-0">
                     <div className="flex items-center gap-4">
                         <Button variant="ghost" size="icon" onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="cursor-pointer text-muted-foreground hover:text-foreground">
                             <Menu className="w-5 h-5" />
                         </Button>
                         <span className="text-sm text-muted-foreground hidden sm:inline-flex items-center gap-2">
-                            Painel <span className="text-border">/</span> <span className="text-foreground font-medium">{menuItems.find(m => m.id === activeTab)?.label}</span>
+                            Central UniMarket <span className="text-border">/</span> <span className="text-foreground font-medium">{menuItems.find(m => m.id === activeTab)?.label}</span>
                         </span>
                     </div>
 
@@ -154,7 +157,7 @@ export default function MarketDashboard() {
                                 <div className="px-3 py-2">
                                     <p className="text-sm font-medium text-foreground">{marketName}</p>
                                     <p className="text-xs text-muted-foreground">
-                                        {isLogged ? 'Gestão de Preços' : 'Conta de Visitante'}
+                                        {isLogged ? 'Gestão de preços' : 'Conta de visitante'}
                                     </p>
                                 </div>
                                 <DropdownMenuSeparator />

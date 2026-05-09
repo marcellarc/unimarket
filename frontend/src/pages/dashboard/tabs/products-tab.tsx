@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { Search, Trash2, Clock, AlertCircle, Loader2 } from 'lucide-react';
-import { Badge, Button, Card, Input, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui';
+import { Search, Trash2, Clock, AlertCircle } from 'lucide-react';
+import { Badge, Button, Card, Input, Skeleton, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui';
 import { listProducts, searchProductsByMarketId } from '@/services/product';
 import { ProductFormDialog } from '@/pages/dashboard/product-form-dialog';
 import { EditProductDialog } from '@/pages/dashboard/edit-product-dialog';
@@ -114,8 +114,19 @@ export function ProductsTab() {
             {/* Tabela */}
             <Card className="overflow-hidden">
                 {isLoading || isSearching ? (
-                    <div className="flex items-center justify-center py-16">
-                        <Loader2 className="w-6 h-6 text-muted-foreground animate-spin" />
+                    <div className="space-y-3 p-5">
+                        {Array.from({ length: 5 }).map((_, index) => (
+                            <div key={index} className="grid grid-cols-[1fr_120px_90px] gap-4 rounded-lg border border-border p-3 md:grid-cols-[1fr_120px_90px_130px_90px]">
+                                <div className="space-y-2">
+                                    <Skeleton className="h-4 w-3/4" />
+                                    <Skeleton className="h-3 w-1/2" />
+                                </div>
+                                <Skeleton className="h-5 w-20" />
+                                <Skeleton className="h-5 w-16" />
+                                <Skeleton className="hidden h-5 w-24 md:block" />
+                                <Skeleton className="hidden h-8 w-20 md:block" />
+                            </div>
+                        ))}
                     </div>
                 ) : (
                     <Table>

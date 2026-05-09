@@ -1,13 +1,8 @@
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute, redirect } from '@tanstack/react-router'
+import { hasActiveAccessToken } from '@/utils/auth'
 
 export const Route = createFileRoute('/')({
-  component: Index,
+  beforeLoad: () => {
+    throw redirect({ to: hasActiveAccessToken() ? '/dashboard' : '/login' })
+  },
 })
-
-function Index() {
-  return (
-    <div>
-      <h3>Bem vindo ao UniMarket!</h3>
-    </div>
-  )
-}
