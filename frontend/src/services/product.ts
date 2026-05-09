@@ -8,31 +8,31 @@ import type {
 } from '@/types/product'
 
 export async function createProduct(marketId: number, data: MarketProductCreateRequest): Promise<MarketProductResponse> {
-    const response = await api.post<MarketProductResponse>(`/api/markets/${marketId}/products`, data)
+    const response = await api.post<MarketProductResponse>(`/markets/${marketId}/products`, data)
     return response.data
 }
 
 export async function listProducts(marketId: number) {
-    const response = await api.get<MarketProductResponse[]>(`/api/markets/${marketId}/products`)
+    const response = await api.get<MarketProductResponse[]>(`/markets/${marketId}/products`)
     return response.data
 }
 
 export async function searchProductsByMarketId(marketId: number, params: ProductSearchParams) {
-    const response = await api.get<MarketProductResponse[]>(`/api/markets/${marketId}/products/search`, {
+    const response = await api.get<MarketProductResponse[]>(`/markets/${marketId}/products/search`, {
         params,
     })
     return response.data
 }
 
 export async function searchGeneralProducts(params: ProductSearchParams) {
-    const response = await api.get<ProductResponse[]>('/api/products/search', {
+    const response = await api.get<ProductResponse[]>('/products/search', {
         params,
     })
     return response.data
 }
 
 export async function getProductById(marketId: number, productId: number) {
-    const response = await api.get<MarketProductResponse>(`/api/markets/${marketId}/products/${productId}`)
+    const response = await api.get<MarketProductResponse>(`/markets/${marketId}/products/${productId}`)
     return response.data
 }
 
@@ -42,7 +42,7 @@ export async function updateProductPriceAndStock(
     data: MarketProductUpdateRequest,
 ) {
     const response = await api.put<MarketProductResponse>(
-        `/api/markets/${marketId}/products/${productId}`,
+        `/markets/${marketId}/products/${productId}`,
         data,
     )
     return response.data
