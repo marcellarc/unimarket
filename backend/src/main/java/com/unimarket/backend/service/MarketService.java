@@ -1,14 +1,27 @@
 package com.unimarket.backend.service;
 
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.text.Normalizer;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Locale;
+import java.util.Optional;
+
 import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import com.unimarket.backend.dto.MarketDTO;
+import com.unimarket.backend.dto.MarketProfileUpdateDTO;
+import com.unimarket.backend.dto.MarketResponseDTO;
+import com.unimarket.backend.dto.location.CnpjLocationData;
+import com.unimarket.backend.dto.location.Coordinates;
 import com.unimarket.backend.entity.Market;
 import com.unimarket.backend.repository.MarketRepository;
 
+import jakarta.transaction.Transactional;
 
 @Service
 public class MarketService {
@@ -22,31 +35,332 @@ public class MarketService {
     @Autowired
     private PasswordEncoder passwordEncoder;
 
-    /**
-         * Classe responsável pela lógica de negócio do sistema.
-         * 
-         * O Service atua como intermediário entre o Controller e o Repository:
-         * - Recebe os dados vindos do Controller (DTO)
-         * - Aplica regras de negócio (validações, tratamentos, etc.)
-         * - Realiza transformações necessárias (ex: criptografia de senha)
-         * - Envia os dados para o Repository salvar no banco
-         * 
-         * Exemplo neste contexto:
-         * - Verifica se o CNPJ já está cadastrado
-         * - Criptografa a senha do supermercado
-         * - Define a data de cadastro automaticamente
-     */
+    @Autowired
+    private BrasilApiCnpjService brasilApiCnpjService;
+
+    @Autowired
+    private GoogleMapsGeocodingService googleMapsGeocodingService;
 
     public Market register(MarketDTO dto) {
-        if (repository.findByCnpj(dto.getCnpj()).isPresent()) {
-            throw new RuntimeException("CNPJ já cadastrado");
+        String sanitizedCnpj = onlyDigits(dto.getCnpj());
+
+        if (repository.findByCnpj(sanitizedCnpj).isPresent()) {
+            throw new RuntimeException("CNPJ ja cadastrado");
         }
         if (repository.findByEmail(dto.getEmail()).isPresent()) {
-            throw new RuntimeException("Email já cadastrado");
+            throw new RuntimeException("Email ja cadastrado");
         }
 
         Market market = modelMapper.map(dto, Market.class);
+        market.setCnpj(sanitizedCnpj);
         market.setPassword(passwordEncoder.encode(dto.getPassword()));
+        enrichLocation(market);
         return repository.save(market);
+    }
+
+    public MarketResponseDTO getCurrentProfile(Market authenticatedMarket) {
+        Market market = repository.findById(authenticatedMarket.getId())
+                .orElseThrow(() -> new RuntimeException("Mercado não encontrado"));
+
+        if (needsLocationEnrichment(market)) {
+            enrichLocation(market);
+            market = repository.save(market);
+        }
+
+        return toResponse(market, null);
+    }
+
+    @Transactional
+    public MarketResponseDTO updateCurrentProfile(Market authenticatedMarket, MarketProfileUpdateDTO dto) {
+        Market market = repository.findById(authenticatedMarket.getId())
+                .orElseThrow(() -> new RuntimeException("Mercado não encontrado"));
+
+        if (hasText(dto.getName())) {
+            market.setName(dto.getName().trim());
+        }
+
+        if (hasText(dto.getEmail())) {
+            String email = dto.getEmail().trim().toLowerCase(Locale.ROOT);
+            repository.findByEmail(email)
+                    .filter(existingMarket -> !existingMarket.getId().equals(market.getId()))
+                    .ifPresent(existingMarket -> {
+                        throw new RuntimeException("Email ja cadastrado");
+                    });
+            market.setEmail(email);
+        }
+
+        if (dto.getStreetAddress() != null) {
+            market.setStreetAddress(emptyToNull(dto.getStreetAddress()));
+        }
+
+        if (dto.getNeighborhood() != null) {
+            market.setNeighborhood(emptyToNull(dto.getNeighborhood()));
+        }
+
+        if (dto.getCity() != null) {
+            market.setCity(emptyToNull(dto.getCity()));
+        }
+
+        if (dto.getState() != null) {
+            market.setState(emptyToNull(dto.getState()) == null ? null : dto.getState().trim().toUpperCase(Locale.ROOT));
+        }
+
+        if (dto.getZipCode() != null) {
+            market.setZipCode(onlyDigits(dto.getZipCode()));
+        }
+
+        if (dto.getLatitude() != null) {
+            market.setLatitude(dto.getLatitude());
+        }
+
+        if (dto.getLongitude() != null) {
+            market.setLongitude(dto.getLongitude());
+        }
+
+        if (hasText(dto.getPassword())) {
+            market.setPassword(passwordEncoder.encode(dto.getPassword()));
+        }
+
+        return toResponse(repository.save(market), null);
+    }
+
+    @Transactional
+    public MarketResponseDTO refreshCurrentProfileFromCnpj(Market authenticatedMarket) {
+        Market market = repository.findById(authenticatedMarket.getId())
+                .orElseThrow(() -> new RuntimeException("Mercado não encontrado"));
+
+        enrichLocation(market);
+        return toResponse(repository.save(market), null);
+    }
+
+    public List<MarketResponseDTO> listNearby(Double latitude, Double longitude, String city, String state, Double radiusKm) {
+        double maxRadius = radiusKm == null || radiusKm <= 0 ? 10 : radiusKm;
+        LocationFilter locationFilter = normalizeLocationFilter(city, state);
+        boolean hasUserCoordinates = latitude != null && longitude != null;
+        List<Market> markets = repository.findAll();
+
+        markets.stream()
+                .filter(this::needsLocationEnrichment)
+                .forEach(market -> {
+                    enrichLocation(market);
+                    repository.save(market);
+                });
+
+        return markets
+                .stream()
+                .map(market -> toResponse(
+                market,
+                hasUserCoordinates && hasCoordinates(market)
+                        ? calculateDistanceKm(latitude, longitude, market.getLatitude(), market.getLongitude())
+                        : null
+        ))
+                .filter(response -> {
+                    if (hasUserCoordinates && response.distanceKm() != null) {
+                        return response.distanceKm() <= maxRadius;
+                    }
+
+                    if (hasText(locationFilter.city())) {
+                        return equalsNormalized(response.city(), locationFilter.city())
+                                && (!hasText(locationFilter.state()) || equalsNormalized(response.state(), locationFilter.state()));
+                    }
+
+                    return true;
+                })
+                .sorted(Comparator
+                        .comparing((MarketResponseDTO response) -> response.distanceKm() == null ? Double.MAX_VALUE : response.distanceKm())
+                        .thenComparing(response -> safeText(response.name()), String.CASE_INSENSITIVE_ORDER))
+                .toList();
+    }
+
+    private boolean needsLocationEnrichment(Market market) {
+        return !hasText(market.getCity()) || !hasText(market.getState()) || !hasCoordinates(market);
+    }
+
+    private void enrichLocation(Market market) {
+        brasilApiCnpjService.findLocationByCnpj(market.getCnpj())
+                .ifPresent(location -> applyCnpjLocation(market, location));
+
+        if (!hasCoordinates(market)) {
+            Optional<Coordinates> coordinates = googleMapsGeocodingService.geocode(buildAddressQuery(market));
+            coordinates.ifPresent(location -> {
+                market.setLatitude(location.latitude());
+                market.setLongitude(location.longitude());
+            });
+        }
+    }
+
+    private void applyCnpjLocation(Market market, CnpjLocationData location) {
+        if (hasText(location.legalName())) {
+            market.setOfficialName(location.legalName().trim());
+        }
+
+        if (hasText(location.tradeName())) {
+            market.setTradeName(location.tradeName().trim());
+        }
+
+        if (hasText(location.registrationStatus())) {
+            market.setRegistrationStatus(location.registrationStatus().trim());
+        }
+
+        if (hasText(location.mainActivity())) {
+            market.setMainActivity(location.mainActivity().trim());
+        }
+
+        if (isBlankOrPending(market.getStreetAddress()) && hasText(location.streetAddress())) {
+            market.setStreetAddress(location.streetAddress());
+        }
+
+        if (isBlankOrPending(market.getNeighborhood()) && hasText(location.neighborhood())) {
+            market.setNeighborhood(location.neighborhood());
+        }
+
+        if (!hasText(market.getCity()) && hasText(location.city())) {
+            market.setCity(location.city());
+        }
+
+        if (!hasText(market.getState()) && hasText(location.state())) {
+            market.setState(location.state());
+        }
+
+        if (!hasText(market.getZipCode()) && hasText(location.zipCode())) {
+            market.setZipCode(onlyDigits(location.zipCode()));
+        }
+    }
+
+    private MarketResponseDTO toResponse(Market market, Double distanceKm) {
+        return new MarketResponseDTO(
+                market.getId(),
+                marketDisplayName(market),
+                market.getOfficialName(),
+                market.getTradeName(),
+                market.getRegistrationStatus(),
+                market.getMainActivity(),
+                market.getCnpj(),
+                market.getEmail(),
+                market.getStreetAddress(),
+                market.getNeighborhood(),
+                market.getCity(),
+                market.getState(),
+                market.getZipCode(),
+                market.getLatitude(),
+                market.getLongitude(),
+                distanceKm == null ? null : Math.round(distanceKm * 10.0) / 10.0,
+                hasCoordinates(market),
+                null,
+                buildGoogleMapsUrl(market),
+                buildDirectionsUrl(market),
+                market.getCreatedAt()
+        );
+    }
+
+    private String buildGoogleMapsUrl(Market market) {
+        return "https://www.google.com/maps/search/?api=1&query=" + encode(buildAddressQuery(market));
+    }
+
+    private String buildDirectionsUrl(Market market) {
+        return "https://www.google.com/maps/dir/?api=1&destination=" + encode(buildAddressQuery(market));
+    }
+
+    private String buildAddressQuery(Market market) {
+        if (hasCoordinates(market)) {
+            return market.getLatitude() + "," + market.getLongitude();
+        }
+
+        return String.join(", ",
+                List.of(
+                        marketDisplayName(market),
+                        safeText(market.getStreetAddress()),
+                        safeText(market.getNeighborhood()),
+                        safeText(market.getCity()),
+                        safeText(market.getState()),
+                        safeText(market.getZipCode())
+                ).stream().filter(this::hasText).toList()
+        );
+    }
+
+    private double calculateDistanceKm(double lat1, double lon1, double lat2, double lon2) {
+        final int earthRadiusKm = 6371;
+        double dLat = Math.toRadians(lat2 - lat1);
+        double dLon = Math.toRadians(lon2 - lon1);
+        double originLat = Math.toRadians(lat1);
+        double destinationLat = Math.toRadians(lat2);
+
+        double a = Math.sin(dLat / 2) * Math.sin(dLat / 2)
+                + Math.cos(originLat) * Math.cos(destinationLat)
+                * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+        double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+        return earthRadiusKm * c;
+    }
+
+    private LocationFilter normalizeLocationFilter(String city, String state) {
+        if (hasText(city) && city.contains(",") && !hasText(state)) {
+            String[] parts = city.split(",", 2);
+            return new LocationFilter(parts[0].trim(), parts[1].trim());
+        }
+
+        return new LocationFilter(city, state);
+    }
+
+    private boolean hasCoordinates(Market market) {
+        return market.getLatitude() != null && market.getLongitude() != null;
+    }
+
+    private boolean equalsNormalized(String first, String second) {
+        return normalize(first).equals(normalize(second));
+    }
+
+    private String normalize(String value) {
+        if (value == null) {
+            return "";
+        }
+
+        return Normalizer.normalize(value, Normalizer.Form.NFD)
+                .replaceAll("\\p{M}", "")
+                .trim()
+                .toLowerCase(Locale.ROOT);
+    }
+
+    private String safeText(String value) {
+        return value == null ? "" : value.trim();
+    }
+
+    private String marketDisplayName(Market market) {
+        if (hasText(market.getTradeName())) {
+            return market.getTradeName().trim();
+        }
+
+        if (hasText(market.getName())) {
+            return market.getName().trim();
+        }
+
+        if (hasText(market.getOfficialName())) {
+            return market.getOfficialName().trim();
+        }
+
+        return "Supermercado";
+    }
+
+    private String emptyToNull(String value) {
+        return hasText(value) ? value.trim() : null;
+    }
+
+    private String onlyDigits(String value) {
+        return value == null ? "" : value.replaceAll("\\D", "");
+    }
+
+    private boolean hasText(String value) {
+        return value != null && !value.trim().isEmpty();
+    }
+
+    private boolean isBlankOrPending(String value) {
+        return !hasText(value) || normalize(value).contains("pendente");
+    }
+
+    private String encode(String value) {
+        return URLEncoder.encode(value, StandardCharsets.UTF_8);
+    }
+
+    private record LocationFilter(String city, String state) {
     }
 }

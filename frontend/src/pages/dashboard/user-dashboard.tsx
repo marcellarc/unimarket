@@ -5,6 +5,7 @@ import {
     DropdownMenu, DropdownMenuContent, DropdownMenuItem,
     DropdownMenuSeparator, DropdownMenuTrigger,
     Input,
+    Skeleton,
 } from '@/components/ui'
 import { useLogout } from '@/hooks/use-logout'
 import {
@@ -14,8 +15,11 @@ import {
     markNotificationsAsRead,
 } from '@/services/notification'
 import type { PriceNotificationResponse } from '@/types/notification'
-import { listProducts, searchProductsByMarketId } from '@/services/product'
+import { listProducts } from '@/services/product'
+import { listNearbyMarkets } from '@/services/supermarket'
+import { getCurrentUserProfile } from '@/services/user'
 import type { MarketProductResponse } from '@/types/product'
+import type { MarketResponse } from '@/types/supermarket'
 import type { TransformedProduct } from './product-card'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
@@ -23,7 +27,7 @@ import {
     Bell, ChevronDown,
     ChevronRight,
     Filter, List,
-    Loader2,
+    LocateFixed,
     LogOut, MapPin, Package,
     Plus, Search, ShoppingCart,
     SlidersHorizontal, Store, Tag,
@@ -50,10 +54,73 @@ const nearbyMarkets = [
     { id: 3, name: 'Super Compras', distance: '2.0 km', products: 1540, open: false },
 ]
 
-const shoppingLists = [
+const initialShoppingLists = [
     { id: 1, name: 'Compras do Mês', items: 12, total: 289.50, savings: 45.20 },
     { id: 2, name: 'Feira da Semana', items: 8, total: 85.90, savings: 12.30 },
 ]
+
+function getStoredString(key: string, fallback: string) {
+    if (typeof window === 'undefined') {
+        return fallback
+    }
+
+    return window.localStorage.getItem(key) ?? fallback
+}
+
+function getStoredNumber(key: string) {
+    if (typeof window === 'undefined') {
+        return null
+    }
+
+    const value = window.localStorage.getItem(key)
+    const parsedValue = value ? Number(value) : NaN
+    return Number.isFinite(parsedValue) ? parsedValue : null
+}
+
+function getStoredLocation() {
+    const rawCity = getStoredString('unimarket.profile.city', 'Santos')
+    const rawState = getStoredString('unimarket.profile.state', 'SP')
+
+    if (rawCity.includes(',')) {
+        const [city, state] = rawCity.split(',', 2)
+        return {
+            city: city.trim() || 'Santos',
+            state: state.trim() || rawState || 'SP',
+        }
+    }
+
+    return {
+        city: rawCity || 'Santos',
+        state: rawState || 'SP',
+    }
+}
+
+function formatDistance(market?: MarketResponse | null) {
+    if (!market || market.distanceKm == null) {
+        return 'Distância indisponível'
+    }
+
+    return `${market.distanceKm.toFixed(1)} km`
+}
+
+function formatMarketAddress(market: MarketResponse) {
+    return [market.streetAddress, market.neighborhood, market.city, market.state]
+        .filter(Boolean)
+        .join(', ')
+}
+
+function normalizeProductKey(product: MarketProductResponse) {
+    return product.productId ? `product-${product.productId}` : `${product.productName}-${product.brand}`.toLowerCase()
+}
+
+function getInitials(value: string) {
+    return value
+        .split(' ')
+        .filter(Boolean)
+        .slice(0, 2)
+        .map(part => part[0]?.toUpperCase())
+        .join('') || 'U'
+}
 
 interface UserDashboardProps {
     userName: string
@@ -70,29 +137,79 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
     const [searchQuery, setSearchQuery] = useState('')
     const [selectedCategory, setSelectedCategory] = useState('all')
     const [showFilters, setShowFilters] = useState(false)
-    const [maxDistance, setMaxDistance] = useState(5)
+    const [maxDistance, setMaxDistance] = useState(() => getStoredNumber('unimarket.profile.radius') ?? 5)
     const [maxPrice, setMaxPrice] = useState(100)
     const [sortBy, setSortBy] = useState<'price' | 'savings'>('price')
     const [showListPanel, setShowListPanel] = useState(false)
+    const [shoppingLists, setShoppingLists] = useState(initialShoppingLists)
+    const [newListOpen, setNewListOpen] = useState(false)
+    const [newListName, setNewListName] = useState('')
+    const [selectedMarketId, setSelectedMarketId] = useState(marketId)
+    const [userLatitude, setUserLatitude] = useState<number | null>(() => getStoredNumber('unimarket.profile.latitude'))
+    const [userLongitude, setUserLongitude] = useState<number | null>(() => getStoredNumber('unimarket.profile.longitude'))
+    const [userCity, setUserCity] = useState(() => getStoredLocation().city)
+    const [userState, setUserState] = useState(() => getStoredLocation().state)
+    const [userZipCode, setUserZipCode] = useState(() => getStoredString('unimarket.profile.zipCode', ''))
     const [expandedId, setExpandedId] = useState<number | null>(null)
     const [alertProduct, setAlertProduct] = useState<TransformedProduct | null>(null)
     const [desiredPrice, setDesiredPrice] = useState('')
     const notifiedBrowserIds = useRef(new Set<number>())
 
+    const isGuest = userRole === 'GUEST'
+    const displayName = isGuest ? 'visitante' : userName
     const canUseNotifications = isLogged && userRole === 'USER'
 
-    const { data: apiProducts = [], isLoading, error } = useQuery({
-        queryKey: ['products', marketId],
-        queryFn: () => listProducts(marketId),
-        enabled: !!marketId,
+    const nearbyMarketParams = useMemo(() => ({
+        latitude: userLatitude ?? undefined,
+        longitude: userLongitude ?? undefined,
+        city: userCity,
+        state: userState,
+        radiusKm: maxDistance,
+    }), [maxDistance, userCity, userLatitude, userLongitude, userState])
+
+    const { data: nearbyMarketResults = [], isLoading: isLoadingMarkets } = useQuery({
+        queryKey: ['nearbyMarkets', nearbyMarketParams],
+        queryFn: () => listNearbyMarkets(nearbyMarketParams),
     })
 
+    const { data: userProfile } = useQuery({
+        queryKey: ['userProfile'],
+        queryFn: getCurrentUserProfile,
+        enabled: isLogged && userRole === 'USER',
+    })
+
+    const profileImageUrl = isGuest ? '' : userProfile?.profileImageUrl ?? getStoredString('unimarket.profile.imageUrl', '')
+
+    const selectedMarket = useMemo(
+        () => nearbyMarketResults.find(market => market.id === selectedMarketId) ?? nearbyMarketResults[0] ?? null,
+        [nearbyMarketResults, selectedMarketId],
+    )
+
+    const { data: apiProducts = [], isLoading, error } = useQuery({
+        queryKey: ['products', selectedMarketId],
+        queryFn: () => listProducts(selectedMarketId),
+        enabled: !!selectedMarketId,
+    })
 
     const deferredSearch = useDeferredValue(searchQuery)
-    const { data: searchedProducts = [] } = useQuery({
-        queryKey: ['searchProductsByMarketId', marketId, deferredSearch],
-        queryFn: () => searchProductsByMarketId(marketId, { name: deferredSearch }),
-        enabled: deferredSearch.length > 0 && !!marketId,
+
+    const { data: nearbyMarketProducts = [], isLoading: isLoadingNearbyProducts } = useQuery({
+        queryKey: ['nearbyMarketProducts', nearbyMarketResults.map(market => market.id)],
+        queryFn: async () => {
+            const productGroups = await Promise.all(
+                nearbyMarketResults.map(async (market) => {
+                    try {
+                        const products = await listProducts(market.id)
+                        return products.map(product => ({ product, market }))
+                    } catch {
+                        return []
+                    }
+                }),
+            )
+
+            return productGroups.flat()
+        },
+        enabled: nearbyMarketResults.length > 0,
     })
 
     const { data: priceAlerts = [] } = useQuery({
@@ -119,6 +236,52 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
     }, [priceAlerts])
 
     useEffect(() => {
+        if (!userProfile) {
+            return
+        }
+
+        if (userProfile.city) {
+            setUserCity(userProfile.city)
+            window.localStorage.setItem('unimarket.profile.city', userProfile.city)
+        }
+
+        if (userProfile.state) {
+            setUserState(userProfile.state)
+            window.localStorage.setItem('unimarket.profile.state', userProfile.state)
+        }
+
+        if (userProfile.zipCode) {
+            setUserZipCode(userProfile.zipCode)
+            window.localStorage.setItem('unimarket.profile.zipCode', userProfile.zipCode)
+        }
+
+        if (userProfile.neighborhood) {
+            window.localStorage.setItem('unimarket.profile.neighborhood', userProfile.neighborhood)
+        }
+
+        if (userProfile.profileImageUrl) {
+            window.localStorage.setItem('unimarket.profile.imageUrl', userProfile.profileImageUrl)
+        }
+
+        if (userProfile.latitude != null && userProfile.longitude != null) {
+            setUserLatitude(userProfile.latitude)
+            setUserLongitude(userProfile.longitude)
+            window.localStorage.setItem('unimarket.profile.latitude', String(userProfile.latitude))
+            window.localStorage.setItem('unimarket.profile.longitude', String(userProfile.longitude))
+        } else if (userProfile.zipCode || userProfile.city || userProfile.neighborhood) {
+            setUserLatitude(null)
+            setUserLongitude(null)
+            window.localStorage.removeItem('unimarket.profile.latitude')
+            window.localStorage.removeItem('unimarket.profile.longitude')
+        }
+
+        if (userProfile.searchRadiusKm != null) {
+            setMaxDistance(userProfile.searchRadiusKm)
+            window.localStorage.setItem('unimarket.profile.radius', String(userProfile.searchRadiusKm))
+        }
+    }, [userProfile])
+
+    useEffect(() => {
         if (!canUseNotifications || typeof window === 'undefined' || !('Notification' in window)) {
             return
         }
@@ -137,10 +300,22 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
             })
     }, [canUseNotifications, notifications])
 
+    useEffect(() => {
+        if (nearbyMarketResults.length === 0) {
+            return
+        }
+
+        const selectedMarketStillVisible = nearbyMarketResults.some(market => market.id === selectedMarketId)
+
+        if (!selectedMarketStillVisible) {
+            setSelectedMarketId(nearbyMarketResults[0].id)
+        }
+    }, [nearbyMarketResults, selectedMarketId])
+
     const createAlertMutation = useMutation({
         mutationFn: () => {
             if (!alertProduct) {
-                throw new Error('Produto nao selecionado')
+                throw new Error('Produto não selecionado')
             }
 
             return createPriceAlert({
@@ -187,58 +362,86 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
     })
 
     const transformedProducts = useMemo(() => {
-        // Busca no mercado ativa → MarketProductResponse
-        if (deferredSearch.length > 0) {
-            return (searchedProducts as MarketProductResponse[]).map(product => {
-                const price = product.price != null ? Number(product.price) : 0
-                return {
-                    id: product.id,                  // ← id aqui
-                    name: product.productName,
-                    category: 'all',
-                    lowestPrice: price,
-                    averagePrice: price * 1.15,
-                    savings: price * 0.15,
-                    badge: activeAlertByProductId.has(product.id) ? 'Alerta ativo' : null,
-                    markets: [{
-                        name: product.marketName || 'Market',
-                        price,
-                        distance: '0.5 km',
-                    }],
-                }
-            })
-        }
+        const source = nearbyMarketProducts.length > 0
+            ? nearbyMarketProducts
+            : (apiProducts as MarketProductResponse[]).map(product => ({ product, market: selectedMarket }))
 
-        // Listagem do mercado → MarketProductResponse
-        return (apiProducts as MarketProductResponse[]).map(product => {
-            const price = product.price != null ? Number(product.price) : 0
+        const groupedProducts = new Map<string, Array<{ product: MarketProductResponse; market: MarketResponse | null }>>()
+
+        source.forEach(item => {
+            const key = normalizeProductKey(item.product)
+            const current = groupedProducts.get(key) ?? []
+            current.push(item)
+            groupedProducts.set(key, current)
+        })
+
+        return Array.from(groupedProducts.values()).map(items => {
+            const sortedItems = [...items].sort((first, second) => {
+                const firstPrice = first.product.price != null ? Number(first.product.price) : Number.MAX_VALUE
+                const secondPrice = second.product.price != null ? Number(second.product.price) : Number.MAX_VALUE
+                return firstPrice - secondPrice
+            })
+            const cheapest = sortedItems[0]
+            const marketRows = sortedItems.map(({ product, market }) => ({
+                name: product.marketName || market?.name || 'Mercado',
+                price: product.price != null ? Number(product.price) : 0,
+                distance: formatDistance(market),
+            }))
+            const validPrices = marketRows.map(row => row.price).filter(price => price > 0)
+            const lowestPrice = validPrices[0] ?? 0
+            const averagePrice = validPrices.length
+                ? validPrices.reduce((sum, price) => sum + price, 0) / validPrices.length
+                : 0
+            const savings = averagePrice > 0 && lowestPrice > 0
+                ? Math.round(((averagePrice - lowestPrice) / averagePrice) * 100)
+                : 0
+
             return {
-                id: product.id,                  // ← id aqui
-                name: product.productName,
+                id: cheapest.product.id,
+                name: cheapest.product.productName,
                 category: 'all',
-                lowestPrice: price,
-                averagePrice: price * 1.15,
-                savings: price * 0.15,
-                badge: activeAlertByProductId.has(product.id) ? 'Alerta ativo' : null,
-                markets: [{
-                    name: product.marketName || 'Market',
-                    price,
-                    distance: '0.5 km',
-                }],
+                lowestPrice,
+                averagePrice,
+                savings,
+                badge: activeAlertByProductId.has(cheapest.product.id)
+                    ? 'Alerta ativo'
+                    : marketRows.length > 1
+                        ? `${marketRows.length} mercados`
+                        : null,
+                markets: marketRows,
             }
         })
-    }, [apiProducts, searchedProducts, deferredSearch, activeAlertByProductId])
+    }, [activeAlertByProductId, apiProducts, nearbyMarketProducts, selectedMarket])
 
     const filteredProducts = useMemo(() =>
         transformedProducts
+            .filter(p => deferredSearch.length === 0 || p.name.toLowerCase().includes(deferredSearch.toLowerCase()))
             .filter(p => selectedCategory === 'all' || p.category === selectedCategory)
             .filter(p => p.lowestPrice <= maxPrice)
             .sort((a, b) => sortBy === 'price' ? a.lowestPrice - b.lowestPrice : b.savings - a.savings),
-        [transformedProducts, selectedCategory, maxPrice, sortBy]
+        [deferredSearch, transformedProducts, selectedCategory, maxPrice, sortBy]
     )
 
     const totalListItems = shoppingLists.reduce((total, list) => total + list.items, 0)
     const totalListSavings = shoppingLists.reduce((total, list) => total + list.savings, 0)
     const activeAlertCount = priceAlerts.filter(alert => alert.active).length
+    const isProductsLoading = isLoading || isLoadingNearbyProducts
+    const nearbyMarketsView = nearbyMarketResults.length > 0
+        ? nearbyMarketResults.map(market => ({
+            id: market.id,
+            name: market.name,
+            distance: formatDistance(market),
+            productsLabel: market.hasCoordinates ? 'Distância calculada' : 'Cidade e endereço cadastrados',
+            open: true,
+            googleMapsUrl: market.googleMapsUrl,
+            address: formatMarketAddress(market),
+        }))
+        : nearbyMarkets.map(market => ({
+            ...market,
+            productsLabel: `${market.products} produtos`,
+            googleMapsUrl: undefined,
+            address: '',
+        }))
 
     const toggleExpand = useCallback(
         (id: number) => setExpandedId(prev => prev === id ? null : id),
@@ -247,7 +450,7 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
 
     const handleCreateAlert = useCallback((product: TransformedProduct) => {
         if (!canUseNotifications) {
-            toast.info('Entre como usuario para criar alertas de preço')
+            toast.info('Entre como usuário para criar alertas de preço.')
             navigate({ to: '/login' })
             return
         }
@@ -260,7 +463,7 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
         const numericPrice = Number(desiredPrice)
 
         if (!alertProduct || !Number.isFinite(numericPrice) || numericPrice <= 0) {
-            toast.error('Informe um preço desejado valido')
+            toast.error('Informe um preço desejado válido.')
             return
         }
 
@@ -269,8 +472,32 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
 
     const handleAddToList = useCallback((product: TransformedProduct) => {
         setShowListPanel(true)
-        toast.success(`${product.name} adicionado a sua lista`)
+        toast.success(`${product.name} adicionado à sua lista.`)
     }, [])
+
+    const handleCreateShoppingList = useCallback(() => {
+        const trimmedName = newListName.trim()
+
+        if (trimmedName.length < 3) {
+            toast.error('Informe um nome para a lista.')
+            return
+        }
+
+        setShoppingLists(current => [
+            {
+                id: Date.now(),
+                name: trimmedName,
+                items: 0,
+                total: 0,
+                savings: 0,
+            },
+            ...current,
+        ])
+        setNewListName('')
+        setNewListOpen(false)
+        setShowListPanel(true)
+        toast.success('Lista de compras criada.')
+    }, [newListName])
 
     const handleMarkNotificationsAsRead = useCallback((event: React.MouseEvent<HTMLButtonElement>) => {
         event.preventDefault()
@@ -287,11 +514,48 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
         navigate({ to: '/profile' })
     }, [isLogged, navigate])
 
+    const handleUseCurrentLocation = useCallback(() => {
+        if (typeof navigator === 'undefined' || !navigator.geolocation) {
+            toast.error('Localização indisponível neste navegador')
+            return
+        }
+
+        navigator.geolocation.getCurrentPosition(
+            (position) => {
+                const { latitude, longitude } = position.coords
+                setUserLatitude(latitude)
+                setUserLongitude(longitude)
+
+                if (typeof window !== 'undefined') {
+                    window.localStorage.setItem('unimarket.profile.latitude', String(latitude))
+                    window.localStorage.setItem('unimarket.profile.longitude', String(longitude))
+                    window.localStorage.setItem('unimarket.profile.locationSource', 'BROWSER_GEOLOCATION')
+                }
+
+                toast.success('Localização atualizada. Os mercados próximos foram recalculados.')
+            },
+            () => toast.error('Não foi possível acessar sua localização'),
+            { enableHighAccuracy: true, timeout: 10000 },
+        )
+    }, [])
+
+    const handleOpenMarketsMap = useCallback(() => {
+        const query = userLatitude != null && userLongitude != null
+            ? `supermercados perto de ${userLatitude},${userLongitude}`
+            : `supermercados perto de ${[userCity, userState].filter(Boolean).join(', ')}`
+
+        window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`, '_blank', 'noopener,noreferrer')
+    }, [userCity, userLatitude, userLongitude, userState])
+
+    const handleOpenMarketMap = useCallback((market: MarketResponse) => {
+        window.open(market.googleMapsUrl, '_blank', 'noopener,noreferrer')
+    }, [])
+
     return (
         <div className="min-h-screen bg-muted/30">
 
             {/* ── NAVBAR ── */}
-            <header className="sticky top-0 z-50 bg-card border-b border-border shadow-sm">
+            <header className="sticky top-0 z-50 border-b border-t-4 border-border border-t-uniyellow bg-card shadow-sm">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6">
                     <div className="flex items-center gap-4 h-14">
                         <div className="flex items-center gap-2 shrink-0">
@@ -384,16 +648,20 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
                             <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
                                     <Button variant="ghost" className="h-8 w-8 rounded-full p-0">
-                                        <div className="w-full h-full rounded-full bg-primary/10 flex items-center justify-center">
-                                            <User className="w-4 h-4 text-primary" />
+                                        <div className="flex h-full w-full items-center justify-center overflow-hidden rounded-full bg-primary/10 text-xs font-bold text-primary">
+                                            {profileImageUrl ? (
+                                                <img src={profileImageUrl} alt={displayName} className="h-full w-full object-cover" />
+                                            ) : (
+                                                getInitials(displayName)
+                                            )}
                                         </div>
                                     </Button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end" className="w-52 mt-1">
                                     <div className="px-3 py-2">
-                                        <p className="text-sm font-medium text-foreground">{userName}</p>
+                                        <p className="text-sm font-medium text-foreground">{isGuest ? 'Visitante UniMarket' : userName}</p>
                                         <p className="text-xs text-muted-foreground">
-                                            {userRole === 'GUEST' ? 'Visitante' : 'Consumidor'}
+                                            {isGuest ? 'Modo exploração' : 'Consumidor'}
                                         </p>
                                     </div>
                                     <DropdownMenuSeparator />
@@ -441,21 +709,25 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
             </header>
 
             <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
-                <section className="mb-6 rounded-lg border border-border bg-card p-5 shadow-sm">
+                <section className="mb-6 rounded-lg border border-border border-t-4 border-t-uniyellow bg-card p-5 shadow-sm">
                     <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
                         <div>
                             <div className="flex flex-wrap items-center gap-2">
                                 <Badge variant="secondary" className="gap-1">
                                     <MapPin className="w-3 h-3" />
-                                    Santos, SP
+                                    {[userCity, userState].filter(Boolean).join(', ')}
                                 </Badge>
-                                <Badge variant="outline">Consumidor</Badge>
+                                <Badge variant="outline">{isGuest ? 'Visitante' : 'Consumidor'}</Badge>
                             </div>
                             <h1 className="mt-3 text-2xl font-bold text-foreground">
-                                Olá, {userName}. Encontre o melhor preço antes de comprar.
+                                {isGuest
+                                    ? 'Boas-vindas ao UniMarket. Explore preços perto de você.'
+                                    : `Olá, ${displayName}! Encontre o melhor preço antes de comprar.`}
                             </h1>
                             <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-                                Compare produtos, acompanhe mercados próximos e deixe o UniMarket avisar quando o preço ficar bom.
+                                {isGuest
+                                    ? 'Você pode comparar produtos e mercados próximos. Para salvar listas e alertas, entre como usuário.'
+                                    : 'Compare produtos, acompanhe mercados próximos e deixe o UniMarket avisar quando o preço ficar bom.'}
                             </p>
                         </div>
 
@@ -483,11 +755,11 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
                             </Button>
                             <Button variant="outline" size="sm" onClick={handleOpenProfile}>
                                 <User className="w-4 h-4" />
-                                Perfil e preferências
+                                {isGuest ? 'Salvar preferências' : 'Perfil e preferências'}
                             </Button>
                         </div>
                         <div className="text-xs text-muted-foreground">
-                            {unreadCount > 0 ? `${unreadCount} notificacao${unreadCount !== 1 ? 'es' : ''} aguardando leitura` : 'Tudo em dia nas notificacoes'}
+                            {unreadCount > 0 ? `${unreadCount} notificação${unreadCount !== 1 ? 'ões' : ''} aguardando leitura` : 'Tudo em dia nas notificações'}
                         </div>
                     </div>
                 </section>
@@ -603,10 +875,22 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
                         </div>
 
                         {/*GRID DE PRODUTOS*/}
-                        {isLoading ? (
-                            <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
-                                <Loader2 className="w-12 h-12 mb-4 animate-spin" />
-                                <p className="font-medium">Carregando produtos...</p>
+                        {isProductsLoading ? (
+                            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                                {Array.from({ length: 6 }).map((_, index) => (
+                                    <Card key={index} className="gap-0 overflow-hidden p-0">
+                                        <Skeleton className="h-32 rounded-none" />
+                                        <div className="space-y-3 p-4">
+                                            <Skeleton className="h-4 w-3/4" />
+                                            <Skeleton className="h-3 w-1/2" />
+                                            <div className="flex items-end justify-between">
+                                                <Skeleton className="h-7 w-24" />
+                                                <Skeleton className="h-6 w-16 rounded-full" />
+                                            </div>
+                                            <Skeleton className="h-8 w-full" />
+                                        </div>
+                                    </Card>
+                                ))}
                             </div>
                         ) : error ? (
                             <div className="flex flex-col items-center justify-center py-20 text-destructive">
@@ -641,19 +925,38 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
                                 <div>
                                     <h3 className="font-semibold text-foreground">Supermercados perto de você</h3>
                                     <p className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1">
-                                        <MapPin className="w-3 h-3" /> Santos, SP
+                                        <MapPin className="w-3 h-3" /> {[userCity, userState].filter(Boolean).join(', ')}{userZipCode ? ` - CEP ${userZipCode}` : ''}
                                     </p>
                                 </div>
-                                <Button variant="outline" size="sm" className="text-xs gap-1.5">
+                                <Button variant="outline" size="sm" className="text-xs gap-1.5" onClick={handleUseCurrentLocation}>
+                                    <LocateFixed className="w-3.5 h-3.5" /> Usar localização
+                                </Button>
+                                <Button variant="outline" size="sm" className="text-xs gap-1.5" onClick={handleOpenMarketsMap}>
                                     Ver no mapa <ChevronRight className="w-3.5 h-3.5" />
                                 </Button>
+                                {isLoadingMarkets && (
+                                    <span className="text-xs text-muted-foreground">Atualizando...</span>
+                                )}
                             </div>
 
                             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                                {nearbyMarkets.map((market, idx) => (
+                                {isLoadingMarkets ? (
+                                    Array.from({ length: 3 }).map((_, index) => (
+                                        <Card key={index} className="gap-3 p-4">
+                                            <div className="flex items-start justify-between">
+                                                <Skeleton className="h-9 w-9" />
+                                                <Skeleton className="h-5 w-14 rounded-full" />
+                                            </div>
+                                            <Skeleton className="h-4 w-3/4" />
+                                            <Skeleton className="h-3 w-full" />
+                                            <Skeleton className="h-3 w-2/3" />
+                                        </Card>
+                                    ))
+                                ) : nearbyMarketsView.map((market) => (
                                     <Card
-                                        key={idx}
-                                        className="p-4 border-border hover:shadow-md hover:bg-muted/50 transition-all cursor-pointer"
+                                        key={market.id}
+                                        onClick={() => setSelectedMarketId(market.id)}
+                                        className={`p-4 hover:shadow-md hover:bg-muted/50 transition-all cursor-pointer ${selectedMarketId === market.id ? 'border-primary bg-primary/5' : 'border-border'}`}
                                     >
                                         <div className="flex items-start justify-between mb-3">
                                             <div className="p-2 bg-primary/10 rounded-lg">
@@ -667,14 +970,30 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
                                             </span>
                                         </div>
                                         <h4 className="font-medium text-foreground text-sm mb-2">{market.name}</h4>
+                                        {market.address && (
+                                            <p className="text-xs text-muted-foreground mb-2 line-clamp-2">{market.address}</p>
+                                        )}
                                         <div className="flex items-center gap-3 text-xs text-muted-foreground">
                                             <span className="flex items-center gap-0.5">
                                                 <MapPin className="w-3 h-3" /> {market.distance}
                                             </span>
                                             <span className="flex items-center gap-0.5">
-                                                <Package className="w-3 h-3" /> {market.products} produtos
+                                                <Package className="w-3 h-3" /> {market.productsLabel}
                                             </span>
                                         </div>
+                                        {market.googleMapsUrl && (
+                                            <Button
+                                                variant="outline"
+                                                size="xs"
+                                                className="mt-3"
+                                                onClick={(event) => {
+                                                    event.stopPropagation()
+                                                    handleOpenMarketMap(nearbyMarketResults.find(item => item.id === market.id)!)
+                                                }}
+                                            >
+                                                Abrir mapa
+                                            </Button>
+                                        )}
                                     </Card>
                                 ))}
                             </div>
@@ -714,7 +1033,7 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
                                     ))}
                                 </div>
 
-                                <Button size="sm" className="w-full mt-4 text-xs gap-1.5">
+                                <Button size="sm" className="w-full mt-4 text-xs gap-1.5" onClick={() => setNewListOpen(true)}>
                                     <Plus className="w-3.5 h-3.5" /> Nova Lista
                                 </Button>
 
@@ -733,6 +1052,44 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
                     )}
                 </div>
             </div>
+
+            <Dialog open={newListOpen} onOpenChange={setNewListOpen}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Nova lista de compras</DialogTitle>
+                        <DialogDescription>
+                            Crie uma lista para organizar produtos por mercado, preço e economia estimada.
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="space-y-2">
+                        <label htmlFor="newListName" className="text-xs font-medium text-muted-foreground">
+                            Nome da lista
+                        </label>
+                        <Input
+                            id="newListName"
+                            value={newListName}
+                            onChange={(event) => setNewListName(event.target.value)}
+                            placeholder="Ex.: Compras da semana"
+                            onKeyDown={(event) => {
+                                if (event.key === 'Enter') {
+                                    event.preventDefault()
+                                    handleCreateShoppingList()
+                                }
+                            }}
+                        />
+                    </div>
+
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setNewListOpen(false)}>
+                            Cancelar
+                        </Button>
+                        <Button onClick={handleCreateShoppingList}>
+                            Criar lista
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
 
             <Dialog open={!!alertProduct} onOpenChange={(open) => !open && setAlertProduct(null)}>
                 <DialogContent className="sm:max-w-md">

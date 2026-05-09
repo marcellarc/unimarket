@@ -178,6 +178,7 @@ public class MarketProductService {
         MarketProductResponseDTO response = new MarketProductResponseDTO();
         response.setId(vinculo.getId());
         response.setProductId(vinculo.getProduct().getId());
+        response.setMarketId(vinculo.getMarket().getId());
         response.setMarketName(vinculo.getMarket().getName()); // nome do mercado
         response.setProductName(vinculo.getProduct().getName()); // nome do produto
         response.setBrand(vinculo.getProduct().getBrand());   // marca do produto

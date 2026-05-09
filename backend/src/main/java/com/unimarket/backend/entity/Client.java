@@ -33,6 +33,36 @@ public class Client {
     @Schema(description = "Senha criptografada para autenticação")
     private String password;
 
+    @Column(name = "street_address")
+    private String streetAddress;
+
+    @Column(name = "neighborhood")
+    private String neighborhood;
+
+    @Column(name = "city")
+    private String city;
+
+    @Column(name = "state", length = 2)
+    private String state;
+
+    @Column(name = "zip_code", length = 8)
+    private String zipCode;
+
+    @Column(name = "latitude")
+    private Double latitude;
+
+    @Column(name = "longitude")
+    private Double longitude;
+
+    @Column(name = "location_source")
+    private String locationSource;
+
+    @Column(name = "profile_image_url", columnDefinition = "TEXT")
+    private String profileImageUrl;
+
+    @Column(name = "search_radius_km")
+    private Double searchRadiusKm;
+
     @Schema(description = "Timestamp de quando o mercado foi criado")
     private LocalDateTime createdAt;
 
@@ -79,6 +109,86 @@ public class Client {
 
     public void setPassword(String password) {
         this.password = password;
+    }
+
+    public String getStreetAddress() {
+        return streetAddress;
+    }
+
+    public void setStreetAddress(String streetAddress) {
+        this.streetAddress = streetAddress;
+    }
+
+    public String getNeighborhood() {
+        return neighborhood;
+    }
+
+    public void setNeighborhood(String neighborhood) {
+        this.neighborhood = neighborhood;
+    }
+
+    public String getCity() {
+        return city;
+    }
+
+    public void setCity(String city) {
+        this.city = city;
+    }
+
+    public String getState() {
+        return state;
+    }
+
+    public void setState(String state) {
+        this.state = state;
+    }
+
+    public String getZipCode() {
+        return zipCode;
+    }
+
+    public void setZipCode(String zipCode) {
+        this.zipCode = zipCode;
+    }
+
+    public Double getLatitude() {
+        return latitude;
+    }
+
+    public void setLatitude(Double latitude) {
+        this.latitude = latitude;
+    }
+
+    public Double getLongitude() {
+        return longitude;
+    }
+
+    public void setLongitude(Double longitude) {
+        this.longitude = longitude;
+    }
+
+    public String getLocationSource() {
+        return locationSource;
+    }
+
+    public void setLocationSource(String locationSource) {
+        this.locationSource = locationSource;
+    }
+
+    public String getProfileImageUrl() {
+        return profileImageUrl;
+    }
+
+    public void setProfileImageUrl(String profileImageUrl) {
+        this.profileImageUrl = profileImageUrl;
+    }
+
+    public Double getSearchRadiusKm() {
+        return searchRadiusKm;
+    }
+
+    public void setSearchRadiusKm(Double searchRadiusKm) {
+        this.searchRadiusKm = searchRadiusKm;
     }
 
     public LocalDateTime getCreatedAt() {

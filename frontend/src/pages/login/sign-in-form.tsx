@@ -32,6 +32,11 @@ export function SignInForm() {
     const [isResetting, setIsResetting] = useState(false)
     const navigate = useNavigate()
     const { login, isLoggingIn } = useAuth()
+    const guestCookieOptions = {
+        expires: 1,
+        secure: import.meta.env.PROD,
+        sameSite: 'strict' as const,
+    }
 
 
     const {
@@ -64,9 +69,9 @@ export function SignInForm() {
         Cookies.remove('marketName')
         Cookies.remove('marketId')
 
-        Cookies.set('userRole', 'GUEST', { expires: 1, secure: true, sameSite: 'strict' })
+        Cookies.set('userRole', 'GUEST', guestCookieOptions)
 
-        toast.info('Navegando como visitante')
+        toast.info('Boas-vindas ao modo visitante')
         navigate({ to: '/dashboard' })
     }
 
@@ -130,36 +135,41 @@ export function SignInForm() {
     }
 
     return (
-        <div className="flex h-full items-center justify-center bg-white px-6">
+        <div className="flex w-full items-center justify-center py-8 lg:justify-end">
             <form
                 onSubmit={handleSubmit(onSubmit)}
-                className="w-full max-w-sm space-y-5 text-foreground"
+                className="w-full max-w-[384px] space-y-5 text-foreground"
             >
-                <h2 className="mb-8 text-center text-3xl font-bold text-foreground">
-                    Faça login
-                </h2>
+                <div className="space-y-2">
+                    <h2 className="auth-title whitespace-nowrap text-[2rem] font-extrabold leading-tight text-primary sm:text-[2.35rem]">
+                        Bem-vindo de volta!
+                    </h2>
+                    <p className="auth-support text-sm text-muted-foreground">
+                        Acesse sua conta para comparar preços, salvar listas e encontrar mercados próximos.
+                    </p>
+                </div>
 
-                <div className="flex rounded-full bg-gray-100 p-1">
+                <div className="flex rounded-full border border-primary/15 bg-slate-100 p-1 shadow-sm dark:bg-white/10">
                     <button
                         type="button"
-                        className={`flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-full py-2 text-sm font-medium transition-colors ${role === 'USER'
+                        className={`flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-full py-2 text-sm font-semibold transition-colors ${role === 'USER'
                             ? 'bg-primary text-primary-foreground shadow-sm'
-                            : 'text-muted-foreground hover:text-foreground'
+                            : 'text-slate-500 hover:text-slate-800 dark:text-slate-300 dark:hover:text-white'
                             }`}
                         onClick={() => setValue('role', 'USER')}
                     >
-                        <User size={16} /> Usuário
+                        <User size={14} /> Usuário
                     </button>
 
                     <button
                         type="button"
-                        className={`flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-full py-2 text-sm font-medium transition-colors ${role === 'MARKET'
+                        className={`flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-full py-2 text-sm font-semibold transition-colors ${role === 'MARKET'
                             ? 'bg-primary text-primary-foreground shadow-sm'
-                            : 'text-gray-500 hover:text-foreground'
+                            : 'text-slate-500 hover:text-slate-800 dark:text-slate-300 dark:hover:text-white'
                             }`}
                         onClick={() => setValue('role', 'MARKET')}
                     >
-                        <Store size={16} /> Supermercado
+                        <Store size={14} /> Supermercado
                     </button>
                 </div>
 
@@ -168,7 +178,7 @@ export function SignInForm() {
                     <Input
                         id="email"
                         placeholder="email@email.com"
-                        className="border-blue-400"
+                        className="rounded-full border-primary/30 bg-white px-5 shadow-sm focus-visible:ring-primary dark:bg-white/10"
                         {...register('email')}
                     />
                     {errors.email && (
@@ -177,19 +187,19 @@ export function SignInForm() {
                 </div>
 
                 <div className="space-y-1">
-                    <Label htmlFor="password" className="text-xs font-semibold ">Senha</Label>
+                    <Label htmlFor="password" className="text-xs font-semibold">Senha</Label>
                     <div className="relative">
                         <Input
                             id="password"
                             type={showPassword ? 'text' : 'password'}
-                            className="border-blue-400"
+                            className="rounded-full border-primary/30 bg-white px-5 pr-11 shadow-sm focus-visible:ring-primary dark:bg-white/10"
                             placeholder="********"
                             {...register('password')}
                         />
                         <button
                             type="button"
                             onClick={() => setShowPassword(!showPassword)}
-                            className="absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer text-gray-400 hover:text-gray-600"
+                            className="absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer text-gray-400 hover:text-gray-600 dark:hover:text-white"
                         >
                             {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                         </button>
@@ -212,7 +222,7 @@ export function SignInForm() {
 
                 <Button
                     type="submit"
-                    className="w-full cursor-pointer bg-primary hover:bg-primary/90 text-primary-foreground flex items-center justify-center"
+                    className="w-full cursor-pointer rounded-full bg-primary text-primary-foreground shadow-lg shadow-primary/20 hover:bg-primary/90"
                     disabled={isLoggingIn}
                 >
                     {isLoggingIn ? (
@@ -231,7 +241,7 @@ export function SignInForm() {
                     <div className="h-px flex-1 bg-gray-200" />
                 </div>
 
-                <Button type="button" variant="outline" className="w-full cursor-pointer border-gray-300 text-foreground">
+                <Button type="button" variant="outline" className="w-full cursor-pointer rounded-full border-primary/20 bg-white/80 text-foreground hover:border-primary/40 dark:bg-white/10">
                     Continuar com Google
                 </Button>
 
@@ -246,9 +256,9 @@ export function SignInForm() {
                         type="button"
                         variant="link"
                         onClick={handleGuestLogin}
-                        className="h-auto p-0 text-xs text-gray-400 hover:text-gray-600 cursor-pointer"
+                        className="h-auto p-0 text-xs text-muted-foreground hover:text-primary cursor-pointer"
                     >
-                        Continue como convidado
+                        Entrar como visitante
                     </Button>
                 </div>
 

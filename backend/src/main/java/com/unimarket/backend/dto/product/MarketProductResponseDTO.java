@@ -14,6 +14,8 @@ public class MarketProductResponseDTO {
 
     private Long productId;
 
+    private Long marketId;
+
     // nome do mercado
     private String marketName;
 
