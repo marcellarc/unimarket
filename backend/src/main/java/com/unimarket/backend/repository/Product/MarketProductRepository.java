@@ -1,11 +1,11 @@
-package com.unimarket.backend.repository;
+package com.unimarket.backend.repository.Product;
 
 import java.util.List;
 import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 
-import com.unimarket.backend.entity.MarketProduct;
+import com.unimarket.backend.entity.Product.MarketProduct;
 
 // Interface responsável por acessar o banco de dados da entidade MercadoProduto
 public interface MarketProductRepository extends JpaRepository<MarketProduct, Long> {

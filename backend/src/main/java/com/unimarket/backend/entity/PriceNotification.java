@@ -2,6 +2,8 @@ package com.unimarket.backend.entity;
 
 import java.time.LocalDateTime;
 
+import com.unimarket.backend.entity.Product.MarketProduct;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
