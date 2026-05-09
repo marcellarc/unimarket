@@ -1,8 +1,10 @@
 import axios from 'axios';
 import Cookies from 'js-cookie';
 
+const apiBaseUrl = '/';
+
 export const api = axios.create({
-    baseURL: '/',
+    baseURL: apiBaseUrl,
     withCredentials: true,
     headers: {
         'Content-Type': 'application/json',
