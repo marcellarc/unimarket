@@ -36,7 +36,7 @@ public class PriceAlertService {
     @Transactional
     public PriceAlertResponseDTO createAlert(Client client, PriceAlertRequestDTO dto) {
         MarketProduct marketProduct = marketProductRepository.findById(dto.getMarketProductId())
-                .orElseThrow(() -> new RuntimeException("Produto do mercado nao encontrado"));
+                .orElseThrow(() -> new RuntimeException("Produto do mercado não encontrado"));
 
         PriceAlert alert = priceAlertRepository
                 .findByClientIdAndMarketProductIdAndActiveTrue(client.getId(), dto.getMarketProductId())
@@ -65,10 +65,10 @@ public class PriceAlertService {
     @Transactional
     public void deactivateAlert(Client client, Long alertId) {
         PriceAlert alert = priceAlertRepository.findById(alertId)
-                .orElseThrow(() -> new RuntimeException("Alerta nao encontrado"));
+                .orElseThrow(() -> new RuntimeException("Alerta não encontrado"));
 
         if (!alert.getClient().getId().equals(client.getId())) {
-            throw new RuntimeException("Alerta nao pertence ao cliente autenticado");
+            throw new RuntimeException("Alerta não pertence ao cliente autenticado");
         }
 
         alert.setActive(false);

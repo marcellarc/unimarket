@@ -2,6 +2,9 @@ package com.unimarket.backend.entity;
 
 import java.time.LocalDateTime;
 
+import org.hibernate.annotations.SQLDelete;
+import org.hibernate.annotations.SQLRestriction;
+
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -20,12 +23,18 @@ import lombok.Setter;
 // Entidade que representa o vínculo entre um mercado e um produto
 @Getter
 @Setter
+
+// Implementação de soft delete: ao invés de remover o registro, marca como deletado
+@SQLDelete(sql = "UPDATE market_products SET deleted_at = NOW() WHERE id = ?")
+// Garante que apenas vínculos não deletados sejam retornados nas consultas
+@SQLRestriction("deleted_at IS NULL")
+
 @Entity
 @Table(
-        name = "market_products",
-        uniqueConstraints = {
-            @UniqueConstraint(columnNames = {"product_id", "market_id"}) // impede vínculo duplicado
-        }
+    name = "market_products",
+    uniqueConstraints = {
+        @UniqueConstraint(columnNames = {"product_id", "market_id"}) // impede vínculo duplicado
+    }
 )
 @Schema(description = "Entidade representando o vínculo entre um mercado e um produto")
 public class MarketProduct {
@@ -33,39 +42,55 @@ public class MarketProduct {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Schema(description = "Identificador único do vínculo", example = "1")
-    @Column(name = "id")
     private Long id;
 
     // referência ao produto do catálogo global
-    @Schema(description = "Produto vinculado")
     @ManyToOne
     @JoinColumn(name = "product_id", nullable = false)
+    @Schema(description = "Produto vinculado")
     private Product product;
 
     // referência ao mercado que vende o produto
-    @Schema(description = "Mercado que vende o produto")
     @ManyToOne
     @JoinColumn(name = "market_id", nullable = false)
+    @Schema(description = "Mercado que vende o produto")
     private Market market;
 
     // preço praticado por este mercado — informado pelo mercado após o vínculo
+    @Column(name = "price")
     @Schema(description = "Preço praticado pelo mercado", example = "15.99")
-    @Column(name = "price", nullable = true)
     private Double price;
 
     // quantidade em estoque — informada pelo mercado após o vínculo
+    @Column(name = "stock_quantity")
     @Schema(description = "Quantidade em estoque", example = "100")
-    @Column(name = "stock_quantity", nullable = true)
     private Integer stockQuantity;
 
-    // atualizado automaticamente na criação e em cada alteração
-    @Schema(description = "Data da última atualização")
-    @Column(name = "updated_at")
+    // preenchido automaticamente na criação, nunca atualizado
+    @Column(name = "created_at", nullable = false, updatable = false)
+    @Schema(description = "Timestamp de quando o vínculo foi criado")
+    private LocalDateTime createdAt;
+
+    // atualizado automaticamente a cada alteração no registro
+    @Column(name = "updated_at", nullable = false)
+    @Schema(description = "Timestamp da última atualização do vínculo")
     private LocalDateTime updatedAt;
 
+    // nulo significa que o vínculo está ativo — soft delete
+    @Column(name = "deleted_at")
+    @Schema(description = "Timestamp de quando o vínculo foi deletado")
+    private LocalDateTime deletedAt;
+
     @PrePersist
+    public void prePersist() {
+        // define a data no momento do save
+        this.createdAt = LocalDateTime.now();
+        this.updatedAt = LocalDateTime.now();
+    }
+
     @PreUpdate
     public void preUpdate() {
+        // atualiza a data a cada alteração no registro
         this.updatedAt = LocalDateTime.now();
     }
 }

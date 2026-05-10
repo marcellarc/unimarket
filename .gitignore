@@ -6,6 +6,7 @@
 /backend/target
 /backend/email.properties
 /backend/configure-email.ps1
+/backend/application-local.properties
 
 # Local secrets and environment overrides
 .env

@@ -5,8 +5,6 @@ import java.time.LocalDateTime;
 import org.hibernate.annotations.SQLDelete;
 import org.hibernate.annotations.SQLRestriction;
 
-import com.unimarket.backend.entity.Product;
-
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -15,55 +13,51 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.PrePersist;
+import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
 
-// Entidade que representa o feedback de um cliente sobre um produto
 @Getter
 @Setter
-
-// Implementação de soft delete: ao invés de remover o registro, marca como deletado
-@SQLDelete(sql = "UPDATE feedbacks SET deleted_at = NOW() WHERE cd_feedback = ?")
-// Garante que apenas feedbacks não deletados sejam retornados nas consultas
+@SQLDelete(sql = "UPDATE shopping_list_item SET deleted_at = NOW() WHERE id = ?")
 @SQLRestriction("deleted_at IS NULL")
-
 @Entity
-@Table(name = "feedbacks")
-public class Feedback {
+@Table(name = "shopping_list_item")
+public class ShoppingListItem {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long cdFeedback;
+    private Long id;
 
-    // cliente que realizou o feedback
     @ManyToOne
-    @JoinColumn(name = "cd_cliente", nullable = false)
-    private Client cliente;
+    @JoinColumn(name = "shopping_list_id", nullable = false)
+    private ShoppingList shoppingList;
 
-    // produto avaliado
     @ManyToOne
-    @JoinColumn(name = "cd_produto", nullable = false)
-    private Product product;
+    @JoinColumn(name = "market_product_id", nullable = false)
+    private MarketProduct marketProduct;
 
-    // nota de avaliação do produto
     @Column(nullable = false)
-    private Integer vlNota;
+    private Integer quantity;
 
-    // comentário opcional do cliente
-    private String dsComentario;
+    @Column(name = "updated_at", nullable = false)
+    private LocalDateTime updatedAt;
 
-    // preenchido automaticamente na criação, nunca atualizado
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
-    // nulo significa que o feedback está ativo — soft delete
     @Column(name = "deleted_at")
     private LocalDateTime deletedAt;
 
     @PrePersist
     public void prePersist() {
-        // define a data no momento do save
         this.createdAt = LocalDateTime.now();
+        this.updatedAt = LocalDateTime.now();
+    }
+
+    @PreUpdate
+    public void preUpdate() {
+        this.updatedAt = LocalDateTime.now();
     }
 }

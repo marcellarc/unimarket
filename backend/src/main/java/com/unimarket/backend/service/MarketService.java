@@ -20,6 +20,7 @@ import com.unimarket.backend.dto.location.CnpjLocationData;
 import com.unimarket.backend.dto.location.Coordinates;
 import com.unimarket.backend.entity.Market;
 import com.unimarket.backend.repository.MarketRepository;
+import com.unimarket.backend.repository.MarketProductRepository;
 
 import jakarta.transaction.Transactional;
 
@@ -28,6 +29,9 @@ public class MarketService {
 
     @Autowired
     private MarketRepository repository;
+
+    @Autowired
+    private MarketProductRepository marketProductRepository;
 
     @Autowired
     private ModelMapper modelMapper;
@@ -41,28 +45,36 @@ public class MarketService {
     @Autowired
     private GoogleMapsGeocodingService googleMapsGeocodingService;
 
+    // Cadastro publico do supermercado, com normalizacao de CNPJ e enriquecimento inicial.
     public Market register(MarketDTO dto) {
         String sanitizedCnpj = onlyDigits(dto.getCnpj());
+        String email = dto.getEmail().trim().toLowerCase(Locale.ROOT);
 
         if (repository.findByCnpj(sanitizedCnpj).isPresent()) {
             throw new RuntimeException("CNPJ ja cadastrado");
         }
-        if (repository.findByEmail(dto.getEmail()).isPresent()) {
+
+        if (repository.findByEmail(email).isPresent()) {
             throw new RuntimeException("Email ja cadastrado");
         }
 
         Market market = modelMapper.map(dto, Market.class);
         market.setCnpj(sanitizedCnpj);
+        market.setEmail(email);
         market.setPassword(passwordEncoder.encode(dto.getPassword()));
+        // Tenta completar endereco e coordenadas antes de salvar.
         enrichLocation(market);
+
         return repository.save(market);
     }
 
+    // Perfil usado na aba de configuracoes do mercado.
     public MarketResponseDTO getCurrentProfile(Market authenticatedMarket) {
         Market market = repository.findById(authenticatedMarket.getId())
-                .orElseThrow(() -> new RuntimeException("Mercado não encontrado"));
+                .orElseThrow(() -> new RuntimeException("Mercado nao encontrado"));
 
         if (needsLocationEnrichment(market)) {
+            // Mercados antigos podem nao ter cidade, UF ou coordenadas.
             enrichLocation(market);
             market = repository.save(market);
         }
@@ -73,7 +85,7 @@ public class MarketService {
     @Transactional
     public MarketResponseDTO updateCurrentProfile(Market authenticatedMarket, MarketProfileUpdateDTO dto) {
         Market market = repository.findById(authenticatedMarket.getId())
-                .orElseThrow(() -> new RuntimeException("Mercado não encontrado"));
+                .orElseThrow(() -> new RuntimeException("Mercado nao encontrado"));
 
         if (hasText(dto.getName())) {
             market.setName(dto.getName().trim());
@@ -106,7 +118,9 @@ public class MarketService {
         }
 
         if (dto.getZipCode() != null) {
-            market.setZipCode(onlyDigits(dto.getZipCode()));
+            // CEP fica sem mascara para evitar divergencia entre fontes externas.
+            String zipCode = onlyDigits(dto.getZipCode());
+            market.setZipCode(zipCode.isEmpty() ? null : zipCode);
         }
 
         if (dto.getLatitude() != null) {
@@ -127,12 +141,14 @@ public class MarketService {
     @Transactional
     public MarketResponseDTO refreshCurrentProfileFromCnpj(Market authenticatedMarket) {
         Market market = repository.findById(authenticatedMarket.getId())
-                .orElseThrow(() -> new RuntimeException("Mercado não encontrado"));
+                .orElseThrow(() -> new RuntimeException("Mercado nao encontrado"));
 
+        // Sincroniza novamente com a BrasilAPI quando o cadastro do CNPJ precisar ser revisto.
         enrichLocation(market);
         return toResponse(repository.save(market), null);
     }
 
+    // Busca principal do sistema: filtra mercados por coordenada ou por cidade/UF.
     public List<MarketResponseDTO> listNearby(Double latitude, Double longitude, String city, String state, Double radiusKm) {
         double maxRadius = radiusKm == null || radiusKm <= 0 ? 10 : radiusKm;
         LocationFilter locationFilter = normalizeLocationFilter(city, state);
@@ -142,6 +158,7 @@ public class MarketService {
         markets.stream()
                 .filter(this::needsLocationEnrichment)
                 .forEach(market -> {
+                    // Completa dados ausentes antes de calcular distancia.
                     enrichLocation(market);
                     repository.save(market);
                 });
@@ -149,17 +166,19 @@ public class MarketService {
         return markets
                 .stream()
                 .map(market -> toResponse(
-                market,
-                hasUserCoordinates && hasCoordinates(market)
-                        ? calculateDistanceKm(latitude, longitude, market.getLatitude(), market.getLongitude())
-                        : null
-        ))
+                        market,
+                        hasUserCoordinates && hasCoordinates(market)
+                                ? calculateDistanceKm(latitude, longitude, market.getLatitude(), market.getLongitude())
+                                : null
+                ))
                 .filter(response -> {
                     if (hasUserCoordinates && response.distanceKm() != null) {
+                        // Quando ha coordenadas, o raio em km e o criterio mais confiavel.
                         return response.distanceKm() <= maxRadius;
                     }
 
                     if (hasText(locationFilter.city())) {
+                        // Fallback para usuarios sem permissao de geolocalizacao.
                         return equalsNormalized(response.city(), locationFilter.city())
                                 && (!hasText(locationFilter.state()) || equalsNormalized(response.state(), locationFilter.state()));
                     }
@@ -172,11 +191,24 @@ public class MarketService {
                 .toList();
     }
 
+    @Transactional
+    public void deleteMarket(Long id) {
+        // Remove logicamente os vinculos de produto antes do soft delete do mercado.
+        Market market = repository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Mercado nao encontrado"));
+
+        marketProductRepository.findByMarketId(id)
+                .forEach(marketProductRepository::delete);
+
+        repository.delete(market);
+    }
+
     private boolean needsLocationEnrichment(Market market) {
         return !hasText(market.getCity()) || !hasText(market.getState()) || !hasCoordinates(market);
     }
 
     private void enrichLocation(Market market) {
+        // BrasilAPI fornece dados oficiais do CNPJ; Google Maps completa coordenadas.
         brasilApiCnpjService.findLocationByCnpj(market.getCnpj())
                 .ifPresent(location -> applyCnpjLocation(market, location));
 
@@ -190,6 +222,7 @@ public class MarketService {
     }
 
     private void applyCnpjLocation(Market market, CnpjLocationData location) {
+        // Campos vindos do CNPJ ajudam a manter o perfil do mercado confiavel.
         if (hasText(location.legalName())) {
             market.setOfficialName(location.legalName().trim());
         }
@@ -279,6 +312,7 @@ public class MarketService {
     }
 
     private double calculateDistanceKm(double lat1, double lon1, double lat2, double lon2) {
+        // Formula de Haversine: calcula distancia aproximada entre duas coordenadas.
         final int earthRadiusKm = 6371;
         double dLat = Math.toRadians(lat2 - lat1);
         double dLon = Math.toRadians(lon2 - lon1);
@@ -354,6 +388,7 @@ public class MarketService {
     }
 
     private boolean isBlankOrPending(String value) {
+        // Alguns CNPJs retornam endereco pendente; nesse caso aceitamos sobrescrever.
         return !hasText(value) || normalize(value).contains("pendente");
     }
 

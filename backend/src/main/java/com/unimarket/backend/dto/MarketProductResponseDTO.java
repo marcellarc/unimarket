@@ -1,4 +1,4 @@
-package com.unimarket.backend.dto.product;
+package com.unimarket.backend.dto;
 
 import java.time.LocalDateTime;
 import lombok.Getter;
