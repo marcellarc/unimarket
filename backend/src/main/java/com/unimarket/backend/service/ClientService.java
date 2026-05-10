@@ -27,41 +27,38 @@ public class ClientService {
     @Autowired
     private PasswordEncoder passwordEncoder;
 
+    // Cadastro publico do cliente. A senha nunca deve ser salva em texto puro.
     public Client register(ClientDTO dto) {
-
-        // Verifica se o email já está cadastrado
         if (repository.findByEmail(dto.getEmail()).isPresent()) {
-            throw new RuntimeException("Email já cadastrado");
+            throw new RuntimeException("Email ja cadastrado");
         }
 
-        // Converte DTO para Entity
         Client client = modelMapper.map(dto, Client.class);
-
-        // Criptografa a senha
         client.setPassword(passwordEncoder.encode(dto.getPassword()));
 
-        // Salva no banco
         return repository.save(client);
     }
 
+    // Retorna o perfil completo usado pela tela de perfil do cliente.
     public ClientProfileResponseDTO getCurrentProfile(Client authenticatedClient) {
         Client client = repository.findById(authenticatedClient.getId())
-                .orElseThrow(() -> new RuntimeException("Cliente não encontrado"));
+                .orElseThrow(() -> new RuntimeException("Cliente nao encontrado"));
 
         return toProfileResponse(client);
     }
 
     @Transactional
     public ClientProfileResponseDTO updateCurrentProfile(Client authenticatedClient, ClientProfileUpdateDTO dto) {
+        // Busca novamente no banco para evitar atualizar uma entidade antiga do token.
         Client client = repository.findById(authenticatedClient.getId())
-                .orElseThrow(() -> new RuntimeException("Cliente não encontrado"));
+                .orElseThrow(() -> new RuntimeException("Cliente nao encontrado"));
 
         if (dto.getName() != null && !dto.getName().trim().isEmpty()) {
             client.setName(dto.getName().trim());
         }
 
         if (dto.getEmail() != null && !dto.getEmail().trim().isEmpty()) {
-            String email = dto.getEmail().trim().toLowerCase();
+            String email = dto.getEmail().trim().toLowerCase(Locale.ROOT);
             repository.findByEmail(email)
                     .filter(existingClient -> !existingClient.getId().equals(client.getId()))
                     .ifPresent(existingClient -> {
@@ -72,12 +69,13 @@ public class ClientService {
         }
 
         if (dto.getPassword() != null && !dto.getPassword().trim().isEmpty()) {
+            // Mudanca de senha exige a senha atual para reduzir risco de troca indevida.
             if (dto.getCurrentPassword() == null || dto.getCurrentPassword().trim().isEmpty()) {
                 throw new RuntimeException("Informe a senha atual para definir uma nova senha");
             }
 
             if (!passwordEncoder.matches(dto.getCurrentPassword(), client.getPassword())) {
-                throw new RuntimeException("Senha atual inválida");
+                throw new RuntimeException("Senha atual invalida");
             }
 
             client.setPassword(passwordEncoder.encode(dto.getPassword()));
@@ -100,6 +98,7 @@ public class ClientService {
         }
 
         if (dto.getZipCode() != null) {
+            // CEP fica normalizado sem mascara para facilitar comparacoes e integracoes.
             String zipCode = onlyDigits(dto.getZipCode());
             client.setZipCode(zipCode.isEmpty() ? null : zipCode);
         }
@@ -121,10 +120,20 @@ public class ClientService {
         }
 
         if (dto.getSearchRadiusKm() != null) {
+            // Limita o raio para manter a busca por localizacao util e previsivel.
             client.setSearchRadiusKm(Math.max(1, Math.min(30, dto.getSearchRadiusKm())));
         }
 
         return toProfileResponse(repository.save(client));
+    }
+
+    @Transactional
+    public void deleteClient(Long id) {
+        // O delete real e interceptado pelo @SQLDelete da entidade Client.
+        Client client = repository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Cliente nao encontrado"));
+
+        repository.delete(client);
     }
 
     private ClientProfileResponseDTO toProfileResponse(Client client) {

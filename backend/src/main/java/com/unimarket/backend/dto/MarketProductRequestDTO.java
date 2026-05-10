@@ -1,4 +1,4 @@
-package com.unimarket.backend.dto.product;
+package com.unimarket.backend.dto;
 
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;

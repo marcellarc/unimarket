@@ -3,6 +3,7 @@ target/
 .mvn/wrapper/maven-wrapper.jar
 email.properties
 configure-email.ps1
+application-local.properties
 .env
 .env.*
 !.env.example

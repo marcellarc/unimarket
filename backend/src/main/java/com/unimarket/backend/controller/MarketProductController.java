@@ -5,6 +5,7 @@ import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -14,10 +15,10 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.unimarket.backend.dto.product.MarketProductRequestDTO;
-import com.unimarket.backend.dto.product.MarketProductResponseDTO;
-import com.unimarket.backend.dto.product.ProductRequestDTO;
-import com.unimarket.backend.dto.product.ProductResponseDTO;
+import com.unimarket.backend.dto.MarketProductRequestDTO;
+import com.unimarket.backend.dto.MarketProductResponseDTO;
+import com.unimarket.backend.dto.ProductRequestDTO;
+import com.unimarket.backend.dto.ProductResponseDTO;
 import com.unimarket.backend.service.MarketProductService;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -83,5 +84,17 @@ public class MarketProductController {
     ) {
         MarketProductResponseDTO response = marketProductService.updateProductPriceAndStock(marketId, productId, dto);
         return ResponseEntity.ok(response); // retorna 200
+    }
+
+
+    // endpoint para deletar o vínculo entre mercado e produto
+    @Operation(summary = "Deletar vínculo entre mercado e produto")
+    @DeleteMapping("/{productId}")
+    public ResponseEntity<Void> deleteMarketProduct(
+            @PathVariable Long marketId,  // ID do mercado
+            @PathVariable Long productId  // ID do produto
+    ) {
+        marketProductService.deleteMarketProduct(marketId, productId);
+        return ResponseEntity.noContent().build(); // retorna 204
     }
 }

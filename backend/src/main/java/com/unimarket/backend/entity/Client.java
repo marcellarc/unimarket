@@ -2,6 +2,9 @@ package com.unimarket.backend.entity;
 
 import java.time.LocalDateTime;
 
+import org.hibernate.annotations.SQLDelete;
+import org.hibernate.annotations.SQLRestriction;
+
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -9,8 +12,17 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.PrePersist;
+import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
+import lombok.Getter;
+import lombok.Setter;
 
+@Getter
+@Setter
+// Soft delete: remove logicamente o cliente sem apagar o registro do banco.
+@SQLDelete(sql = "UPDATE clients SET deleted_at = NOW() WHERE id = ?")
+// Todas as consultas JPA ignoram clientes marcados como deletados.
+@SQLRestriction("deleted_at IS NULL")
 @Entity
 @Table(name = "clients")
 @Schema(description = "Entidade representando um cliente do sistema")
@@ -18,11 +30,11 @@ public class Client {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Schema(description = "Identificador único do cliente", example = "1")
+    @Schema(description = "Identificador unico do cliente", example = "1")
     private Long id;
 
-    @Column(name = "name", unique = true, nullable = false, length = 14)
-    @Schema(description = "Nome do cliente", example = "João")
+    @Column(name = "name", unique = true, nullable = false)
+    @Schema(description = "Nome do cliente", example = "Joao")
     private String name;
 
     @Column(unique = true)
@@ -30,9 +42,10 @@ public class Client {
     private String email;
 
     @Column(name = "password", nullable = false)
-    @Schema(description = "Senha criptografada para autenticação")
+    @Schema(description = "Senha criptografada para autenticacao")
     private String password;
 
+    // Dados de endereco usados para localizar supermercados proximos ao cliente.
     @Column(name = "street_address")
     private String streetAddress;
 
@@ -48,6 +61,7 @@ public class Client {
     @Column(name = "zip_code", length = 8)
     private String zipCode;
 
+    // Coordenadas podem vir do navegador, CEP/BrasilAPI ou outro servico de geocoding.
     @Column(name = "latitude")
     private Double latitude;
 
@@ -57,15 +71,27 @@ public class Client {
     @Column(name = "location_source")
     private String locationSource;
 
+    // URL da imagem escolhida pelo usuario; o arquivo em si nao fica salvo nesta entidade.
     @Column(name = "profile_image_url", columnDefinition = "TEXT")
     private String profileImageUrl;
 
+    // Raio padrao usado na busca de mercados proximos.
     @Column(name = "search_radius_km")
     private Double searchRadiusKm;
 
-    @Schema(description = "Timestamp de quando o mercado foi criado")
+    @Column(name = "created_at", nullable = false, updatable = false)
+    @Schema(description = "Timestamp de quando o cliente foi criado")
     private LocalDateTime createdAt;
 
+    @Column(name = "updated_at", nullable = false)
+    @Schema(description = "Timestamp da ultima atualizacao do cliente")
+    private LocalDateTime updatedAt;
+
+    @Column(name = "deleted_at")
+    @Schema(description = "Timestamp de quando o cliente foi deletado")
+    private LocalDateTime deletedAt;
+
+    // Campos temporarios usados no fluxo de recuperacao de senha.
     @Column(name = "reset_code", length = 6)
     private String resetCode;
 
@@ -74,145 +100,14 @@ public class Client {
 
     @PrePersist
     public void prePersist() {
+        // Preenche datas automaticamente na criacao.
         this.createdAt = LocalDateTime.now();
+        this.updatedAt = LocalDateTime.now();
     }
 
-    // getters e setters
-
-    public Long getId() {
-        return id;
+    @PreUpdate
+    public void preUpdate() {
+        // Mantem a data de atualizacao sincronizada em qualquer alteracao.
+        this.updatedAt = LocalDateTime.now();
     }
-
-    public void setId(Long id) {
-        this.id = id;
-    }
-
-    public String getName() {
-        return name;
-    }
-
-    public void setName(String name) {
-        this.name = name;
-    }
-
-    public String getEmail() {
-        return email;
-    }
-
-    public void setEmail(String email) {
-        this.email = email;
-    }
-
-    public String getPassword() {
-        return password;
-    }
-
-    public void setPassword(String password) {
-        this.password = password;
-    }
-
-    public String getStreetAddress() {
-        return streetAddress;
-    }
-
-    public void setStreetAddress(String streetAddress) {
-        this.streetAddress = streetAddress;
-    }
-
-    public String getNeighborhood() {
-        return neighborhood;
-    }
-
-    public void setNeighborhood(String neighborhood) {
-        this.neighborhood = neighborhood;
-    }
-
-    public String getCity() {
-        return city;
-    }
-
-    public void setCity(String city) {
-        this.city = city;
-    }
-
-    public String getState() {
-        return state;
-    }
-
-    public void setState(String state) {
-        this.state = state;
-    }
-
-    public String getZipCode() {
-        return zipCode;
-    }
-
-    public void setZipCode(String zipCode) {
-        this.zipCode = zipCode;
-    }
-
-    public Double getLatitude() {
-        return latitude;
-    }
-
-    public void setLatitude(Double latitude) {
-        this.latitude = latitude;
-    }
-
-    public Double getLongitude() {
-        return longitude;
-    }
-
-    public void setLongitude(Double longitude) {
-        this.longitude = longitude;
-    }
-
-    public String getLocationSource() {
-        return locationSource;
-    }
-
-    public void setLocationSource(String locationSource) {
-        this.locationSource = locationSource;
-    }
-
-    public String getProfileImageUrl() {
-        return profileImageUrl;
-    }
-
-    public void setProfileImageUrl(String profileImageUrl) {
-        this.profileImageUrl = profileImageUrl;
-    }
-
-    public Double getSearchRadiusKm() {
-        return searchRadiusKm;
-    }
-
-    public void setSearchRadiusKm(Double searchRadiusKm) {
-        this.searchRadiusKm = searchRadiusKm;
-    }
-
-    public LocalDateTime getCreatedAt() {
-        return createdAt;
-    }
-
-    public void setCreatedAt(LocalDateTime createdAt) {
-        this.createdAt = createdAt;
-    }
-
-    public String getResetCode() {
-        return resetCode;
-    }
-
-    public void setResetCode(String resetCode) {
-        this.resetCode = resetCode;
-    }
-
-    public LocalDateTime getResetCodeExpiresAt() {
-        return resetCodeExpiresAt;
-    }
-
-    public void setResetCodeExpiresAt(LocalDateTime resetCodeExpiresAt) {
-        this.resetCodeExpiresAt = resetCodeExpiresAt;
-    }
-    
 }
