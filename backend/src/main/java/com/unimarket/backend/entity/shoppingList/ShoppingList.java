@@ -23,12 +23,8 @@ import lombok.Setter;
 // Entidade que representa uma lista de compras de um cliente
 @Getter
 @Setter
-
-// Implementação de soft delete: ao invés de remover o registro, marca como deletado
 @SQLDelete(sql = "UPDATE shopping_list SET deleted_at = NOW() WHERE id = ?")
-// Garante que apenas listas não deletadas sejam retornadas nas consultas
 @SQLRestriction("deleted_at IS NULL")
-
 @Entity
 @Table(name = "shopping_list")
 public class ShoppingList {
@@ -60,14 +56,12 @@ public class ShoppingList {
 
     @PrePersist
     public void prePersist() {
-        // define a data no momento do save
         this.createdAt = LocalDateTime.now();
         this.updatedAt = LocalDateTime.now();
     }
 
     @PreUpdate
     public void preUpdate() {
-        // atualiza a data a cada alteração no registro
         this.updatedAt = LocalDateTime.now();
     }
 }
