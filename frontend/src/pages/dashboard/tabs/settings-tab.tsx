@@ -9,17 +9,14 @@ import Cookies from 'js-cookie'
 import {
     BadgeCheck,
     Bell,
-    Building2,
     ExternalLink,
     Loader2,
     LocateFixed,
     MapPin,
     RefreshCw,
-    Route,
     Save,
-    Store,
 } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
+import { type ReactNode, useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
 
 const cookieOptions = {
@@ -36,6 +33,11 @@ function formatCnpj(value?: string | null) {
         .replace(/^(\d{2})\.(\d{3})(\d)/, '$1.$2.$3')
         .replace(/\.(\d{3})(\d)/, '.$1/$2')
         .replace(/(\d{4})(\d)/, '$1-$2')
+}
+
+function formatZipCode(value: string) {
+    const digits = value.replace(/\D/g, '').slice(0, 8)
+    return digits.length > 5 ? `${digits.slice(0, 5)}-${digits.slice(5)}` : digits
 }
 
 export function SettingsTab() {
@@ -61,9 +63,7 @@ export function SettingsTab() {
     })
 
     useEffect(() => {
-        if (!profile) {
-            return
-        }
+        if (!profile) return
 
         setName(profile.name ?? '')
         setEmail(profile.email ?? Cookies.get('marketEmail') ?? '')
@@ -71,27 +71,15 @@ export function SettingsTab() {
         setNeighborhood(profile.neighborhood ?? '')
         setCity(profile.city ?? '')
         setState(profile.state ?? '')
-        setZipCode(profile.zipCode ?? '')
+        setZipCode(profile.zipCode ? formatZipCode(profile.zipCode) : '')
         setLatitude(profile.latitude != null ? String(profile.latitude) : '')
         setLongitude(profile.longitude != null ? String(profile.longitude) : '')
     }, [profile])
 
     const completeness = useMemo(() => {
-        const fields = [
-            name,
-            email,
-            profile?.cnpj,
-            streetAddress,
-            neighborhood,
-            city,
-            state,
-            zipCode,
-            latitude,
-            longitude,
-        ]
-
+        const fields = [name, email, profile?.cnpj, streetAddress, neighborhood, city, state, zipCode]
         return Math.round((fields.filter(Boolean).length / fields.length) * 100)
-    }, [city, email, latitude, longitude, name, neighborhood, profile?.cnpj, state, streetAddress, zipCode])
+    }, [city, email, name, neighborhood, profile?.cnpj, state, streetAddress, zipCode])
 
     const saveMutation = useMutation({
         mutationFn: () => updateCurrentMarketProfile({
@@ -110,11 +98,11 @@ export function SettingsTab() {
             Cookies.set('marketName', updatedProfile.name, cookieOptions)
             Cookies.set('marketEmail', email.trim(), cookieOptions)
             setPassword('')
-            toast.success('Configuracoes salvas')
+            toast.success('Configurações salvas.')
             await queryClient.invalidateQueries({ queryKey: ['marketProfile'] })
             await queryClient.invalidateQueries({ queryKey: ['nearbyMarkets'] })
         },
-        onError: () => toast.error('Nao foi possivel salvar as configuracoes'),
+        onError: () => toast.error('Não foi possível salvar as configurações.'),
     })
 
     const syncMutation = useMutation({
@@ -125,19 +113,19 @@ export function SettingsTab() {
             setNeighborhood(updatedProfile.neighborhood ?? '')
             setCity(updatedProfile.city ?? '')
             setState(updatedProfile.state ?? '')
-            setZipCode(updatedProfile.zipCode ?? '')
+            setZipCode(updatedProfile.zipCode ? formatZipCode(updatedProfile.zipCode) : '')
             setLatitude(updatedProfile.latitude != null ? String(updatedProfile.latitude) : '')
             setLongitude(updatedProfile.longitude != null ? String(updatedProfile.longitude) : '')
-            toast.success('Dados do CNPJ sincronizados')
+            toast.success('Cadastro atualizado com os dados oficiais.')
             await queryClient.invalidateQueries({ queryKey: ['marketProfile'] })
             await queryClient.invalidateQueries({ queryKey: ['nearbyMarkets'] })
         },
-        onError: () => toast.error('Nao foi possivel consultar o CNPJ agora'),
+        onError: () => toast.error('Não foi possível atualizar o cadastro agora.'),
     })
 
     function handleUseCurrentLocation() {
         if (typeof navigator === 'undefined' || !navigator.geolocation) {
-            toast.error('Localizacao indisponivel neste navegador')
+            toast.error('Localização indisponível neste navegador.')
             return
         }
 
@@ -145,7 +133,7 @@ export function SettingsTab() {
             (position) => {
                 setLatitude(String(position.coords.latitude))
                 setLongitude(String(position.coords.longitude))
-                toast.success('Coordenadas capturadas')
+                toast.success('Localização atual registrada.')
             },
             () => toast.error('Não foi possível acessar sua localização.'),
             { enableHighAccuracy: true, timeout: 10000 },
@@ -155,17 +143,17 @@ export function SettingsTab() {
     if (isLoading) {
         return (
             <div className="space-y-6">
-                <section className="rounded-lg border border-border bg-card p-5 shadow-sm">
+                <section className="rounded-lg border border-border bg-card/95 p-5 shadow-sm backdrop-blur">
                     <div className="flex items-center gap-4">
-                        <Skeleton className="h-14 w-14" />
+                        <Skeleton className="h-12 w-12" />
                         <div className="flex-1 space-y-2">
                             <Skeleton className="h-6 w-56" />
                             <Skeleton className="h-4 w-96 max-w-full" />
                         </div>
                     </div>
                 </section>
-                <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
-                    <Card className="gap-4 rounded-lg p-5">
+                <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
+                    <Card className="gap-4 p-5">
                         <Skeleton className="h-5 w-48" />
                         <div className="grid gap-4 md:grid-cols-2">
                             {Array.from({ length: 6 }).map((_, index) => (
@@ -173,7 +161,7 @@ export function SettingsTab() {
                             ))}
                         </div>
                     </Card>
-                    <Card className="gap-4 rounded-lg p-5">
+                    <Card className="gap-4 p-5">
                         <Skeleton className="h-5 w-40" />
                         <Skeleton className="h-24 w-full" />
                     </Card>
@@ -184,42 +172,36 @@ export function SettingsTab() {
 
     return (
         <div className="space-y-6">
-            <section className="rounded-lg border border-border bg-card p-5 shadow-sm">
-                <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-                    <div className="flex items-center gap-4">
-                        <div className="flex h-14 w-14 items-center justify-center rounded-lg bg-primary/10">
-                            <Store className="h-7 w-7 text-primary" />
+            <section className="rounded-lg border border-border bg-card/95 p-5 shadow-sm backdrop-blur">
+                <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+                    <div>
+                        <p className="text-xs font-semibold uppercase tracking-wide text-primary">Configurações</p>
+                        <div className="mt-2 flex flex-wrap items-center gap-2">
+                            <h2 className="text-2xl font-semibold tracking-tight text-foreground">{profile?.name ?? 'Minha loja'}</h2>
+                            <Badge variant={profile?.registrationStatus?.toLowerCase() === 'ativa' ? 'default' : 'secondary'} className="font-normal">
+                                <BadgeCheck className="h-3 w-3" />
+                                {profile?.registrationStatus ?? 'Cadastro informado'}
+                            </Badge>
                         </div>
-                        <div>
-                            <div className="flex flex-wrap items-center gap-2">
-                                <h2 className="text-2xl font-bold text-foreground">{profile?.name ?? 'Minha loja'}</h2>
-                                <Badge variant={profile?.registrationStatus?.toLowerCase() === 'ativa' ? 'default' : 'secondary'} className="gap-1">
-                                    <BadgeCheck className="h-3 w-3" />
-                                    {profile?.registrationStatus ?? 'CNPJ cadastrado'}
-                                </Badge>
-                            </div>
-                            <p className="mt-1 text-sm text-muted-foreground">
-                                Estes dados definem como sua loja aparece para clientes e como o UniMarket calcula proximidade.
-                            </p>
-                        </div>
+                        <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">
+                            Mantenha os dados da loja corretos para que clientes encontrem endereço, contato e disponibilidade com confiança.
+                        </p>
                     </div>
 
-                    <div className="gap-3 text-center">
-                        <div className="rounded-lg border border-border bg-background px-4 py-3">
-                            <p className="text-lg font-bold text-primary">{completeness}%</p>
-                            <p className="text-xs text-muted-foreground">completo</p>
-                        </div>
+                    <div className="w-full rounded-lg border border-border bg-background/70 px-4 py-3 text-left sm:w-auto">
+                        <p className="text-lg font-semibold tabular-nums text-primary">{completeness}%</p>
+                        <p className="text-xs text-muted-foreground">perfil preenchido</p>
                     </div>
                 </div>
             </section>
 
-            <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
+            <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
                 <div className="space-y-6">
-                    <Card className="gap-0 rounded-lg p-0">
+                    <Card className="gap-0 p-0">
                         <div className="flex flex-col gap-3 border-b border-border p-5 sm:flex-row sm:items-center sm:justify-between">
-                            <div className="flex items-center gap-2">
-                                <Building2 className="h-5 w-5 text-primary" />
-                                <h3 className="text-base font-semibold text-foreground">Perfil do supermercado</h3>
+                            <div>
+                                <h3 className="text-base font-semibold text-foreground">Dados da loja</h3>
+                                <p className="mt-1 text-sm text-muted-foreground">Nome, contato e acesso administrativo.</p>
                             </div>
                             <Button
                                 variant="outline"
@@ -232,89 +214,80 @@ export function SettingsTab() {
                                 ) : (
                                     <RefreshCw className="h-4 w-4" />
                                 )}
-                                Sincronizar CNPJ
+                                Atualizar cadastro
                             </Button>
                         </div>
 
                         <div className="space-y-4 p-5">
                             <div className="grid gap-4 md:grid-cols-2">
-                                <div className="space-y-2">
-                                    <Label htmlFor="storeName">Nome de exibicao</Label>
+                                <Field label="Nome de exibição" htmlFor="storeName">
                                     <Input id="storeName" value={name} onChange={(event) => setName(event.target.value)} />
-                                </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="email">Email comercial</Label>
+                                </Field>
+                                <Field label="E-mail comercial" htmlFor="email">
                                     <Input id="email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} />
-                                </div>
+                                </Field>
                             </div>
 
                             <div className="grid gap-4 md:grid-cols-2">
-                                <div className="space-y-2">
-                                    <Label htmlFor="cnpj">CNPJ</Label>
+                                <Field label="CNPJ" htmlFor="cnpj">
                                     <Input id="cnpj" value={formatCnpj(profile?.cnpj)} disabled className="bg-muted" />
-                                </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="password">Nova senha</Label>
+                                </Field>
+                                <Field label="Nova senha" htmlFor="password" hint="Deixe em branco para manter a senha atual.">
                                     <Input
                                         id="password"
                                         type="password"
                                         value={password}
                                         onChange={(event) => setPassword(event.target.value)}
-                                        placeholder="Deixe em branco para manter"
+                                        autoComplete="new-password"
                                     />
-                                </div>
+                                </Field>
                             </div>
                         </div>
                     </Card>
 
-                    <Card className="gap-0 rounded-lg p-0">
+                    <Card className="gap-0 p-0">
                         <div className="border-b border-border p-5">
-                            <div className="flex items-center gap-2">
-                                <MapPin className="h-5 w-5 text-primary" />
-                                <h3 className="text-base font-semibold text-foreground">Localizacao para clientes</h3>
-                            </div>
+                            <h3 className="text-base font-semibold text-foreground">Endereço e atendimento</h3>
+                            <p className="mt-1 text-sm text-muted-foreground">
+                                Esses dados ajudam clientes a encontrar sua loja e avaliar a proximidade.
+                            </p>
                         </div>
 
                         <div className="space-y-4 p-5">
-                            <div className="space-y-2">
-                                <Label htmlFor="address">Endereço</Label>
+                            <Field label="Endereço" htmlFor="address">
                                 <Input id="address" value={streetAddress} onChange={(event) => setStreetAddress(event.target.value)} />
-                            </div>
+                            </Field>
 
-                            <div className="grid gap-4 md:grid-cols-4">
-                                <div className="space-y-2 md:col-span-1">
-                                    <Label htmlFor="neighborhood">Bairro</Label>
+                            <div className="grid gap-4 md:grid-cols-[1fr_1fr_80px_120px]">
+                                <Field label="Bairro" htmlFor="neighborhood">
                                     <Input id="neighborhood" value={neighborhood} onChange={(event) => setNeighborhood(event.target.value)} />
-                                </div>
-                                <div className="space-y-2 md:col-span-1">
-                                    <Label htmlFor="city">Cidade</Label>
+                                </Field>
+                                <Field label="Cidade" htmlFor="city">
                                     <Input id="city" value={city} onChange={(event) => setCity(event.target.value)} />
-                                </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="state">UF</Label>
+                                </Field>
+                                <Field label="UF" htmlFor="state">
                                     <Input id="state" maxLength={2} value={state} onChange={(event) => setState(event.target.value.toUpperCase())} />
-                                </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="zipCode">CEP</Label>
-                                    <Input id="zipCode" value={zipCode} onChange={(event) => setZipCode(event.target.value)} />
-                                </div>
+                                </Field>
+                                <Field label="CEP" htmlFor="zipCode">
+                                    <Input id="zipCode" value={zipCode} onChange={(event) => setZipCode(formatZipCode(event.target.value))} />
+                                </Field>
                             </div>
 
                             <div className="grid gap-4 md:grid-cols-2">
-                                <div className="space-y-2">
-                                    <Label htmlFor="lat">Latitude</Label>
+                                <Field label="Latitude" htmlFor="lat">
                                     <Input id="lat" value={latitude} onChange={(event) => setLatitude(event.target.value)} placeholder="-23.9608" />
-                                </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="lng">Longitude</Label>
+                                </Field>
+                                <Field label="Longitude" htmlFor="lng">
                                     <Input id="lng" value={longitude} onChange={(event) => setLongitude(event.target.value)} placeholder="-46.3336" />
-                                </div>
+                                </Field>
                             </div>
 
-                            <div className="flex flex-col gap-3 rounded-lg bg-muted p-4 sm:flex-row sm:items-center sm:justify-between">
+                            <div className="flex flex-col gap-3 rounded-lg border border-border bg-muted/40 p-4 sm:flex-row sm:items-center sm:justify-between">
                                 <div>
-                                    <p className="text-sm font-medium text-foreground">Coordenadas precisas melhoram a busca local</p>
-                                    <p className="text-xs text-muted-foreground">A BrasilAPI traz endereco pelo CNPJ; o Google Geocoding pode preencher coordenadas quando configurado.</p>
+                                    <p className="text-sm font-medium text-foreground">Quer melhorar a precisão?</p>
+                                    <p className="text-xs leading-relaxed text-muted-foreground">
+                                        Use a localização atual quando estiver no estabelecimento.
+                                    </p>
                                 </div>
                                 <Button variant="outline" onClick={handleUseCurrentLocation}>
                                     <LocateFixed className="h-4 w-4" />
@@ -334,20 +307,19 @@ export function SettingsTab() {
                             ) : (
                                 <Save className="h-4 w-4" />
                             )}
-                            Salvar configuracoes
+                            Salvar configurações
                         </Button>
                     </div>
                 </div>
 
                 <aside className="space-y-6">
-
-                    <Card className="gap-4 rounded-lg p-5">
+                    <Card className="gap-4 p-5">
                         <div className="flex items-center gap-2">
-                            <Route className="h-5 w-5 text-primary" />
-                            <h3 className="text-base font-semibold text-foreground">Mapa e descoberta local</h3>
+                            <MapPin className="h-4 w-4 text-muted-foreground" />
+                            <h3 className="text-base font-semibold text-foreground">Como clientes veem sua loja</h3>
                         </div>
                         <p className="text-sm leading-relaxed text-muted-foreground">
-                            Clientes veem sua loja na busca por proximidade quando cidade/UF ou coordenadas estao preenchidas.
+                            Quando endereço e cidade estão completos, a loja aparece melhor nas buscas por região e nas comparações de mercado.
                         </p>
                         <div className="flex flex-col gap-2">
                             <Button
@@ -356,7 +328,7 @@ export function SettingsTab() {
                                 onClick={() => profile?.googleMapsUrl && window.open(profile.googleMapsUrl, '_blank', 'noopener,noreferrer')}
                             >
                                 <ExternalLink className="h-4 w-4" />
-                                Abrir no Google Maps
+                                Abrir localização
                             </Button>
                             <Button
                                 variant="outline"
@@ -364,37 +336,57 @@ export function SettingsTab() {
                                 onClick={() => profile?.directionsUrl && window.open(profile.directionsUrl, '_blank', 'noopener,noreferrer')}
                             >
                                 <MapPin className="h-4 w-4" />
-                                Ver rota ate a loja
+                                Ver rota até a loja
                             </Button>
                         </div>
                     </Card>
 
-                    <Card className="gap-4 rounded-lg p-5">
+                    <Card className="gap-4 p-5">
                         <div className="flex items-center gap-2">
-                            <Bell className="h-5 w-5 text-primary" />
-                            <h3 className="text-base font-semibold text-foreground">Notificacoes</h3>
+                            <Bell className="h-4 w-4 text-muted-foreground" />
+                            <h3 className="text-base font-semibold text-foreground">Preferências de aviso</h3>
                         </div>
                         <PreferenceSwitch
                             checked={priceAlertsEnabled}
-                            description="Avisar quando seus produtos aparecerem em alertas de preço."
-                            label="Concorrência de preço"
+                            description="Receber avisos quando produtos entrarem em alertas de preço."
+                            label="Alertas de preço"
                             onCheckedChange={setPriceAlertsEnabled}
                         />
                         <PreferenceSwitch
                             checked={reviewAlertsEnabled}
-                            description="Notificar quando clientes enviarem avaliacoes."
-                            label="Novas avaliacoes"
+                            description="Receber aviso quando clientes enviarem novas avaliações."
+                            label="Avaliações"
                             onCheckedChange={setReviewAlertsEnabled}
                         />
                         <PreferenceSwitch
                             checked={weeklyReportEnabled}
-                            description="Resumo semanal de buscas, listas e visibilidade local."
-                            label="Relatorio semanal"
+                            description="Receber um resumo periódico de buscas, listas e visibilidade."
+                            label="Resumo periódico"
                             onCheckedChange={setWeeklyReportEnabled}
                         />
                     </Card>
                 </aside>
             </div>
+        </div>
+    )
+}
+
+function Field({
+    children,
+    hint,
+    htmlFor,
+    label,
+}: {
+    children: ReactNode
+    hint?: string
+    htmlFor: string
+    label: string
+}) {
+    return (
+        <div className="space-y-2">
+            <Label htmlFor={htmlFor}>{label}</Label>
+            {children}
+            {hint && <p className="text-xs text-muted-foreground">{hint}</p>}
         </div>
     )
 }
@@ -411,10 +403,10 @@ function PreferenceSwitch({
     onCheckedChange: (checked: boolean) => void
 }) {
     return (
-        <div className="flex items-center justify-between gap-3 rounded-lg border border-border p-3">
+        <div className="flex items-start justify-between gap-3 rounded-lg border border-border p-3">
             <div>
                 <p className="text-sm font-medium text-foreground">{label}</p>
-                <p className="text-xs text-muted-foreground">{description}</p>
+                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{description}</p>
             </div>
             <Switch checked={checked} onCheckedChange={onCheckedChange} />
         </div>

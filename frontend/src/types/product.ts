@@ -18,6 +18,22 @@ export interface ProductResponse {
     createdAt: string
 }
 
+export interface CosmosProductLookup {
+    productName: string
+    brand?: string | null
+    description?: string | null
+    imageUrl?: string | null
+    barCode: string
+    averagePrice?: number | null
+    categoryName?: string | null
+    source: string
+}
+
+export interface CategoryResponse {
+    id: number
+    name: string
+}
+
 export interface ProductSearchParams {
     name: string
 }
@@ -36,9 +52,13 @@ export interface MarketProductResponse {
     marketName: string
     productName: string
     brand: string
-    price: number
-    stockQuantity: number
-    updatedAt: string
+    categoryName?: string | null
+    barCode?: string | null
+    imageUrl?: string | null
+    description?: string | null
+    price?: number | null
+    stockQuantity?: number | null
+    updatedAt?: string | null
 }
 
 export interface MarketProductUpdateRequest {
@@ -48,6 +68,6 @@ export interface MarketProductUpdateRequest {
 
 // cria produto + associa ao mercado com preço/estoque
 export interface MarketProductCreateRequest extends ProductCreateRequest {
-    price?: number
-    stockQuantity?: number
+    price: number
+    stockQuantity: number
 }

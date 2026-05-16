@@ -101,8 +101,12 @@ public class PasswordRecoveryService {
     }
 
     private void sendRecoveryEmail(String email, String name, String code) {
+        if (!emailService.canSendEmail()) {
+            throw new RuntimeException("Envio de e-mail não configurado no servidor. Configure o SMTP para receber o código.");
+        }
+
         String body = emailTemplateService.passwordRecovery(name, code, CODE_EXPIRATION_MINUTES);
-        emailService.sendHtmlEmail(email, "UniMarket - Recuperação de senha", body);
+        emailService.sendHtmlEmailAsync(email, "UniMarket - Recuperação de senha", body);
     }
 
     private String generateCode() {

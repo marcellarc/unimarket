@@ -5,10 +5,24 @@ import type {
     MarketProductResponse,
     MarketProductUpdateRequest,
     MarketProductCreateRequest,
+    CosmosProductLookup,
+    CategoryResponse,
 } from '@/types/product'
 
-export async function createProduct(marketId: number, data: MarketProductCreateRequest): Promise<MarketProductResponse> {
-    const response = await api.post<MarketProductResponse>(`/markets/${marketId}/products`, data)
+export async function createProduct(marketId: number, data: MarketProductCreateRequest): Promise<ProductResponse> {
+    const response = await api.post<ProductResponse>(`/markets/${marketId}/products`, data)
+    return response.data
+}
+
+export async function lookupProductByBarcode(barCode: string) {
+    const response = await api.get<CosmosProductLookup>('/products/lookup', {
+        params: { barCode },
+    })
+    return response.data
+}
+
+export async function listCategories() {
+    const response = await api.get<CategoryResponse[]>('/categories')
     return response.data
 }
 
@@ -46,4 +60,8 @@ export async function updateProductPriceAndStock(
         data,
     )
     return response.data
+}
+
+export async function deleteMarketProduct(marketId: number, productId: number) {
+    await api.delete(`/markets/${marketId}/products/${productId}`)
 }

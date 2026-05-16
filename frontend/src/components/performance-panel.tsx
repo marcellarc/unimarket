@@ -12,13 +12,13 @@ export function PerformancePanel({ metrics }: PerformancePanelProps) {
         <div className="space-y-4">
             {metrics.map((m) => (
                 <div key={m.label}>
-                    <div className="flex justify-between text-sm mb-1">
+                    <div className="mb-1.5 flex justify-between gap-3 text-sm">
                         <span className="text-muted-foreground">{m.label}</span>
-                        <span className="font-medium text-foreground">{m.value}%</span>
+                        <span className="font-medium tabular-nums text-foreground">{m.value}%</span>
                     </div>
-                    <div className="w-full h-2 bg-secondary rounded-full overflow-hidden">
+                    <div className="h-2 w-full overflow-hidden rounded-full bg-secondary">
                         <div
-                            className="h-full bg-primary rounded-full transition-all"
+                            className="h-full rounded-full bg-primary transition-all"
                             style={{ width: `${m.value}%` }}
                         />
                     </div>

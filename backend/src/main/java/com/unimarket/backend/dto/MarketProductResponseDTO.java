@@ -25,6 +25,14 @@ public class MarketProductResponseDTO {
     // marca do produto
     private String brand;
 
+    private String categoryName;
+
+    private String barCode;
+
+    private String imageUrl;
+
+    private String description;
+
     // preço praticado pelo mercado
     private Double price;
 

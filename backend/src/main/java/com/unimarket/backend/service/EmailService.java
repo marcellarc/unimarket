@@ -7,9 +7,11 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.MailException;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
+import jakarta.annotation.PostConstruct;
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
 
@@ -17,6 +19,13 @@ import jakarta.mail.internet.MimeMessage;
 public class EmailService {
 
     private static final Logger logger = LoggerFactory.getLogger(EmailService.class);
+
+    public enum DeliveryStatus {
+        FAILED,
+        SENT,
+        SIMULATED,
+        SKIPPED
+    }
 
     private final ObjectProvider<JavaMailSender> mailSenderProvider;
 
@@ -36,21 +45,33 @@ public class EmailService {
         this.mailSenderProvider = mailSenderProvider;
     }
 
-    public void sendEmail(String to, String subject, String body) {
-        sendHtmlEmail(to, subject, "<pre>" + escapeHtml(body) + "</pre>");
-    }
-
-    public void sendHtmlEmail(String to, String subject, String htmlBody) {
-        if (!StringUtils.hasText(to)) {
-            logger.warn("Email nao enviado: destinatario vazio. Assunto: {}", subject);
+    @PostConstruct
+    public void logMailStatus() {
+        if (isSmtpConfigured()) {
+            logger.info("SMTP configurado para envio de emails. host={}, usernameConfigurado=true, from={}", mailHost, from);
             return;
         }
 
+        logger.warn(
+                "SMTP nao configurado. Emails serao simulados nos logs. host={}, usernameConfigurado={}, passwordConfigurado={}",
+                mailHost,
+                StringUtils.hasText(mailUsername),
+                StringUtils.hasText(mailPassword)
+        );
+    }
+
+    public DeliveryStatus sendEmail(String to, String subject, String body) {
+        return sendHtmlEmail(to, subject, "<pre>" + escapeHtml(body) + "</pre>");
+    }
+
+    public DeliveryStatus sendHtmlEmail(String to, String subject, String htmlBody) {
+        if (!StringUtils.hasText(to)) {
+            logger.warn("Email nao enviado: destinatario vazio. Assunto: {}", subject);
+            return DeliveryStatus.SKIPPED;
+        }
+
         JavaMailSender mailSender = mailSenderProvider.getIfAvailable();
-        if (mailSender == null
-                || !StringUtils.hasText(mailHost)
-                || !StringUtils.hasText(mailUsername)
-                || !StringUtils.hasText(mailPassword)) {
+        if (mailSender == null || !isSmtpConfigured()) {
             logger.warn(
                     "Email simulado para {} porque SMTP nao esta completo. host={}, usernameConfigurado={}, passwordConfigurado={}. Assunto: {} | {}",
                     to,
@@ -60,7 +81,7 @@ public class EmailService {
                     subject,
                     htmlBody
             );
-            return;
+            return DeliveryStatus.SIMULATED;
         }
 
         try {
@@ -71,9 +92,31 @@ public class EmailService {
             helper.setSubject(subject);
             helper.setText(htmlBody, true);
             mailSender.send(message);
+            logger.info("Email enviado para {} com assunto {}", to, subject);
+            return DeliveryStatus.SENT;
         } catch (MailException | MessagingException exception) {
             logger.error("Falha ao enviar email para {} com assunto {}", to, subject, exception);
+            return DeliveryStatus.FAILED;
         }
+    }
+
+    @Async("mailTaskExecutor")
+    public void sendHtmlEmailAsync(String to, String subject, String htmlBody) {
+        DeliveryStatus deliveryStatus = sendHtmlEmail(to, subject, htmlBody);
+
+        if (deliveryStatus != DeliveryStatus.SENT) {
+            logger.warn("Email em background nao entregue para {}. status={}", to, deliveryStatus);
+        }
+    }
+
+    public boolean isSmtpConfigured() {
+        return StringUtils.hasText(mailHost)
+                && StringUtils.hasText(mailUsername)
+                && StringUtils.hasText(mailPassword);
+    }
+
+    public boolean canSendEmail() {
+        return mailSenderProvider.getIfAvailable() != null && isSmtpConfigured();
     }
 
     private String escapeHtml(String value) {
