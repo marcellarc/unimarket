@@ -1,5 +1,5 @@
 // src/routes/__root.tsx
-import { createRootRoute, Outlet } from '@tanstack/react-router'
+import { createRootRoute, Outlet, useRouterState } from '@tanstack/react-router'
 import '../index.css'
 import { Toaster } from 'sonner'
 import { useEffect } from 'react'
@@ -13,11 +13,21 @@ function LightThemeInitializer() {
   return null
 }
 
+function RouteTransition() {
+  const pathname = useRouterState({ select: (state) => state.location.pathname })
+
+  return (
+    <div key={pathname} className="route-transition min-h-screen">
+      <Outlet />
+    </div>
+  )
+}
+
 export const Route = createRootRoute({
   component: () => (
     <div className="min-h-screen">
       <LightThemeInitializer />
-      <Outlet />
+      <RouteTransition />
       <Toaster position="top-right" richColors />
     </div>
   ),

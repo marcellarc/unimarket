@@ -85,10 +85,10 @@ export const marketProductSchema = z.object({
     brand: z.string().min(1, 'Marca obrigatória'),
     description: z.string().optional(),
     imageUrl: z.string().url('URL inválida').or(z.literal('')).optional(),
-    categoryId: z.number().min(1),
-    barCode: z.string().length(13, 'Deve ter 13 dígitos').or(z.literal('')).optional(),
-    /*price: z.number().positive('Preço deve ser maior que zero').optional(),
-    stockQuantity: z.number().int().min(0, 'Estoque não pode ser negativo').optional(),*/
+    categoryId: z.number().min(1, 'Selecione uma categoria válida'),
+    barCode: z.string().regex(/^\d{8,14}$/, 'Use de 8 a 14 dígitos').or(z.literal('')).optional(),
+    price: z.number({ message: 'Informe o preço' }).min(0.01, 'Preço deve ser maior que zero'),
+    stockQuantity: z.number({ message: 'Informe o estoque' }).int('Estoque deve ser inteiro').min(0, 'Estoque não pode ser negativo'),
 })
 
 export type MarketProductFormData = z.infer<typeof marketProductSchema>
