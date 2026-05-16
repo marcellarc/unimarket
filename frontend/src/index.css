@@ -34,6 +34,8 @@
     --color-border: var(--border);
     --color-input: var(--input);
     --color-ring: var(--ring);
+
+    --font-sans: "Inter Variable", Inter, Aptos, "Segoe UI Variable", "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
 }
 
 :root {
@@ -99,7 +101,10 @@
 
     body {
         @apply bg-background text-foreground;
-        font-family: Inter, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        font-family: var(--font-sans);
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+        font-feature-settings: "cv02", "cv03", "cv04", "cv11";
         text-rendering: optimizeLegibility;
     }
 
@@ -137,14 +142,44 @@
     animation-delay: var(--float-delay, 0s);
 }
 
+.app-gradient-bg {
+    background: radial-gradient(circle at 34% 38%, #e8f5ff 0%, #f7fbff 38%, #ffffff 76%);
+}
+
+.dark .app-gradient-bg {
+    background: radial-gradient(circle at 34% 38%, rgba(0, 86, 223, 0.32) 0%, rgba(15, 23, 42, 0.98) 42%, #070b16 82%);
+}
+
+.route-transition {
+    animation: route-enter 150ms ease-out both;
+}
+
+@keyframes route-enter {
+    from {
+        opacity: 0;
+        transform: translateY(4px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .route-transition {
+        animation: none;
+    }
+}
+
 .auth-title,
 .auth-wordmark {
-    font-family: Inter, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    font-family: var(--font-sans);
     letter-spacing: 0;
 }
 
 .auth-support {
-    font-family: Inter, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    font-family: var(--font-sans);
     letter-spacing: 0;
 }
 

@@ -1,4 +1,4 @@
-import logoImg from '@/assets/logo-unimarket.png'
+import logoImg from '@/assets/logo-unimarket-auth.png'
 import {
     Badge, Button, Card,
     Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
@@ -57,6 +57,13 @@ const nearbyMarkets = [
 const initialShoppingLists = [
     { id: 1, name: 'Compras do Mês', items: 12, total: 289.50, savings: 45.20 },
     { id: 2, name: 'Feira da Semana', items: 8, total: 85.90, savings: 12.30 },
+]
+
+type SortMode = 'price' | 'savings'
+
+const sortOptions: Array<{ id: SortMode; label: string }> = [
+    { id: 'price', label: 'Menor preço' },
+    { id: 'savings', label: 'Maior economia' },
 ]
 
 function getStoredString(key: string, fallback: string) {
@@ -139,7 +146,7 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
     const [showFilters, setShowFilters] = useState(false)
     const [maxDistance, setMaxDistance] = useState(() => getStoredNumber('unimarket.profile.radius') ?? 5)
     const [maxPrice, setMaxPrice] = useState(100)
-    const [sortBy, setSortBy] = useState<'price' | 'savings'>('price')
+    const [sortBy, setSortBy] = useState<SortMode>('price')
     const [showListPanel, setShowListPanel] = useState(false)
     const [shoppingLists, setShoppingLists] = useState(initialShoppingLists)
     const [newListOpen, setNewListOpen] = useState(false)
@@ -382,6 +389,7 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
                 return firstPrice - secondPrice
             })
             const cheapest = sortedItems[0]
+            const imageUrl = sortedItems.find(({ product }) => product.imageUrl)?.product.imageUrl ?? null
             const marketRows = sortedItems.map(({ product, market }) => ({
                 name: product.marketName || market?.name || 'Mercado',
                 price: product.price != null ? Number(product.price) : 0,
@@ -399,6 +407,7 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
             return {
                 id: cheapest.product.id,
                 name: cheapest.product.productName,
+                imageUrl,
                 category: 'all',
                 lowestPrice,
                 averagePrice,
@@ -552,10 +561,10 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
     }, [])
 
     return (
-        <div className="min-h-screen bg-muted/30">
+        <div className="app-gradient-bg min-h-screen">
 
             {/* ── NAVBAR ── */}
-            <header className="sticky top-0 z-50 border-b border-t-4 border-border border-t-uniyellow bg-card shadow-sm">
+            <header className="sticky top-0 z-50 border-b border-border bg-card/95 shadow-sm backdrop-blur">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6">
                     <div className="flex items-center gap-4 h-14">
                         <div className="flex items-center gap-2 shrink-0">
@@ -569,7 +578,7 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
                                 placeholder="Buscar produtos, marcas, categorias..."
                                 value={searchQuery}
                                 onChange={e => setSearchQuery(e.target.value)}
-                                className="pl-9 pr-4 h-9 w-full bg-background"
+                                className="h-9 w-full bg-background/80 pl-9 pr-4"
                             />
                             {searchQuery && (
                                 <button
@@ -688,16 +697,16 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
                 </div>
 
                 {/* Categorias */}
-                <div className="border-t border-border bg-card">
+                <div className="border-t border-border bg-card/80">
                     <div className="max-w-7xl mx-auto px-4 sm:px-6">
                         <div className="flex items-center gap-2 overflow-x-auto py-2 scrollbar-hide">
                             {categories.map(cat => (
                                 <button
                                     key={cat.id}
                                     onClick={() => setSelectedCategory(cat.id)}
-                                    className={`shrink-0 px-3 py-1 rounded-full text-xs font-medium transition-colors ${selectedCategory === cat.id
+                                    className={`h-8 shrink-0 rounded-md px-3 text-xs font-medium transition-colors ${selectedCategory === cat.id
                                         ? 'bg-primary text-primary-foreground'
-                                        : 'bg-muted text-muted-foreground hover:text-foreground'
+                                        : 'bg-transparent text-muted-foreground hover:bg-muted hover:text-foreground'
                                         }`}
                                 >
                                     {cat.label}
@@ -709,7 +718,7 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
             </header>
 
             <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
-                <section className="mb-6 rounded-lg border border-border border-t-4 border-t-uniyellow bg-card p-5 shadow-sm">
+                <section className="mb-6 rounded-lg border border-border bg-card/95 p-5 shadow-sm backdrop-blur">
                     <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
                         <div>
                             <div className="flex flex-wrap items-center gap-2">
@@ -719,12 +728,12 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
                                 </Badge>
                                 <Badge variant="outline">{isGuest ? 'Visitante' : 'Consumidor'}</Badge>
                             </div>
-                            <h1 className="mt-3 text-2xl font-bold text-foreground">
+                            <h1 className="mt-3 text-2xl font-semibold tracking-tight text-foreground">
                                 {isGuest
                                     ? 'Boas-vindas ao UniMarket. Explore preços perto de você.'
                                     : `Olá, ${displayName}! Encontre o melhor preço antes de comprar.`}
                             </h1>
-                            <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
+                            <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">
                                 {isGuest
                                     ? 'Você pode comparar produtos e mercados próximos. Para salvar listas e alertas, entre como usuário.'
                                     : 'Compare produtos, acompanhe mercados próximos e deixe o UniMarket avisar quando o preço ficar bom.'}
@@ -732,16 +741,16 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
                         </div>
 
                         <div className="grid grid-cols-3 gap-3 text-center">
-                            <div className="rounded-lg border border-border bg-background px-4 py-3">
-                                <p className="text-lg font-bold text-foreground">{filteredProducts.length}</p>
+                            <div className="rounded-lg border border-border bg-background/70 px-4 py-3">
+                                <p className="text-lg font-semibold tabular-nums text-foreground">{filteredProducts.length}</p>
                                 <p className="text-xs text-muted-foreground">produtos</p>
                             </div>
-                            <div className="rounded-lg border border-border bg-background px-4 py-3">
-                                <p className="text-lg font-bold text-foreground">{activeAlertCount}</p>
+                            <div className="rounded-lg border border-border bg-background/70 px-4 py-3">
+                                <p className="text-lg font-semibold tabular-nums text-foreground">{activeAlertCount}</p>
                                 <p className="text-xs text-muted-foreground">alertas</p>
                             </div>
-                            <div className="rounded-lg border border-border bg-background px-4 py-3">
-                                <p className="text-lg font-bold text-primary">R$ {totalListSavings.toFixed(2)}</p>
+                            <div className="rounded-lg border border-border bg-background/70 px-4 py-3">
+                                <p className="text-lg font-semibold tabular-nums text-primary">R$ {totalListSavings.toFixed(2)}</p>
                                 <p className="text-xs text-muted-foreground">economia</p>
                             </div>
                         </div>
@@ -814,13 +823,10 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
                                         <SlidersHorizontal className="w-3 h-3" /> Ordenar por
                                     </p>
                                     <div className="space-y-1">
-                                        {[
-                                            { id: 'price', label: 'Menor preço' },
-                                            { id: 'savings', label: 'Maior economia' },
-                                        ].map(opt => (
+                                        {sortOptions.map(opt => (
                                             <button
                                                 key={opt.id}
-                                                onClick={() => setSortBy(opt.id as any)}
+                                                onClick={() => setSortBy(opt.id)}
                                                 className={`w-full text-left px-3 py-1.5 rounded text-xs transition-colors ${sortBy === opt.id
                                                     ? 'bg-primary/10 text-primary font-medium'
                                                     : 'text-muted-foreground hover:bg-muted'

@@ -1,6 +1,7 @@
-import logoImg from '@/assets/logo-unimarket.png'
+import logoImg from '@/assets/logo-unimarket-auth.png'
 import { Badge, Button, Card, Input, Label, Switch } from '@/components/ui'
 import { useLogout } from '@/hooks/use-logout'
+import { getApiErrorMessage } from '@/lib/api-error'
 import {
     deactivatePriceAlert,
     listNotifications,
@@ -240,13 +241,8 @@ export function ProfilePage() {
             await queryClient.invalidateQueries({ queryKey: ['userProfile'] })
             await queryClient.invalidateQueries({ queryKey: ['nearbyMarkets'] })
         },
-        onError: (error: any) => {
-            const responseData = error.response?.data
-            const errorMessage =
-                typeof responseData === 'string'
-                    ? responseData
-                    : responseData?.message ?? responseData?.error ?? 'Não foi possível atualizar o perfil.'
-            toast.error(errorMessage)
+        onError: (error: unknown) => {
+            toast.error(getApiErrorMessage(error, 'Não foi possível atualizar o perfil.'))
         },
     })
 
@@ -269,13 +265,8 @@ export function ProfilePage() {
 
             toast.success('Endereço encontrado. A busca usará cidade e UF quando não houver coordenadas.')
         },
-        onError: (error: any) => {
-            const responseData = error.response?.data
-            const errorMessage =
-                typeof responseData === 'string'
-                    ? responseData
-                    : responseData?.message ?? responseData?.error ?? 'Não foi possível localizar este CEP.'
-            toast.error(errorMessage)
+        onError: (error: unknown) => {
+            toast.error(getApiErrorMessage(error, 'Não foi possível localizar este CEP.'))
         },
     })
 
@@ -397,14 +388,14 @@ export function ProfilePage() {
     }
 
     return (
-        <div className="min-h-screen bg-muted/30">
-            <header className="sticky top-0 z-40 border-b border-border bg-card/95 backdrop-blur">
-                <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6">
+        <div className="app-gradient-bg min-h-screen">
+            <header className="sticky top-0 z-40 border-b border-border bg-card/95 shadow-sm backdrop-blur">
+                <div className="mx-auto flex h-14 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6">
                     <div className="flex items-center gap-3">
                         <img src={logoImg} alt="UniMarket" className="h-8 w-8 object-contain" />
                         <div>
-                            <p className="text-sm font-bold text-foreground">UniMarket</p>
-                            <p className="text-xs text-muted-foreground">Perfil do cliente</p>
+                            <p className="text-sm font-semibold text-foreground">UniMarket</p>
+                            <p className="text-xs text-muted-foreground">Conta do cliente</p>
                         </div>
                     </div>
 
@@ -420,11 +411,11 @@ export function ProfilePage() {
                 </div>
             </header>
 
-            <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6">
-                <section className="mb-6 rounded-lg border border-border bg-card p-5 shadow-sm">
+            <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:py-8">
+                <section className="mb-6 rounded-lg border border-border bg-card/95 p-5 shadow-sm backdrop-blur">
                     <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
                         <div className="flex items-center gap-4">
-                            <div className="relative flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-primary/10 text-lg font-bold text-primary">
+                            <div className="relative flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-primary/15 bg-primary/10 text-lg font-semibold text-primary">
                                 {profileImageUrl ? (
                                     <img src={profileImageUrl} alt={name || 'Perfil'} className="h-full w-full object-cover" />
                                 ) : (
@@ -433,42 +424,36 @@ export function ProfilePage() {
                             </div>
                             <div>
                                 <div className="flex flex-wrap items-center gap-2">
-                                    <h1 className="text-2xl font-bold text-foreground">{name || 'Meu perfil'}</h1>
+                                    <h1 className="text-2xl font-semibold tracking-tight text-foreground">{name || 'Meu perfil'}</h1>
                                     <Badge variant="secondary" className="gap-1">
                                         <CheckCircle2 className="h-3 w-3" />
                                         Cliente
                                     </Badge>
                                 </div>
-                                <p className="mt-1 text-sm text-muted-foreground">
+                                <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">
                                     Mantenha sua localidade atualizada para encontrar supermercados próximos e comparar preços com mais precisão.
                                 </p>
                             </div>
                         </div>
 
                         <div className="grid grid-cols-3 gap-3 text-center">
-                            <div className="rounded-lg border border-border bg-background px-4 py-3">
-                                <p className="text-lg font-bold text-primary">{profileScore}%</p>
-                                <p className="text-xs text-muted-foreground">completo</p>
-                            </div>
-                            <div className="rounded-lg border border-border bg-background px-4 py-3">
-                                <p className="text-lg font-bold text-foreground">{activeAlerts.length}</p>
-                                <p className="text-xs text-muted-foreground">alertas</p>
-                            </div>
-                            <div className="rounded-lg border border-border bg-background px-4 py-3">
-                                <p className="text-lg font-bold text-foreground">{unreadNotifications}</p>
-                                <p className="text-xs text-muted-foreground">novas</p>
-                            </div>
+                            <MetricTile label="completo" value={`${profileScore}%`} tone="primary" />
+                            <MetricTile label="alertas" value={String(activeAlerts.length)} />
+                            <MetricTile label="novas" value={String(unreadNotifications)} />
                         </div>
                     </div>
                 </section>
 
                 <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
                     <div className="space-y-6">
-                        <Card className="gap-0 rounded-lg p-0">
-                            <div className="border-b border-border p-5">
+                        <Card className="gap-0 overflow-hidden bg-card/95 p-0 shadow-sm backdrop-blur">
+                            <div className="border-b border-border bg-muted/20 p-5">
                                 <div className="flex items-center gap-2">
                                     <ShieldCheck className="h-5 w-5 text-primary" />
-                                    <h2 className="text-base font-semibold text-foreground">Dados da conta</h2>
+                                    <div>
+                                        <h2 className="text-base font-semibold text-foreground">Dados da conta</h2>
+                                        <p className="text-xs text-muted-foreground">Identificação usada para login e personalização.</p>
+                                    </div>
                                 </div>
                             </div>
 
@@ -490,7 +475,7 @@ export function ProfilePage() {
                                 ) : (
                                     <>
                                         <div className="flex flex-col gap-4 rounded-lg border border-border bg-muted/30 p-4 sm:flex-row sm:items-center">
-                                            <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-primary/10 text-xl font-bold text-primary">
+                                            <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-primary/15 bg-primary/10 text-xl font-semibold text-primary">
                                                 {profileImageUrl ? (
                                                     <img src={profileImageUrl} alt={name || 'Foto do perfil'} className="h-full w-full object-cover" />
                                                 ) : (
@@ -499,7 +484,7 @@ export function ProfilePage() {
                                             </div>
                                             <div className="min-w-0 flex-1 space-y-3">
                                                 <div>
-                                                    <p className="text-sm font-medium text-foreground">Foto do perfil</p>
+                                                    <p className="text-sm font-semibold text-foreground">Foto do perfil</p>
                                                     <p className="text-xs text-muted-foreground">
                                                         Use uma foto ou imagem que ajude a reconhecer sua conta.
                                                     </p>
@@ -510,6 +495,7 @@ export function ProfilePage() {
                                                         onChange={(event) => setProfileImageUrl(event.target.value)}
                                                         placeholder="URL da imagem"
                                                         disabled={profileImageUrl.startsWith('data:')}
+                                                        className="bg-background/80"
                                                     />
                                                     <Button variant="outline" asChild>
                                                         <label>
@@ -535,11 +521,12 @@ export function ProfilePage() {
                                         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                                             <div className="space-y-2">
                                                 <Label htmlFor="profile-name">Nome</Label>
-                                                <Input
+                                                    <Input
                                                     id="profile-name"
-                                                    maxLength={14}
+                                                    maxLength={80}
                                                     value={name}
                                                     onChange={(event) => setName(event.target.value)}
+                                                    className="bg-background/80"
                                                 />
                                             </div>
                                             <div className="space-y-2">
@@ -547,11 +534,12 @@ export function ProfilePage() {
                                                     <AtSign className="h-3.5 w-3.5" />
                                                     E-mail
                                                 </Label>
-                                                <Input
+                                                    <Input
                                                     id="profile-email"
                                                     type="email"
                                                     value={email}
                                                     onChange={(event) => setEmail(event.target.value)}
+                                                    className="bg-background/80"
                                                 />
                                             </div>
                                         </div>
@@ -588,17 +576,20 @@ export function ProfilePage() {
                             </div>
                         </Card>
 
-                        <Card className="gap-0 rounded-lg p-0">
-                            <div className="border-b border-border p-5">
+                        <Card className="gap-0 overflow-hidden bg-card/95 p-0 shadow-sm backdrop-blur">
+                            <div className="border-b border-border bg-muted/20 p-5">
                                 <div className="flex items-center gap-2">
                                     <KeyRound className="h-5 w-5 text-primary" />
-                                    <h2 className="text-base font-semibold text-foreground">Segurança</h2>
+                                    <div>
+                                        <h2 className="text-base font-semibold text-foreground">Segurança</h2>
+                                        <p className="text-xs text-muted-foreground">Atualize sua senha quando necessário.</p>
+                                    </div>
                                 </div>
                             </div>
 
                             <div className="space-y-4 p-5">
-                                <div className="rounded-lg border border-border bg-muted/40 p-4">
-                                    <p className="text-sm font-medium text-foreground">Alteração de senha</p>
+                                <div className="rounded-lg border border-border bg-background/70 p-4">
+                                    <p className="text-sm font-semibold text-foreground">Alteração de senha</p>
                                     <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
                                         Por segurança, confirme sua senha atual antes de definir uma nova. Deixe estes campos em branco se não quiser alterar a senha.
                                     </p>
@@ -613,6 +604,7 @@ export function ProfilePage() {
                                             value={currentPassword}
                                             onChange={(event) => setCurrentPassword(event.target.value)}
                                             autoComplete="current-password"
+                                            className="bg-background/80"
                                         />
                                     </div>
                                     <div className="space-y-2">
@@ -623,6 +615,7 @@ export function ProfilePage() {
                                             value={newPassword}
                                             onChange={(event) => setNewPassword(event.target.value)}
                                             autoComplete="new-password"
+                                            className="bg-background/80"
                                         />
                                     </div>
                                     <div className="space-y-2">
@@ -633,6 +626,7 @@ export function ProfilePage() {
                                             value={confirmPassword}
                                             onChange={(event) => setConfirmPassword(event.target.value)}
                                             autoComplete="new-password"
+                                            className="bg-background/80"
                                         />
                                     </div>
                                 </div>
@@ -650,11 +644,14 @@ export function ProfilePage() {
                             </div>
                         </Card>
 
-                        <Card className="gap-0 rounded-lg p-0">
-                            <div className="border-b border-border p-5">
+                        <Card className="gap-0 overflow-hidden bg-card/95 p-0 shadow-sm backdrop-blur">
+                            <div className="border-b border-border bg-muted/20 p-5">
                                 <div className="flex items-center gap-2">
                                     <Bell className="h-5 w-5 text-primary" />
-                                    <h2 className="text-base font-semibold text-foreground">Notificações</h2>
+                                    <div>
+                                        <h2 className="text-base font-semibold text-foreground">Notificações</h2>
+                                        <p className="text-xs text-muted-foreground">Controle alertas de preço e avisos da conta.</p>
+                                    </div>
                                 </div>
                             </div>
 
@@ -680,8 +677,8 @@ export function ProfilePage() {
                                     />
                                 </div>
 
-                                <div className="rounded-lg border border-border">
-                                    <div className="flex items-center justify-between gap-3 border-b border-border p-4">
+                                <div className="overflow-hidden rounded-lg border border-border bg-background/60">
+                                    <div className="flex items-center justify-between gap-3 border-b border-border bg-muted/20 p-4">
                                         <div>
                                             <h3 className="text-sm font-semibold text-foreground">Alertas ativos</h3>
                                             <p className="text-xs text-muted-foreground">{activeAlerts.length} produto{activeAlerts.length !== 1 ? 's' : ''} monitorado{activeAlerts.length !== 1 ? 's' : ''}.</p>
@@ -729,16 +726,19 @@ export function ProfilePage() {
                             </div>
                         </Card>
 
-                        <Card className="gap-0 rounded-lg p-0">
-                            <div className="border-b border-border p-5">
+                        <Card className="gap-0 overflow-hidden bg-card/95 p-0 shadow-sm backdrop-blur">
+                            <div className="border-b border-border bg-muted/20 p-5">
                                 <div className="flex items-center gap-2">
                                     <MapPin className="h-5 w-5 text-primary" />
-                                    <h2 className="text-base font-semibold text-foreground">Localidade de compra</h2>
+                                    <div>
+                                        <h2 className="text-base font-semibold text-foreground">Localidade de compra</h2>
+                                        <p className="text-xs text-muted-foreground">Define mercados próximos e distância exibida nos produtos.</p>
+                                    </div>
                                 </div>
                             </div>
 
                             <div className="space-y-4 p-5">
-                                <div className="grid grid-cols-1 gap-3 rounded-lg border border-border bg-muted/40 p-4 sm:grid-cols-[1fr_auto] sm:items-end">
+                                <div className="grid grid-cols-1 gap-3 rounded-lg border border-border bg-background/70 p-4 sm:grid-cols-[1fr_auto] sm:items-end">
                                     <div className="space-y-2">
                                         <Label htmlFor="profile-cep">CEP de referência</Label>
                                         <Input
@@ -747,6 +747,7 @@ export function ProfilePage() {
                                             value={formatCep(zipCode)}
                                             onChange={(event) => setZipCode(formatCep(event.target.value))}
                                             placeholder="00000-000"
+                                            className="bg-background/80"
                                         />
                                     </div>
                                     <Button
@@ -771,6 +772,7 @@ export function ProfilePage() {
                                             value={streetAddress}
                                             onChange={(event) => setStreetAddress(event.target.value)}
                                             placeholder="Rua, avenida ou ponto de referência"
+                                            className="bg-background/80"
                                         />
                                     </div>
                                     <div className="space-y-2">
@@ -781,6 +783,7 @@ export function ProfilePage() {
                                             value={state}
                                             onChange={(event) => setState(event.target.value.toUpperCase())}
                                             placeholder="SP"
+                                            className="bg-background/80"
                                         />
                                     </div>
                                 </div>
@@ -792,6 +795,7 @@ export function ProfilePage() {
                                             id="profile-city"
                                             value={city}
                                             onChange={(event) => setCity(event.target.value)}
+                                            className="bg-background/80"
                                         />
                                     </div>
                                     <div className="space-y-2">
@@ -801,11 +805,12 @@ export function ProfilePage() {
                                             value={neighborhood}
                                             onChange={(event) => setNeighborhood(event.target.value)}
                                             placeholder="Ex.: Gonzaga"
+                                            className="bg-background/80"
                                         />
                                     </div>
                                 </div>
 
-                                <div className="space-y-2">
+                                <div className="rounded-lg border border-border bg-background/70 p-4">
                                     <div className="flex items-center justify-between">
                                         <Label htmlFor="profile-radius">Raio de busca</Label>
                                         <span className="text-sm font-medium text-primary">{searchRadius} km</span>
@@ -817,11 +822,11 @@ export function ProfilePage() {
                                         max={15}
                                         value={searchRadius}
                                         onChange={(event) => setSearchRadius(Number(event.target.value))}
-                                        className="w-full accent-primary"
+                                        className="mt-3 w-full accent-primary"
                                     />
                                 </div>
 
-                                <div className="flex flex-col gap-3 rounded-lg bg-muted p-4 sm:flex-row sm:items-center sm:justify-between">
+                                <div className="flex flex-col gap-3 rounded-lg border border-primary/15 bg-primary/5 p-4 sm:flex-row sm:items-center sm:justify-between">
                                     <div>
                                         <p className="text-sm font-medium text-foreground">Busca por proximidade</p>
                                         <p className="text-xs text-muted-foreground">
@@ -847,12 +852,12 @@ export function ProfilePage() {
                         </Card>
                     </div>
 
-                    <aside className="space-y-6">
-                        <Card className="gap-4 rounded-lg p-5">
+                    <aside className="space-y-6 lg:sticky lg:top-20 lg:self-start">
+                        <Card className="gap-4 bg-card/95 p-5 shadow-sm backdrop-blur">
                             <div className="flex items-center justify-between">
                                 <div>
                                     <h2 className="text-base font-semibold text-foreground">Resumo UniMarket</h2>
-                                    <p className="text-xs text-muted-foreground">Sua atividade de consumo</p>
+                                    <p className="text-xs text-muted-foreground">Atividade da conta</p>
                                 </div>
                                 <Zap className="h-5 w-5 text-primary" />
                             </div>
@@ -865,19 +870,19 @@ export function ProfilePage() {
                             </div>
                         </Card>
 
-                        <Card className="gap-4 rounded-lg p-5">
+                        <Card className="gap-4 bg-card/95 p-5 shadow-sm backdrop-blur">
                             <div className="flex items-center gap-2">
                                 <SlidersHorizontal className="h-5 w-5 text-primary" />
-                                <h2 className="text-base font-semibold text-foreground">Preferencias aplicadas</h2>
+                                <h2 className="text-base font-semibold text-foreground">Preferências aplicadas</h2>
                             </div>
                             <div className="space-y-3 text-sm">
-                                <div className="rounded-lg bg-muted p-3">
+                                <div className="rounded-lg border border-border bg-background/70 p-3">
                                     <p className="font-medium text-foreground">{city}{state ? `, ${state}` : ''}</p>
                                     <p className="text-xs text-muted-foreground">
                                         {neighborhood || 'Bairro não informado'} - {zipCode ? formatCep(zipCode) : 'CEP não informado'} - até {searchRadius} km
                                     </p>
                                 </div>
-                                <div className="rounded-lg bg-muted p-3">
+                                <div className="rounded-lg border border-border bg-background/70 p-3">
                                     <p className="font-medium text-foreground">
                                         {priceAlertsEnabled ? 'Alertas ativos' : 'Alertas pausados'}
                                     </p>
@@ -906,12 +911,29 @@ interface PreferenceSwitchProps {
     onCheckedChange: (checked: boolean) => void
 }
 
+function MetricTile({
+    label,
+    value,
+    tone = 'default',
+}: {
+    label: string
+    value: string
+    tone?: 'default' | 'primary'
+}) {
+    return (
+        <div className="rounded-lg border border-border bg-background/70 px-4 py-3">
+            <p className={`text-lg font-semibold tabular-nums ${tone === 'primary' ? 'text-primary' : 'text-foreground'}`}>{value}</p>
+            <p className="text-xs text-muted-foreground">{label}</p>
+        </div>
+    )
+}
+
 function PreferenceSwitch({ checked, description, label, onCheckedChange }: PreferenceSwitchProps) {
     return (
-        <div className="rounded-lg border border-border p-4">
+        <div className="rounded-lg border border-border bg-background/70 p-4 transition-colors hover:bg-background">
             <div className="flex items-start justify-between gap-3">
                 <div>
-                    <p className="text-sm font-medium text-foreground">{label}</p>
+                    <p className="text-sm font-semibold text-foreground">{label}</p>
                     <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{description}</p>
                 </div>
                 <Switch checked={checked} onCheckedChange={onCheckedChange} />
@@ -928,12 +950,12 @@ interface SummaryRowProps {
 
 function SummaryRow({ icon: Icon, label, value }: SummaryRowProps) {
     return (
-        <div className="flex items-center justify-between rounded-lg border border-border p-3">
+        <div className="flex items-center justify-between rounded-lg border border-border bg-background/70 p-3">
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <Icon className="h-4 w-4 text-primary" />
                 {label}
             </div>
-            <span className="text-sm font-semibold text-foreground">{value}</span>
+            <span className="text-sm font-semibold tabular-nums text-foreground">{value}</span>
         </div>
     )
 }

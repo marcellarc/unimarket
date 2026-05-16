@@ -25,7 +25,7 @@ public class NotificationDeliveryService {
                 notification.getClient().getEmail(),
                 notification.getMessage()
         );
-        emailService.sendHtmlEmail(
+        emailService.sendHtmlEmailAsync(
                 notification.getClient().getEmail(),
                 "UniMarket - " + notification.getTitle(),
                 emailTemplateService.priceAlert(notification)

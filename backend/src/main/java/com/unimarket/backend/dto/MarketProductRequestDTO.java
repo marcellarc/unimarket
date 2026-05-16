@@ -1,5 +1,6 @@
 package com.unimarket.backend.dto;
 
+import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 
@@ -13,7 +14,7 @@ public class MarketProductRequestDTO {
 
     // preço do produto — obrigatório e maior que zero
     @NotNull(message = "Preço é obrigatório")
-    @Min(value = 0, message = "Preço não pode ser negativo")
+    @DecimalMin(value = "0.01", message = "Preço deve ser maior que zero")
     private Double price;
 
     // quantidade em estoque — obrigatório e maior ou igual a zero

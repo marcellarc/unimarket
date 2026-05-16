@@ -83,7 +83,7 @@ public class Client {
     @Schema(description = "Timestamp de quando o cliente foi criado")
     private LocalDateTime createdAt;
 
-    @Column(name = "updated_at", nullable = false)
+    @Column(name = "updated_at")
     @Schema(description = "Timestamp da ultima atualizacao do cliente")
     private LocalDateTime updatedAt;
 

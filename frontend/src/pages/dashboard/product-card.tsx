@@ -1,9 +1,6 @@
-import { memo, useCallback } from 'react'
-import { Badge, Card } from '@/components/ui'
-import {
-    Bell, ChevronDown, ChevronUp, MapPin,
-    Package, Plus, Store, TrendingDown,
-} from 'lucide-react'
+import { memo, type MouseEvent, useCallback } from 'react'
+import { Badge, Button, Card } from '@/components/ui'
+import { Bell, ChevronDown, ChevronUp, ImageIcon, MapPin, Plus, Store } from 'lucide-react'
 
 export interface TransformedMarket {
     name: string
@@ -14,12 +11,13 @@ export interface TransformedMarket {
 export interface TransformedProduct {
     id: number
     name: string
+    imageUrl?: string | null
     category: string
     lowestPrice: number
     averagePrice: number
     savings: number
     badge: string | null
-    markets: TransformedMarket[]   // [] quando vem de busca geral
+    markets: TransformedMarket[]
 }
 
 interface ProductCardProps {
@@ -41,125 +39,134 @@ export const ProductCard = memo(function ProductCard({
         onToggle(product.id)
     }, [onToggle, product.id])
 
-    const handleAdd = useCallback((e: React.MouseEvent) => {
-        e.stopPropagation()
+    const handleAdd = useCallback((event: MouseEvent<HTMLButtonElement>) => {
+        event.stopPropagation()
         onAddToList?.(product)
     }, [onAddToList, product])
 
-    const handleAlert = useCallback((e: React.MouseEvent) => {
-        e.stopPropagation()
+    const handleAlert = useCallback((event: MouseEvent<HTMLButtonElement>) => {
+        event.stopPropagation()
         onCreateAlert?.(product)
     }, [onCreateAlert, product])
 
     return (
-        <div className={`relative ${isExpanded ? 'z-50' : 'z-0'}`}>
-            <Card
-                onClick={handleToggle}
-                className={`group overflow-visible cursor-pointer flex flex-col transition-colors duration-200 relative z-20 ${isExpanded
-                    ? 'border-primary border-b-transparent rounded-b-none shadow-md'
-                    : 'border-border hover:shadow-md'
-                    }`}
-            >
-                {/* Imagem placeholder */}
-                <div className="h-32 bg-muted flex items-center justify-center relative shrink-0">
-                    <Package className="w-12 h-12 text-muted-foreground/30" />
-
-                    {product.badge && (
-                        <Badge className="absolute top-2 left-2 bg-primary text-primary-foreground text-[10px] px-1.5 py-0.5">
-                            {product.badge}
-                        </Badge>
-                    )}
-
-                    <div className="absolute top-2 right-2 flex gap-1.5">
-                        <button
-                            onClick={handleAlert}
-                            aria-label={`Criar alerta para ${product.name}`}
-                            title="Criar alerta de preço"
-                            className="w-7 h-7 rounded-full bg-card border border-border flex items-center justify-center hover:bg-primary hover:text-primary-foreground hover:border-primary transition-colors"
-                        >
-                            <Bell className="w-3.5 h-3.5" />
-                        </button>
-
-                        <button
-                            onClick={handleAdd}
-                            aria-label={`Adicionar ${product.name} à lista`}
-                            title="Adicionar a minha lista"
-                            className="w-7 h-7 rounded-full bg-card border border-border flex items-center justify-center hover:bg-primary hover:text-primary-foreground hover:border-primary transition-colors"
-                        >
-                            <Plus className="w-3.5 h-3.5" />
-                        </button>
-                    </div>
+        <Card
+            className={`gap-0 overflow-hidden p-0 transition-[border-color,box-shadow,background-color] ${isExpanded
+                ? 'border-primary shadow-md'
+                : 'border-border hover:border-primary/30 hover:bg-card'
+                }`}
+        >
+            <div className="relative border-b border-border/80 bg-muted/25 p-4">
+                <div className="flex h-32 items-center justify-center rounded-md border border-border bg-background/75">
+                    <ProductImage src={product.imageUrl} name={product.name} />
                 </div>
 
-                <div className="p-4 flex-1 flex flex-col">
-                    <h4 className="font-medium text-foreground text-sm leading-tight mb-3 line-clamp-2">
-                        {product.name}
-                    </h4>
+                {product.badge && (
+                    <Badge variant="secondary" className="absolute left-6 top-6 font-normal shadow-sm">
+                        {product.badge}
+                    </Badge>
+                )}
+            </div>
 
-                    <div className="flex items-end justify-between mb-3">
-                        <div>
-                            <p className="text-xs text-muted-foreground">A partir de</p>
-                            {product.lowestPrice > 0 ? (
-                                <p className="text-xl font-bold text-primary">
-                                    R$ {product.lowestPrice.toFixed(2)}
-                                </p>
-                            ) : (
-                                <p className="text-sm text-muted-foreground italic">
-                                    Consulte o mercado
-                                </p>
-                            )}
-                        </div>
-                        {product.savings > 0 && (
-                            <div className="flex items-center gap-1 bg-primary/10 text-primary px-2 py-1 rounded-full">
-                                <TrendingDown className="w-3 h-3" />
-                                <span className="text-xs font-medium">{product.savings.toFixed(0)}% off</span>
-                            </div>
+            <div className="border-b border-border/80 p-4">
+                <h3 className="line-clamp-2 text-sm font-semibold leading-snug text-foreground">{product.name}</h3>
+                <p className="mt-1 text-xs text-muted-foreground">
+                    {product.markets.length > 0
+                        ? `${product.markets.length} ${product.markets.length === 1 ? 'mercado' : 'mercados'} encontrado${product.markets.length === 1 ? '' : 's'}`
+                        : 'Produto sem comparação disponível'}
+                </p>
+            </div>
+
+            <div className="space-y-4 p-4">
+                <div className="flex items-end justify-between gap-3">
+                    <div>
+                        <p className="text-xs text-muted-foreground">Menor preço</p>
+                        {product.lowestPrice > 0 ? (
+                            <p className="mt-1 text-2xl font-semibold tracking-tight text-primary tabular-nums">
+                                R$ {product.lowestPrice.toFixed(2)}
+                            </p>
+                        ) : (
+                            <p className="mt-1 text-sm text-muted-foreground">Consulte no mercado</p>
                         )}
                     </div>
 
-                    {product.markets.length > 0 && (
-                        <p className="text-xs text-muted-foreground mb-1">
-                            em {product.markets.length} {product.markets.length === 1 ? 'mercado' : 'mercados'} •{' '}
-                            <span className="text-foreground">{product.markets[0]?.distance}</span>
-                        </p>
+                    {product.savings > 0 && (
+                        <div className="rounded-md border border-primary/20 bg-primary/10 px-2.5 py-1 text-right">
+                            <p className="text-xs font-semibold text-primary">{product.savings.toFixed(0)}% menor</p>
+                            <p className="text-[11px] text-muted-foreground">que a média</p>
+                        </div>
                     )}
-
-                    <div className="mt-auto pt-3 flex items-center justify-center text-muted-foreground group-hover:text-primary transition-colors">
-                        <span className="text-xs font-medium mr-1">
-                            {isExpanded ? 'Ocultar mercados' : 'Comparar mercados'}
-                        </span>
-                        {isExpanded
-                            ? <ChevronUp className="w-3.5 h-3.5" />
-                            : <ChevronDown className="w-3.5 h-3.5" />
-                        }
-                    </div>
                 </div>
-            </Card>
 
-            {/* Painel expansível de mercados */}
+                {product.markets[0] && (
+                    <div className="rounded-md bg-muted/60 px-3 py-2 text-xs text-muted-foreground">
+                        Mais próximo/menor preço: <span className="font-medium text-foreground">{product.markets[0].name}</span>
+                    </div>
+                )}
+
+                <div className="grid grid-cols-2 gap-2">
+                    <Button type="button" variant="outline" size="sm" onClick={handleAlert}>
+                        <Bell className="h-3.5 w-3.5" />
+                        Alerta
+                    </Button>
+                    <Button type="button" variant="outline" size="sm" onClick={handleAdd}>
+                        <Plus className="h-3.5 w-3.5" />
+                        Lista
+                    </Button>
+                </div>
+
+                <button
+                    type="button"
+                    onClick={handleToggle}
+                    className="flex w-full items-center justify-center border-t border-border/80 pt-3 text-xs font-medium text-muted-foreground transition-colors hover:text-primary"
+                >
+                    {isExpanded ? 'Ocultar mercados' : 'Comparar mercados'}
+                    {isExpanded ? <ChevronUp className="ml-1 h-3.5 w-3.5" /> : <ChevronDown className="ml-1 h-3.5 w-3.5" />}
+                </button>
+            </div>
+
             <div
                 aria-hidden={!isExpanded}
-                className={`absolute top-[calc(100%-1px)] left-0 right-0 z-10 bg-card rounded-b-lg border-x border-b overflow-hidden transition-all duration-300 ease-in-out ${isExpanded
-                    ? 'max-h-[500px] opacity-100 border-primary shadow-xl'
-                    : 'max-h-0 opacity-0 border-transparent shadow-none pointer-events-none'
+                className={`grid overflow-hidden border-t border-border/70 bg-muted/20 transition-[grid-template-rows,opacity] duration-200 ease-out ${isExpanded
+                    ? 'grid-rows-[1fr] opacity-100'
+                    : 'grid-rows-[0fr] opacity-0'
                     }`}
             >
-                <div className="space-y-3 p-4 pt-2">
-                    <p className="text-xs font-medium text-muted-foreground">
-                        Mercados que vendem este produto
-                    </p>
-                    {product.markets.map((market, idx) => (
-                        <MarketRow
-                            key={`${market.name}-${idx}`}
-                            market={market}
-                            isCheapest={idx === 0}
-                        />
-                    ))}
+                <div className="min-h-0">
+                    <div className="space-y-2 p-4 pt-3">
+                        <p className="text-xs font-medium text-muted-foreground">Mercados que vendem este produto</p>
+                        {product.markets.map((market) => (
+                            <MarketRow
+                                key={`${market.name}-${market.price}-${market.distance}`}
+                                market={market}
+                                isCheapest={market === product.markets[0]}
+                            />
+                        ))}
+                    </div>
                 </div>
             </div>
-        </div>
+        </Card>
     )
 })
+
+function ProductImage({ src, name }: { src?: string | null; name: string }) {
+    if (!src) {
+        return (
+            <div className="flex h-full w-full items-center justify-center text-muted-foreground">
+                <ImageIcon className="h-10 w-10 opacity-45" />
+            </div>
+        )
+    }
+
+    return (
+        <img
+            src={src}
+            alt={name}
+            loading="lazy"
+            className="h-full max-h-28 w-full object-contain p-3"
+        />
+    )
+}
 
 const MarketRow = memo(function MarketRow({
     market,
@@ -169,23 +176,18 @@ const MarketRow = memo(function MarketRow({
     isCheapest: boolean
 }) {
     return (
-        <div
-            className={`flex items-center justify-between p-2 rounded-lg ${isCheapest ? 'bg-primary/10 ring-1 ring-primary/20' : 'bg-muted'
-                }`}
-        >
-            <div className="flex items-center gap-2">
-                <div className={`p-1.5 rounded-md ${isCheapest ? 'bg-primary/20' : 'bg-card'}`}>
-                    <Store className={`w-3.5 h-3.5 ${isCheapest ? 'text-primary' : 'text-muted-foreground'}`} />
+        <div className={`flex items-center justify-between gap-3 rounded-md border p-3 ${isCheapest ? 'border-primary/25 bg-primary/5' : 'border-border bg-card/70'}`}>
+            <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                    <Store className="h-3.5 w-3.5 text-muted-foreground" />
+                    <p className="truncate text-sm font-medium text-foreground">{market.name}</p>
                 </div>
-                <div>
-                    <p className="text-xs font-medium text-foreground">{market.name}</p>
-                    <div className="flex items-center gap-0.5 text-muted-foreground">
-                        <MapPin className="w-2.5 h-2.5" />
-                        <span className="text-[10px]">{market.distance}</span>
-                    </div>
+                <div className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
+                    <MapPin className="h-3 w-3" />
+                    {market.distance}
                 </div>
             </div>
-            <p className={`font-bold text-sm ${isCheapest ? 'text-primary' : 'text-foreground'}`}>
+            <p className={`text-sm font-semibold tabular-nums ${isCheapest ? 'text-primary' : 'text-foreground'}`}>
                 R$ {market.price.toFixed(2)}
             </p>
         </div>

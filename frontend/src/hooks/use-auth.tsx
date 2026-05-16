@@ -7,6 +7,7 @@ import { logoutApi } from '@/services/auth'
 import type { LoginRequest, LoginResponse } from '@/types/auth'
 import { loginUser } from '@/services/user'
 import { loginMarket } from '@/services/supermarket'
+import { getApiErrorMessage } from '@/lib/api-error'
 
 const isSecure = import.meta.env.PROD //true em produção, false em dev
 
@@ -83,13 +84,8 @@ export function useAuth() {
             toast.success(`Bem-vindo, ${data.name}!`)
             navigate({ to: '/dashboard' })
         },
-        onError: (error: any) => {
-            const responseData = error.response?.data
-            const errorMessage =
-                typeof responseData === 'string'
-                    ? responseData
-                    : responseData?.message ?? responseData?.error ?? 'Erro ao fazer login.'
-            toast.error(errorMessage)
+        onError: (error: unknown) => {
+            toast.error(getApiErrorMessage(error, 'Erro ao fazer login.'))
         }
     })
 

@@ -1,4 +1,4 @@
-import logoImg from '@/assets/logo-unimarket.png';
+import logoImg from '@/assets/logo-unimarket-auth.png';
 import {
     Badge, Button, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
 } from '@/components/ui';
@@ -13,7 +13,8 @@ import {
     Settings,
     Store,
     User,
-    Lock
+    Lock,
+    type LucideIcon,
 } from 'lucide-react';
 import { useState } from 'react';
 import { OverviewTab, ProductsTab, ReviewsTab, SettingsTab } from './tabs';
@@ -25,13 +26,13 @@ type TabType = 'overview' | 'products' | 'reviews' | 'competitors' | 'reports' |
 interface MenuItem {
     id: TabType;
     label: string;
-    icon: any;
+    icon: LucideIcon;
     badge?: number;
 }
 
 const menuItems: MenuItem[] = [
     { id: 'overview', label: 'Visão Geral', icon: LayoutDashboard },
-    { id: 'products', label: 'Meus Preços', icon: Package },
+    { id: 'products', label: 'Estoque', icon: Package },
     { id: 'reviews', label: 'Avaliações', icon: MessageSquare, badge: 5 },
     { id: 'competitors', label: 'Concorrência', icon: Store },
     { id: 'reports', label: 'Relatórios de Buscas', icon: BarChart3 },
@@ -82,9 +83,9 @@ export default function MarketDashboard() {
     };
 
     return (
-        <div className="flex h-screen overflow-hidden bg-muted/30">
+        <div className="app-gradient-bg flex h-screen overflow-hidden">
 
-            <aside className={`bg-card border-r border-t-4 border-border border-t-uniyellow flex flex-col transition-all duration-300 ease-in-out shrink-0 z-10 ${isSidebarOpen ? 'w-64' : 'w-20'}`}>
+            <aside className={`bg-card/95 border-r border-t-4 border-border border-t-uniyellow flex flex-col transition-all duration-300 ease-in-out shrink-0 z-10 backdrop-blur ${isSidebarOpen ? 'w-64' : 'w-20'}`}>
                 <div className="h-16 flex items-center justify-center border-b border-border shrink-0">
 
                     <img
@@ -131,7 +132,7 @@ export default function MarketDashboard() {
             </aside>
 
             <div className="flex-1 flex flex-col min-w-0">
-                <header className="h-16 bg-card border-b border-border flex items-center justify-between px-4 sm:px-6 shrink-0">
+                <header className="h-16 bg-card/95 border-b border-border flex items-center justify-between px-4 sm:px-6 shrink-0 backdrop-blur">
                     <div className="flex items-center gap-4">
                         <Button variant="ghost" size="icon" onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="cursor-pointer text-muted-foreground hover:text-foreground">
                             <Menu className="w-5 h-5" />
@@ -181,7 +182,7 @@ export default function MarketDashboard() {
                     </div>
                 </header>
 
-                <main className="flex-1 overflow-y-auto bg-background p-4 sm:p-6 lg:p-8">
+                <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
                     <div className="max-w-7xl mx-auto space-y-6">
                         {renderContent()}
                     </div>
