@@ -4,9 +4,12 @@ import { toast } from 'sonner'
 import { registerUser } from '@/services/user'
 import { registerMarket } from '@/services/supermarket'
 import type { RegisterFormData } from '@/pages/-components/schemas'
+import { getApiStatus } from '@/lib/api-error'
 
-function handleRegisterError(error: any) {
-    if (error.response?.status === 409 || error.response?.status === 400) {
+function handleRegisterError(error: unknown) {
+    const status = getApiStatus(error)
+
+    if (status === 409 || status === 400) {
         toast.error('Este e-mail ou CNPJ já está cadastrado.')
     } else {
         toast.error('Erro ao realizar o cadastro. Tente novamente.')

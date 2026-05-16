@@ -10,6 +10,7 @@ import {
     Label,
 } from '@/components/ui'
 import { useAuth } from '@/hooks/use-auth'
+import { getApiErrorMessage } from '@/lib/api-error'
 import { requestPasswordRecovery, resetPassword } from '@/services/auth'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Link, useNavigate } from '@tanstack/react-router'
@@ -94,9 +95,8 @@ export function SignInForm() {
             await requestPasswordRecovery(recoveryEmail)
             setCodeSent(true)
             toast.success('Se o e-mail estiver cadastrado, o código foi enviado')
-        } catch (error: any) {
-            const message = error.response?.data?.message ?? 'Não foi possível solicitar a recuperação'
-            toast.error(message)
+        } catch (error: unknown) {
+            toast.error(getApiErrorMessage(error, 'Não foi possível solicitar a recuperação'))
         } finally {
             setIsRecovering(false)
         }
@@ -122,13 +122,8 @@ export function SignInForm() {
             })
             toast.success('Senha redefinida com sucesso')
             setRecoveryOpen(false)
-        } catch (error: any) {
-            const responseData = error.response?.data
-            const message =
-                typeof responseData === 'string'
-                    ? responseData
-                    : responseData?.message ?? 'Código inválido ou expirado'
-            toast.error(message)
+        } catch (error: unknown) {
+            toast.error(getApiErrorMessage(error, 'Código inválido ou expirado'))
         } finally {
             setIsResetting(false)
         }

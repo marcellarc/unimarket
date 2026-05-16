@@ -1,64 +1,87 @@
 package com.unimarket.backend.service;
 
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpMethod;
-import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.HttpClientErrorException;
-import org.springframework.web.client.RestTemplate;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.unimarket.backend.dto.CosmosLookupResponseDTO;
 import com.unimarket.backend.dto.CosmosProductDTO;
 
-// classe responsável por consultar a API Cosmos pelo código de barras
 @Service
 public class CosmosService {
 
     @Autowired
-    private RestTemplate restTemplate;
+    private ObjectMapper objectMapper;
 
-    // URL base da API Cosmos — vem do application.properties
+    private final HttpClient httpClient = HttpClient.newHttpClient();
+
     @Value("${cosmos.api.url}")
     private String cosmosUrl;
 
-    // token de autenticação — vem do application.properties
     @Value("${cosmos.api.token}")
     private String cosmosToken;
 
-    // user agent exigido pela API Cosmos — vem do application.properties
     @Value("${cosmos.api.user-agent}")
     private String cosmosUserAgent;
 
-    // consulta a API Cosmos pelo código de barras e retorna os dados do produto
     public CosmosProductDTO findByBarCode(String barCode) {
-
-        // monta os headers com o token e user agent exigidos pela Cosmos
-        HttpHeaders headers = new HttpHeaders();
-        headers.set("X-Cosmos-Token", cosmosToken);
-        headers.set("User-Agent", cosmosUserAgent);
-
-        HttpEntity<Void> entity = new HttpEntity<>(headers);
-
-        try {
-            // faz a requisição GET para a API Cosmos
-            ResponseEntity<CosmosProductDTO> response = restTemplate.exchange(
-                    cosmosUrl + "/gtins/" + barCode + ".json",
-                    HttpMethod.GET,
-                    entity,
-                    CosmosProductDTO.class
-            );
-
-            // retorna os dados do produto encontrado
-            return response.getBody();
-
-        } catch (HttpClientErrorException.NotFound e) {
-            // produto não encontrado na Cosmos — retorna null para tratamento no service
-            return null;
-        } catch (Exception e) {
-            // Cosmos indisponível — retorna null para fallback no service
+        if (!hasText(barCode)) {
             return null;
         }
+
+        try {
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(cosmosUrl + "/gtins/" + barCode + ".json"))
+                    .header("X-Cosmos-Token", cosmosToken)
+                    .header("User-Agent", cosmosUserAgent)
+                    .GET()
+                    .build();
+
+            HttpResponse<byte[]> response = httpClient.send(request, HttpResponse.BodyHandlers.ofByteArray());
+
+            if (response.statusCode() == 404 || response.statusCode() >= 400) {
+                return null;
+            }
+
+            byte[] body = response.body();
+            if (body == null || body.length == 0) {
+                return null;
+            }
+
+            return objectMapper.readValue(new String(body, StandardCharsets.UTF_8), CosmosProductDTO.class);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    public CosmosLookupResponseDTO lookupByBarCode(String barCode) {
+        CosmosProductDTO product = findByBarCode(barCode);
+
+        if (product == null) {
+            return null;
+        }
+
+        CosmosLookupResponseDTO response = new CosmosLookupResponseDTO();
+        response.setProductName(product.getDescription());
+        response.setBrand(product.getBrand() != null ? product.getBrand().getName() : null);
+        response.setDescription(product.getDescription());
+        response.setImageUrl(product.getThumbnail());
+        response.setBarCode(product.getGtin() != null ? product.getGtin() : barCode);
+        response.setAveragePrice(product.getAvgPrice());
+        response.setCategoryName(product.getGpc() != null ? product.getGpc().getDescription() : null);
+        response.setSource("catalogo");
+
+        return response;
+    }
+
+    private boolean hasText(String value) {
+        return value != null && !value.isBlank();
     }
 }

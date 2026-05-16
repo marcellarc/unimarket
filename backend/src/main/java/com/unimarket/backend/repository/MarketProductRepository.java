@@ -4,6 +4,8 @@ import java.util.List;
 import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import com.unimarket.backend.entity.MarketProduct;
 
@@ -18,4 +20,19 @@ public interface MarketProductRepository extends JpaRepository<MarketProduct, Lo
 
     // verifica se já existe o vínculo entre um mercado e um produto — usado para evitar duplicata
     Optional<MarketProduct> findByMarketIdAndProductId(Long marketId, Long productId);
+
+    @Query(
+            value = """
+                    SELECT *
+                    FROM market_products
+                    WHERE market_id = :marketId
+                      AND product_id = :productId
+                    LIMIT 1
+                    """,
+            nativeQuery = true
+    )
+    Optional<MarketProduct> findAnyByMarketIdAndProductId(
+            @Param("marketId") Long marketId,
+            @Param("productId") Long productId
+    );
 }

@@ -1,5 +1,7 @@
 package com.unimarket.backend.dto;
 
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
 import lombok.Setter;
@@ -29,4 +31,12 @@ public class ProductRequestDTO {
 
     // código de barras — usado para evitar duplicatas no cadastro (opcional)
     private String barCode;
+
+    @NotNull(message = "Preço é obrigatório")
+    @DecimalMin(value = "0.01", message = "Preço deve ser maior que zero")
+    private Double price;
+
+    @NotNull(message = "Estoque é obrigatório")
+    @Min(value = 0, message = "Estoque não pode ser negativo")
+    private Integer stockQuantity;
 }

@@ -6,6 +6,7 @@ import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.unimarket.backend.dto.CosmosProductDTO;
 import com.unimarket.backend.dto.MarketProductRequestDTO;
@@ -45,14 +46,18 @@ public class MarketProductService {
     private CosmosService cosmosService;
 
     // Cadastra produto e cria o vínculo com o mercado
+    @Transactional
     public ProductResponseDTO createProduct(ProductRequestDTO dto, Long marketId) {
+        String normalizedBarCode = normalizeBarCode(dto.getBarCode());
 
         // verifica se o mercado existe
         Market market = marketRepository.findById(marketId)
                 .orElseThrow(() -> new RuntimeException("Mercado não encontrado"));
 
         // verifica se o produto já existe pelo código de barras
-        Optional<Product> existingProduct = productRepository.findByBarCode(dto.getBarCode());
+        Optional<Product> existingProduct = hasText(normalizedBarCode)
+                ? productRepository.findByBarCode(normalizedBarCode)
+                : Optional.empty();
 
         Product product;
 
@@ -60,22 +65,15 @@ public class MarketProductService {
             // produto já existe no catálogo — usa o existente
             product = existingProduct.get();
 
-            // verifica se o vínculo entre este mercado e produto já existe
-            boolean vinculoExiste = marketProductRepository
-                    .findByMarketIdAndProductId(marketId, product.getId())
-                    .isPresent();
-
-            if (vinculoExiste) {
-                throw new RuntimeException("Este mercado já possui este produto");
-            }
-
         } else {
             // consulta a API Cosmos pelo código de barras
-            CosmosProductDTO cosmosProduct = cosmosService.findByBarCode(dto.getBarCode());
+            CosmosProductDTO cosmosProduct = hasText(normalizedBarCode)
+                    ? cosmosService.findByBarCode(normalizedBarCode)
+                    : null;
 
             // monta a entidade produto
             product = new Product();
-            product.setBarCode(dto.getBarCode());
+            product.setBarCode(normalizedBarCode);
 
             if (cosmosProduct != null) {
                 // produto encontrado na Cosmos — preenche automaticamente com os dados da Cosmos
@@ -86,10 +84,10 @@ public class MarketProductService {
             } else {
                 // produto não encontrado na Cosmos — valida se os dados manuais foram enviados
                 if (dto.getProductName() == null || dto.getProductName().isBlank()) {
-                    throw new RuntimeException("Produto não encontrado na base Cosmos. Preencha o nome do produto manualmente.");
+                    throw new RuntimeException("Produto não encontrado. Preencha o nome do produto manualmente.");
                 }
                 if (dto.getBrand() == null || dto.getBrand().isBlank()) {
-                    throw new RuntimeException("Produto não encontrado na base Cosmos. Preencha a marca do produto manualmente.");
+                    throw new RuntimeException("Produto não encontrado. Preencha a marca do produto manualmente.");
                 }
 
                 // usa os dados enviados manualmente pelo mercado
@@ -108,10 +106,29 @@ public class MarketProductService {
             product = productRepository.save(product);
         }
 
-        // cria o vínculo entre mercado e produto (sem preço e estoque por enquanto)
+        Optional<MarketProduct> existingVinculo = marketProductRepository
+                .findAnyByMarketIdAndProductId(marketId, product.getId());
+
+        if (existingVinculo.isPresent()) {
+            MarketProduct vinculo = existingVinculo.get();
+
+            if (vinculo.getDeletedAt() == null) {
+                throw new RuntimeException("Este mercado já possui este produto");
+            }
+
+            vinculo.setDeletedAt(null);
+            vinculo.setPrice(dto.getPrice());
+            vinculo.setStockQuantity(dto.getStockQuantity());
+            marketProductRepository.save(vinculo);
+            return toResponse(product);
+        }
+
+        // cria o vínculo entre mercado e produto com os dados iniciais de venda
         MarketProduct vinculo = new MarketProduct();
         vinculo.setProduct(product);
         vinculo.setMarket(market);
+        vinculo.setPrice(dto.getPrice());
+        vinculo.setStockQuantity(dto.getStockQuantity());
         marketProductRepository.save(vinculo);
 
         // retorna os dados do produto cadastrado
@@ -208,6 +225,12 @@ public class MarketProductService {
         response.setMarketName(vinculo.getMarket().getName()); // nome do mercado
         response.setProductName(vinculo.getProduct().getName()); // nome do produto
         response.setBrand(vinculo.getProduct().getBrand());   // marca do produto
+        response.setBarCode(vinculo.getProduct().getBarCode());
+        response.setDescription(vinculo.getProduct().getDescription());
+        response.setImageUrl(vinculo.getProduct().getImageUrl());
+        if (vinculo.getProduct().getCategory() != null) {
+            response.setCategoryName(vinculo.getProduct().getCategory().getName());
+        }
         response.setPrice(vinculo.getPrice());
         response.setStockQuantity(vinculo.getStockQuantity());
         response.setUpdatedAt(vinculo.getUpdatedAt());
@@ -224,5 +247,18 @@ public class MarketProductService {
 
         // @SQLDelete intercepta e executa UPDATE deleted_at em vez de DELETE
         marketProductRepository.delete(vinculo);
+    }
+
+    private String normalizeBarCode(String barCode) {
+        if (barCode == null) {
+            return null;
+        }
+
+        String normalized = barCode.replaceAll("\\D", "");
+        return normalized.isBlank() ? null : normalized;
+    }
+
+    private boolean hasText(String value) {
+        return value != null && !value.isBlank();
     }
 }
