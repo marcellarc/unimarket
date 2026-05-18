@@ -242,15 +242,6 @@ function FaqPanel() {
     )
 }
 
-function MetricCard({ value, label }: { value: string; label: string }) {
-    return (
-        <div className="rounded-lg border border-border bg-card/90 p-5 shadow-sm backdrop-blur">
-            <p className="text-2xl font-semibold text-foreground">{value}</p>
-            <p className="mt-2 text-sm font-medium text-muted-foreground">{label}</p>
-        </div>
-    )
-}
-
 function CardHeading({
     icon,
     title,
