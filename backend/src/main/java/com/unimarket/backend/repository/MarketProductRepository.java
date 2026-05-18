@@ -1,24 +1,24 @@
 package com.unimarket.backend.repository;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import com.unimarket.backend.entity.MarketProduct;
 
-// Interface responsável por acessar o banco de dados da entidade MercadoProduto
 public interface MarketProductRepository extends JpaRepository<MarketProduct, Long> {
 
-    // busca todos os vínculos de um mercado específico
     List<MarketProduct> findByMarketId(Long id);
 
-    // busca todos os mercados que vendem um produto específico
     List<MarketProduct> findByProductId(Long id);
 
-    // verifica se já existe o vínculo entre um mercado e um produto — usado para evitar duplicata
     Optional<MarketProduct> findByMarketIdAndProductId(Long marketId, Long productId);
 
     @Query(
@@ -35,4 +35,25 @@ public interface MarketProductRepository extends JpaRepository<MarketProduct, Lo
             @Param("marketId") Long marketId,
             @Param("productId") Long productId
     );
+
+    @Override
+    @EntityGraph(attributePaths = {"market", "product"})
+    Page<MarketProduct> findAll(Pageable pageable);
+
+    // busca market_products pelo nome do produto
+    @EntityGraph(attributePaths = {"market", "product"})
+    Page<MarketProduct> findByProduct_NameContainingIgnoreCase(
+            String name,
+            Pageable pageable
+    );
+
+    // busca produtos por nome e faixa de preço
+    @EntityGraph(attributePaths = {"market", "product"})
+    Page<MarketProduct>
+            findByProduct_NameContainingIgnoreCaseAndPriceBetween(
+                    String name,
+                    BigDecimal minPrice,
+                    BigDecimal maxPrice,
+                    Pageable pageable
+            );
 }

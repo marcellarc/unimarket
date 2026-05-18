@@ -1,10 +1,14 @@
 package com.unimarket.backend.service;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -18,8 +22,8 @@ import com.unimarket.backend.entity.Market;
 import com.unimarket.backend.entity.MarketProduct;
 import com.unimarket.backend.entity.Product;
 import com.unimarket.backend.repository.CategoryRepository;
-import com.unimarket.backend.repository.MarketRepository;
 import com.unimarket.backend.repository.MarketProductRepository;
+import com.unimarket.backend.repository.MarketRepository;
 import com.unimarket.backend.repository.ProductRepository;
 
 // Classe responsável pelas regras de negócio do vínculo entre Mercado e Produto
@@ -48,6 +52,7 @@ public class MarketProductService {
     // Cadastra produto e cria o vínculo com o mercado
     @Transactional
     public ProductResponseDTO createProduct(ProductRequestDTO dto, Long marketId) {
+
         String normalizedBarCode = normalizeBarCode(dto.getBarCode());
 
         // verifica se o mercado existe
@@ -62,10 +67,12 @@ public class MarketProductService {
         Product product;
 
         if (existingProduct.isPresent()) {
+
             // produto já existe no catálogo — usa o existente
             product = existingProduct.get();
 
         } else {
+
             // consulta a API Cosmos pelo código de barras
             CosmosProductDTO cosmosProduct = hasText(normalizedBarCode)
                     ? cosmosService.findByBarCode(normalizedBarCode)
@@ -76,40 +83,57 @@ public class MarketProductService {
             product.setBarCode(normalizedBarCode);
 
             if (cosmosProduct != null) {
-                // produto encontrado na Cosmos — preenche automaticamente com os dados da Cosmos
+
+                // produto encontrado na Cosmos — preenche automaticamente
                 product.setName(cosmosProduct.getDescription());
-                product.setBrand(cosmosProduct.getBrand() != null ? cosmosProduct.getBrand().getName() : dto.getBrand());
+                product.setBrand(
+                        cosmosProduct.getBrand() != null
+                        ? cosmosProduct.getBrand().getName()
+                        : dto.getBrand()
+                );
                 product.setImageUrl(cosmosProduct.getThumbnail());
                 product.setDescription(cosmosProduct.getDescription());
+
             } else {
-                // produto não encontrado na Cosmos — valida se os dados manuais foram enviados
+
+                // produto não encontrado na Cosmos — valida preenchimento manual
                 if (dto.getProductName() == null || dto.getProductName().isBlank()) {
-                    throw new RuntimeException("Produto não encontrado. Preencha o nome do produto manualmente.");
-                }
-                if (dto.getBrand() == null || dto.getBrand().isBlank()) {
-                    throw new RuntimeException("Produto não encontrado. Preencha a marca do produto manualmente.");
+                    throw new RuntimeException(
+                            "Produto não encontrado. Preencha o nome do produto manualmente."
+                    );
                 }
 
-                // usa os dados enviados manualmente pelo mercado
+                if (dto.getBrand() == null || dto.getBrand().isBlank()) {
+                    throw new RuntimeException(
+                            "Produto não encontrado. Preencha a marca do produto manualmente."
+                    );
+                }
+
+                // usa os dados enviados manualmente
                 product.setName(dto.getProductName());
                 product.setBrand(dto.getBrand());
                 product.setDescription(dto.getDescription());
                 product.setImageUrl(dto.getImageUrl());
             }
 
-            // busca a categoria no banco pelo ID informado
+            // busca a categoria
             Category category = categoryRepository.findById(dto.getCategoryId())
                     .orElseThrow(() -> new RuntimeException("Categoria não encontrada"));
+
             product.setCategory(category);
 
             // salva o produto no catálogo global
             product = productRepository.save(product);
         }
 
-        Optional<MarketProduct> existingVinculo = marketProductRepository
-                .findAnyByMarketIdAndProductId(marketId, product.getId());
+        Optional<MarketProduct> existingVinculo
+                = marketProductRepository.findAnyByMarketIdAndProductId(
+                        marketId,
+                        product.getId()
+                );
 
         if (existingVinculo.isPresent()) {
+
             MarketProduct vinculo = existingVinculo.get();
 
             if (vinculo.getDeletedAt() == null) {
@@ -119,30 +143,31 @@ public class MarketProductService {
             vinculo.setDeletedAt(null);
             vinculo.setPrice(dto.getPrice());
             vinculo.setStockQuantity(dto.getStockQuantity());
+
             marketProductRepository.save(vinculo);
+
             return toResponse(product);
         }
 
-        // cria o vínculo entre mercado e produto com os dados iniciais de venda
+        // cria o vínculo entre mercado e produto
         MarketProduct vinculo = new MarketProduct();
+
         vinculo.setProduct(product);
         vinculo.setMarket(market);
         vinculo.setPrice(dto.getPrice());
         vinculo.setStockQuantity(dto.getStockQuantity());
+
         marketProductRepository.save(vinculo);
 
-        // retorna os dados do produto cadastrado
         return toResponse(product);
     }
 
     // Lista todos os produtos vinculados a um mercado específico
     public List<MarketProductResponseDTO> listProductByMarket(Long marketId) {
 
-        // verifica se o mercado existe
         marketRepository.findById(marketId)
                 .orElseThrow(() -> new RuntimeException("Mercado não encontrado"));
 
-        // busca todos os vínculos do mercado e mapeia para DTO
         return marketProductRepository.findByMarketId(marketId)
                 .stream()
                 .map(this::toMercadoProdutoResponse)
@@ -152,34 +177,130 @@ public class MarketProductService {
     // Busca produtos de um mercado pelo nome
     public List<MarketProductResponseDTO> findProducts(Long marketId, String name) {
 
-        // verifica se o mercado existe
         marketRepository.findById(marketId)
                 .orElseThrow(() -> new RuntimeException("Mercado não encontrado"));
 
-        // busca os vínculos do mercado e filtra pelo nome do produto
         return marketProductRepository.findByMarketId(marketId)
                 .stream()
-                .filter(vinculo -> vinculo.getProduct().getName()
-                        .toLowerCase().contains(name.toLowerCase())) // filtra ignorando maiúsculas/minúsculas
+                .filter(vinculo
+                        -> vinculo.getProduct()
+                        .getName()
+                        .toLowerCase()
+                        .contains(name.toLowerCase())
+                )
                 .map(this::toMercadoProdutoResponse)
                 .collect(Collectors.toList());
     }
 
-    // Busca um produto específico de um mercado pelo ID do produto
+    // Busca um produto específico de um mercado
     public MarketProductResponseDTO findProductById(Long marketId, Long productId) {
 
-        // verifica se o vínculo entre o mercado e o produto existe
         MarketProduct vinculo = marketProductRepository
                 .findByMarketIdAndProductId(marketId, productId)
-                .orElseThrow(() -> new RuntimeException("Produto não encontrado para este mercado"));
+                .orElseThrow(()
+                        -> new RuntimeException("Produto não encontrado para este mercado")
+                );
 
-        // retorna os dados do produto vinculado
         return toMercadoProdutoResponse(vinculo);
     }
 
-    // Converte entidade Product para ProductResponseDTO
+    // Atualiza preço e estoque
+    public MarketProductResponseDTO updateProductPriceAndStock(
+            Long marketId,
+            Long productId,
+            MarketProductRequestDTO dto
+    ) {
+
+        MarketProduct vinculo = marketProductRepository
+                .findByMarketIdAndProductId(marketId, productId)
+                .orElseThrow(()
+                        -> new RuntimeException(
+                        "Vínculo entre mercado e produto não encontrado"
+                )
+                );
+
+        vinculo.setPrice(dto.getPrice());
+        vinculo.setStockQuantity(dto.getStockQuantity());
+
+        MarketProduct atualizado = marketProductRepository.save(vinculo);
+
+        priceAlertService.evaluateMarketProduct(atualizado);
+
+        return toMercadoProdutoResponse(atualizado);
+    }
+
+    // Soft delete do vínculo
+    public void deleteMarketProduct(Long marketId, Long productId) {
+
+        MarketProduct vinculo = marketProductRepository
+                .findByMarketIdAndProductId(marketId, productId)
+                .orElseThrow(()
+                        -> new RuntimeException(
+                        "Vínculo entre mercado e produto não encontrado"
+                )
+                );
+
+        marketProductRepository.delete(vinculo);
+    }
+
+    // Lista todos os market_products paginados
+    public Page<MarketProductResponseDTO> listAllProducts(int page, int size) {
+
+        Pageable pageable = PageRequest.of(page, size);
+
+        Page<MarketProduct> marketProducts
+                = marketProductRepository.findAll(pageable);
+
+        return marketProducts.map(this::toMercadoProdutoResponse);
+    }
+
+    // busca produtos por nome com paginação
+    public Page<MarketProductResponseDTO> findProductsByName(
+            String name,
+            int page,
+            int size
+    ) {
+
+        Pageable pageable = PageRequest.of(page, size);
+
+        Page<MarketProduct> marketProducts
+                = marketProductRepository
+                        .findByProduct_NameContainingIgnoreCase(
+                                name,
+                                pageable
+                        );
+
+        return marketProducts.map(this::toMercadoProdutoResponse);
+    }
+
+    // busca produtos por nome e faixa de preço
+    public Page<MarketProductResponseDTO> findProductsByNameAndPriceRange(
+            String name,
+            BigDecimal minPrice,
+            BigDecimal maxPrice,
+            int page,
+            int size
+    ) {
+
+        Pageable pageable = PageRequest.of(page, size);
+
+        Page<MarketProduct> marketProducts
+                = marketProductRepository
+                        .findByProduct_NameContainingIgnoreCaseAndPriceBetween(
+                                name,
+                                minPrice,
+                                maxPrice,
+                                pageable
+                        );
+
+        return marketProducts.map(this::toMercadoProdutoResponse);
+    }
+
+    // Converte Product para ProductResponseDTO
     private ProductResponseDTO toResponse(Product product) {
+
         ProductResponseDTO response = new ProductResponseDTO();
+
         response.setProductId(product.getId());
         response.setProductName(product.getName());
         response.setBrand(product.getBrand());
@@ -188,7 +309,6 @@ public class MarketProductService {
         response.setBarCode(product.getBarCode());
         response.setCreatedAt(product.getCreatedAt().toLocalDate());
 
-        // pega o nome da categoria se existir
         if (product.getCategory() != null) {
             response.setCategoryName(product.getCategory().getName());
         }
@@ -196,65 +316,48 @@ public class MarketProductService {
         return response;
     }
 
-    // Atualiza preço e estoque de um produto vinculado a um mercado
-    public MarketProductResponseDTO updateProductPriceAndStock(Long marketId, Long productId, MarketProductRequestDTO dto) {
+    // Converte MarketProduct para DTO
+    private MarketProductResponseDTO toMercadoProdutoResponse(
+            MarketProduct vinculo
+    ) {
 
-        // busca o vínculo entre o mercado e o produto
-        MarketProduct vinculo = marketProductRepository
-                .findByMarketIdAndProductId(marketId, productId)
-                .orElseThrow(() -> new RuntimeException("Vínculo entre mercado e produto não encontrado"));
+        MarketProductResponseDTO response
+                = new MarketProductResponseDTO();
 
-        // atualiza os valores recebidos no DTO
-        vinculo.setPrice(dto.getPrice());
-        vinculo.setStockQuantity(dto.getStockQuantity());
-
-        // salva o vínculo atualizado no banco
-        MarketProduct atualizado = marketProductRepository.save(vinculo);
-        priceAlertService.evaluateMarketProduct(atualizado);
-
-        // converte e retorna o response
-        return toMercadoProdutoResponse(atualizado);
-    }
-
-    // Converte entidade MarketProduct para MarketProductResponseDTO
-    private MarketProductResponseDTO toMercadoProdutoResponse(MarketProduct vinculo) {
-        MarketProductResponseDTO response = new MarketProductResponseDTO();
         response.setId(vinculo.getId());
+
         response.setProductId(vinculo.getProduct().getId());
         response.setMarketId(vinculo.getMarket().getId());
-        response.setMarketName(vinculo.getMarket().getName()); // nome do mercado
-        response.setProductName(vinculo.getProduct().getName()); // nome do produto
-        response.setBrand(vinculo.getProduct().getBrand());   // marca do produto
+
+        response.setMarketName(vinculo.getMarket().getName());
+
+        response.setProductName(vinculo.getProduct().getName());
+        response.setBrand(vinculo.getProduct().getBrand());
         response.setBarCode(vinculo.getProduct().getBarCode());
         response.setDescription(vinculo.getProduct().getDescription());
         response.setImageUrl(vinculo.getProduct().getImageUrl());
+
         if (vinculo.getProduct().getCategory() != null) {
-            response.setCategoryName(vinculo.getProduct().getCategory().getName());
+            response.setCategoryName(
+                    vinculo.getProduct().getCategory().getName()
+            );
         }
+
         response.setPrice(vinculo.getPrice());
         response.setStockQuantity(vinculo.getStockQuantity());
         response.setUpdatedAt(vinculo.getUpdatedAt());
+
         return response;
     }
 
-    // realiza o soft delete do vínculo entre mercado e produto
-    public void deleteMarketProduct(Long marketId, Long productId) {
-
-        // verifica se o vínculo existe
-        MarketProduct vinculo = marketProductRepository
-                .findByMarketIdAndProductId(marketId, productId)
-                .orElseThrow(() -> new RuntimeException("Vínculo entre mercado e produto não encontrado"));
-
-        // @SQLDelete intercepta e executa UPDATE deleted_at em vez de DELETE
-        marketProductRepository.delete(vinculo);
-    }
-
     private String normalizeBarCode(String barCode) {
+
         if (barCode == null) {
             return null;
         }
 
         String normalized = barCode.replaceAll("\\D", "");
+
         return normalized.isBlank() ? null : normalized;
     }
 
