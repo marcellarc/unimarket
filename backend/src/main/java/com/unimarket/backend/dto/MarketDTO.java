@@ -2,15 +2,13 @@ package com.unimarket.backend.dto;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
+import lombok.Getter;
+import lombok.Setter;
 
-/**
- * DTO (Data Transfer Object) responsável por transportar os dados
- * de cadastro de supermercado entre o front-end (React) e o back-end.
- *
- * 🔹 Função principal:
- * - Receber os dados enviados pelo cliente (JSON da requisição HTTP)
- * - Garantir que esses dados estejam válidos antes de chegar na camada de serviço
- */
+@Getter
+@Setter
 public class MarketDTO {
 
     @NotBlank(message = "O nome do supermercado é obrigatório")
@@ -23,110 +21,20 @@ public class MarketDTO {
     @NotBlank(message = "O email é obrigatório")
     private String email;
 
+    // senha com mínimo 8 caracteres, letras maiúsculas, minúsculas, número e caractere especial
     @NotBlank(message = "A senha é obrigatória")
+    @Size(min = 8, message = "A senha deve ter no mínimo 8 caracteres")
+    @Pattern(
+            regexp = "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[^a-zA-Z\\d])[A-Za-z\\d\\W]+$",
+            message = "A senha deve conter letras maiúsculas, minúsculas, número e caractere especial"
+    )
     private String password;
 
     private String streetAddress;
-    
     private String neighborhood;
-
     private String city;
-
     private String state;
-
     private String zipCode;
-
     private Double latitude;
-
     private Double longitude;
-
-    // GETTERS E SETTERS
-
-    public String getName() {
-        return name;
-    }
-
-    public void setName(String name) {
-        this.name = name;
-    }
-
-    public String getCnpj() {
-        return cnpj;
-    }
-
-    public void setCnpj(String cnpj) {
-        this.cnpj = cnpj;
-    }
-
-    public String getEmail() {
-        return email;
-    }
-
-    public void setEmail(String email) {
-        this.email = email;
-    }
-
-    public String getPassword() {
-        return password;
-    }
-
-    public void setPassword(String password) {
-        this.password = password;
-    }
-
-    public String getStreetAddress() {
-        return streetAddress;
-    }
-
-    public void setStreetAddress(String streetAddress) {
-        this.streetAddress = streetAddress;
-    }
-
-    public String getNeighborhood() {
-        return neighborhood;
-    }
-
-    public void setNeighborhood(String neighborhood) {
-        this.neighborhood = neighborhood;
-    }
-
-    public String getCity() {
-        return city;
-    }
-
-    public void setCity(String city) {
-        this.city = city;
-    }
-
-    public String getState() {
-        return state;
-    }
-
-    public void setState(String state) {
-        this.state = state;
-    }
-
-    public String getZipCode() {
-        return zipCode;
-    }
-
-    public void setZipCode(String zipCode) {
-        this.zipCode = zipCode;
-    }
-
-    public Double getLatitude() {
-        return latitude;
-    }
-
-    public void setLatitude(Double latitude) {
-        this.latitude = latitude;
-    }
-
-    public Double getLongitude() {
-        return longitude;
-    }
-
-    public void setLongitude(Double longitude) {
-        this.longitude = longitude;
-    }
 }
