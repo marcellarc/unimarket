@@ -7,6 +7,8 @@ import type {
     MarketProductCreateRequest,
     CosmosProductLookup,
     CategoryResponse,
+    PageResponse,
+    ProductCatalogParams,
 } from '@/types/product'
 
 export async function createProduct(marketId: number, data: MarketProductCreateRequest): Promise<ProductResponse> {
@@ -31,6 +33,16 @@ export async function listProducts(marketId: number) {
     return response.data
 }
 
+export async function listAllMarketProducts(params: ProductCatalogParams = {}) {
+    const response = await api.get<PageResponse<MarketProductResponse>>('/products/', {
+        params: {
+            page: params.page ?? 0,
+            size: params.size ?? 120,
+        },
+    })
+    return response.data
+}
+
 export async function searchProductsByMarketId(marketId: number, params: ProductSearchParams) {
     const response = await api.get<MarketProductResponse[]>(`/markets/${marketId}/products/search`, {
         params,
@@ -39,8 +51,12 @@ export async function searchProductsByMarketId(marketId: number, params: Product
 }
 
 export async function searchGeneralProducts(params: ProductSearchParams) {
-    const response = await api.get<ProductResponse[]>('/products/search', {
-        params,
+    const response = await api.get<PageResponse<MarketProductResponse>>('/products/search', {
+        params: {
+            page: params.page ?? 0,
+            size: params.size ?? 120,
+            name: params.name,
+        },
     })
     return response.data
 }

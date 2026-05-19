@@ -3,7 +3,7 @@ import { useRegister } from '@/hooks/use-register'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Link, useNavigate } from '@tanstack/react-router'
 import Cookies from 'js-cookie'
-import { Building2, Eye, EyeOff, FileText, Loader2, Store, User, UserCircle } from 'lucide-react'
+import { Building2, CheckCircle2, Eye, EyeOff, FileText, Loader2, Store, User, UserCircle } from 'lucide-react'
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
@@ -31,6 +31,14 @@ export function SignUpForm() {
     })
 
     const role = watch('role')
+    const password = watch('password') ?? ''
+    const passwordRules = [
+        { label: '8 caracteres', valid: password.length >= 8 },
+        { label: 'Maiúscula', valid: /[A-Z]/.test(password) },
+        { label: 'Minúscula', valid: /[a-z]/.test(password) },
+        { label: 'Número', valid: /\d/.test(password) },
+        { label: 'Símbolo', valid: /[^A-Za-z0-9]/.test(password) },
+    ]
 
     function onSubmit(data: RegisterFormData) {
         submit(data)
@@ -235,9 +243,20 @@ export function SignUpForm() {
                             {errors.password.message as string}
                         </p>
                     )}
-                    <p className="text-xs text-muted-foreground">
-                        Mín. 8 caracteres com maiúsculas, minúsculas, números e símbolos
-                    </p>
+                    <div className="grid grid-cols-2 gap-1.5 pt-1 sm:grid-cols-3">
+                        {passwordRules.map(rule => (
+                            <span
+                                key={rule.label}
+                                className={`inline-flex items-center gap-1 rounded-full border px-2 py-1 text-[11px] font-medium ${rule.valid
+                                    ? 'border-primary/20 bg-primary/10 text-primary'
+                                    : 'border-border bg-white/70 text-muted-foreground dark:bg-white/10'
+                                    }`}
+                            >
+                                <CheckCircle2 className="h-3 w-3" />
+                                {rule.label}
+                            </span>
+                        ))}
+                    </div>
                 </div>
 
                 <div className="space-y-1">
