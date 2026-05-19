@@ -1,5 +1,13 @@
 import { z } from 'zod';
 
+const passwordRule = z.string()
+    .min(8, 'A senha deve ter no mínimo 8 caracteres')
+    .max(100, 'A senha deve ter no máximo 100 caracteres')
+    .regex(/[A-Z]/, 'A senha deve conter pelo menos uma letra maiúscula')
+    .regex(/[a-z]/, 'A senha deve conter pelo menos uma letra minúscula')
+    .regex(/\d/, 'A senha deve conter pelo menos um número')
+    .regex(/[^A-Za-z0-9]/, 'A senha deve conter pelo menos um caractere especial')
+
 export const loginSchema = z.object({
     role: z.enum(['USER', 'MARKET'], {
         message: 'Selecione um tipo de conta',
@@ -12,7 +20,7 @@ export const loginSchema = z.object({
 export const registerSchema = z.object({
     role: z.enum(['USER', 'MARKET']),
     email: z.string().min(1, 'Email é obrigatório').email('Email inválido').toLowerCase(),
-    password: z.string(),
+    password: passwordRule,
     confirmPassword: z.string().min(1, 'Confirmação é obrigatória'),
 
     // Todos os campos são opcionais na base (O TypeScript agradece)

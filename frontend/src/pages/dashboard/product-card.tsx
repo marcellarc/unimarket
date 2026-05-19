@@ -3,17 +3,22 @@ import { Badge, Button, Card } from '@/components/ui'
 import { Bell, ChevronDown, ChevronUp, ImageIcon, MapPin, Plus, Store } from 'lucide-react'
 
 export interface TransformedMarket {
+    id: number
+    marketId: number
     name: string
     price: number
     distance: string
+    distanceKm?: number | null
 }
 
 export interface TransformedProduct {
     id: number
+    productId: number
     name: string
     imageUrl?: string | null
     category: string
     lowestPrice: number
+    highestPrice: number
     averagePrice: number
     savings: number
     badge: string | null
@@ -99,8 +104,9 @@ export const ProductCard = memo(function ProductCard({
                 </div>
 
                 {product.markets[0] && (
-                    <div className="rounded-md bg-muted/60 px-3 py-2 text-xs text-muted-foreground">
-                        Mais próximo/menor preço: <span className="font-medium text-foreground">{product.markets[0].name}</span>
+                    <div className="flex min-w-0 gap-1 rounded-md bg-muted/60 px-3 py-2 text-xs text-muted-foreground">
+                        <span className="shrink-0">Melhor opção exibida:</span>
+                        <span className="truncate font-medium text-foreground">{product.markets[0].name}</span>
                     </div>
                 )}
 
@@ -176,18 +182,20 @@ const MarketRow = memo(function MarketRow({
     isCheapest: boolean
 }) {
     return (
-        <div className={`flex items-center justify-between gap-3 rounded-md border p-3 ${isCheapest ? 'border-primary/25 bg-primary/5' : 'border-border bg-card/70'}`}>
-            <div className="min-w-0">
+        <div className={`grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-md border p-3 ${isCheapest ? 'border-primary/25 bg-primary/5' : 'border-border bg-card/70'}`}>
+            <div className="min-w-0 overflow-hidden">
                 <div className="flex items-center gap-2">
-                    <Store className="h-3.5 w-3.5 text-muted-foreground" />
-                    <p className="truncate text-sm font-medium text-foreground">{market.name}</p>
+                    <Store className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                    <p className="min-w-0 flex-1 truncate text-sm font-medium text-foreground" title={market.name}>
+                        {market.name}
+                    </p>
                 </div>
                 <div className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
-                    <MapPin className="h-3 w-3" />
-                    {market.distance}
+                    <MapPin className="h-3 w-3 shrink-0" />
+                    <span className="truncate">{market.distance}</span>
                 </div>
             </div>
-            <p className={`text-sm font-semibold tabular-nums ${isCheapest ? 'text-primary' : 'text-foreground'}`}>
+            <p className={`shrink-0 whitespace-nowrap text-right text-sm font-semibold tabular-nums ${isCheapest ? 'text-primary' : 'text-foreground'}`}>
                 R$ {market.price.toFixed(2)}
             </p>
         </div>
