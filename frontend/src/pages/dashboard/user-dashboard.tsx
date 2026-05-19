@@ -5,9 +5,11 @@ import {
     DropdownMenu, DropdownMenuContent, DropdownMenuItem,
     DropdownMenuSeparator, DropdownMenuTrigger,
     Input,
+    Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
     Skeleton,
 } from '@/components/ui'
 import { useLogout } from '@/hooks/use-logout'
+import { getApiErrorMessage } from '@/lib/api-error'
 import {
     createPriceAlert,
     listNotifications,
@@ -15,23 +17,33 @@ import {
     markNotificationsAsRead,
 } from '@/services/notification'
 import type { PriceNotificationResponse } from '@/types/notification'
-import { listProducts } from '@/services/product'
+import { listAllMarketProducts, searchGeneralProducts } from '@/services/product'
+import {
+    addShoppingListItem,
+    createShoppingList,
+    deleteShoppingList,
+    deleteShoppingListItem,
+    listShoppingListItems,
+    listShoppingLists,
+} from '@/services/shopping-list'
 import { listNearbyMarkets } from '@/services/supermarket'
 import { getCurrentUserProfile } from '@/services/user'
 import type { MarketProductResponse } from '@/types/product'
+import type { ShoppingListItem } from '@/types/shopping-list'
 import type { MarketResponse } from '@/types/supermarket'
 import type { TransformedProduct } from './product-card'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import {
     Bell, ChevronDown,
     ChevronRight,
+    CircleDollarSign,
     Filter, List,
     LocateFixed,
     LogOut, MapPin, Package,
     Plus, Search, ShoppingCart,
     SlidersHorizontal, Store, Tag,
-    User, X, Zap
+    Trash2, User, X
 } from 'lucide-react'
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
@@ -48,21 +60,12 @@ const categories = [
     { id: 'cleaning', label: 'Limpeza' },
 ]
 
-const nearbyMarkets = [
-    { id: 1, name: 'Supermercado Econômico', distance: '0.5 km', products: 1240, open: true },
-    { id: 2, name: 'Mercado da Família', distance: '1.2 km', products: 980, open: true },
-    { id: 3, name: 'Super Compras', distance: '2.0 km', products: 1540, open: false },
-]
-
-const initialShoppingLists = [
-    { id: 1, name: 'Compras do Mês', items: 12, total: 289.50, savings: 45.20 },
-    { id: 2, name: 'Feira da Semana', items: 8, total: 85.90, savings: 12.30 },
-]
-
-type SortMode = 'price' | 'savings'
+type SortMode = 'lowest-price' | 'highest-price' | 'distance' | 'savings'
 
 const sortOptions: Array<{ id: SortMode; label: string }> = [
-    { id: 'price', label: 'Menor preço' },
+    { id: 'lowest-price', label: 'Menor preço' },
+    { id: 'highest-price', label: 'Maior preço' },
+    { id: 'distance', label: 'Proximidade' },
     { id: 'savings', label: 'Maior economia' },
 ]
 
@@ -110,6 +113,43 @@ function formatDistance(market?: MarketResponse | null) {
     return `${market.distanceKm.toFixed(1)} km`
 }
 
+function calculateDistanceKm(
+    originLatitude: number | null,
+    originLongitude: number | null,
+    destinationLatitude?: number | null,
+    destinationLongitude?: number | null,
+) {
+    if (
+        originLatitude == null ||
+        originLongitude == null ||
+        destinationLatitude == null ||
+        destinationLongitude == null
+    ) {
+        return null
+    }
+
+    const earthRadiusKm = 6371
+    const degreesToRadians = (value: number) => (value * Math.PI) / 180
+    const deltaLatitude = degreesToRadians(destinationLatitude - originLatitude)
+    const deltaLongitude = degreesToRadians(destinationLongitude - originLongitude)
+    const originLatRadians = degreesToRadians(originLatitude)
+    const destinationLatRadians = degreesToRadians(destinationLatitude)
+
+    const haversine =
+        Math.sin(deltaLatitude / 2) * Math.sin(deltaLatitude / 2) +
+        Math.cos(originLatRadians) *
+        Math.cos(destinationLatRadians) *
+        Math.sin(deltaLongitude / 2) *
+        Math.sin(deltaLongitude / 2)
+
+    const centralAngle = 2 * Math.atan2(Math.sqrt(haversine), Math.sqrt(1 - haversine))
+    return Math.round(earthRadiusKm * centralAngle * 10) / 10
+}
+
+function formatDistanceKm(distanceKm?: number | null) {
+    return distanceKm == null ? 'Distância indisponível' : `${distanceKm.toFixed(1)} km`
+}
+
 function formatMarketAddress(market: MarketResponse) {
     return [market.streetAddress, market.neighborhood, market.city, market.state]
         .filter(Boolean)
@@ -146,11 +186,13 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
     const [showFilters, setShowFilters] = useState(false)
     const [maxDistance, setMaxDistance] = useState(() => getStoredNumber('unimarket.profile.radius') ?? 5)
     const [maxPrice, setMaxPrice] = useState(100)
-    const [sortBy, setSortBy] = useState<SortMode>('price')
+    const [sortBy, setSortBy] = useState<SortMode>('lowest-price')
     const [showListPanel, setShowListPanel] = useState(false)
-    const [shoppingLists, setShoppingLists] = useState(initialShoppingLists)
     const [newListOpen, setNewListOpen] = useState(false)
     const [newListName, setNewListName] = useState('')
+    const [selectedShoppingListId, setSelectedShoppingListId] = useState<number | null>(null)
+    const [listProduct, setListProduct] = useState<TransformedProduct | null>(null)
+    const [listQuantity, setListQuantity] = useState(1)
     const [selectedMarketId, setSelectedMarketId] = useState(marketId)
     const [userLatitude, setUserLatitude] = useState<number | null>(() => getStoredNumber('unimarket.profile.latitude'))
     const [userLongitude, setUserLongitude] = useState<number | null>(() => getStoredNumber('unimarket.profile.longitude'))
@@ -179,44 +221,37 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
         queryFn: () => listNearbyMarkets(nearbyMarketParams),
     })
 
+    const distanceMarketParams = useMemo(() => ({
+        latitude: userLatitude ?? undefined,
+        longitude: userLongitude ?? undefined,
+        city: userCity,
+        state: userState,
+        radiusKm: userLatitude != null && userLongitude != null ? 5000 : maxDistance,
+    }), [maxDistance, userCity, userLatitude, userLongitude, userState])
+
+    const { data: distanceMarketResults = [] } = useQuery({
+        queryKey: ['marketDistanceIndex', distanceMarketParams],
+        queryFn: () => listNearbyMarkets(distanceMarketParams),
+    })
+
     const { data: userProfile } = useQuery({
         queryKey: ['userProfile'],
         queryFn: getCurrentUserProfile,
         enabled: isLogged && userRole === 'USER',
     })
 
+    const clientId = userProfile?.id
+    const canUseShoppingLists = isLogged && userRole === 'USER' && !!clientId
+
     const profileImageUrl = isGuest ? '' : userProfile?.profileImageUrl ?? getStoredString('unimarket.profile.imageUrl', '')
-
-    const selectedMarket = useMemo(
-        () => nearbyMarketResults.find(market => market.id === selectedMarketId) ?? nearbyMarketResults[0] ?? null,
-        [nearbyMarketResults, selectedMarketId],
-    )
-
-    const { data: apiProducts = [], isLoading, error } = useQuery({
-        queryKey: ['products', selectedMarketId],
-        queryFn: () => listProducts(selectedMarketId),
-        enabled: !!selectedMarketId,
-    })
 
     const deferredSearch = useDeferredValue(searchQuery)
 
-    const { data: nearbyMarketProducts = [], isLoading: isLoadingNearbyProducts } = useQuery({
-        queryKey: ['nearbyMarketProducts', nearbyMarketResults.map(market => market.id)],
-        queryFn: async () => {
-            const productGroups = await Promise.all(
-                nearbyMarketResults.map(async (market) => {
-                    try {
-                        const products = await listProducts(market.id)
-                        return products.map(product => ({ product, market }))
-                    } catch {
-                        return []
-                    }
-                }),
-            )
-
-            return productGroups.flat()
-        },
-        enabled: nearbyMarketResults.length > 0,
+    const { data: catalogPage, isLoading, error } = useQuery({
+        queryKey: ['globalMarketProducts', deferredSearch],
+        queryFn: () => deferredSearch.trim()
+            ? searchGeneralProducts({ name: deferredSearch.trim(), page: 0, size: 160 })
+            : listAllMarketProducts({ page: 0, size: 160 }),
     })
 
     const { data: priceAlerts = [] } = useQuery({
@@ -230,6 +265,20 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
         queryFn: listNotifications,
         enabled: canUseNotifications,
         refetchInterval: canUseNotifications ? 15000 : false,
+    })
+
+    const { data: shoppingLists = [], isLoading: isLoadingShoppingLists } = useQuery({
+        queryKey: ['shoppingLists', clientId],
+        queryFn: () => listShoppingLists(clientId!),
+        enabled: canUseShoppingLists,
+    })
+
+    const shoppingListItemQueries = useQueries({
+        queries: shoppingLists.map(list => ({
+            queryKey: ['shoppingListItems', list.id],
+            queryFn: () => listShoppingListItems(list.id),
+            enabled: canUseShoppingLists,
+        })),
     })
 
     const unreadCount = notifications.filter(notification => !notification.read).length
@@ -319,6 +368,18 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
         }
     }, [nearbyMarketResults, selectedMarketId])
 
+    useEffect(() => {
+        if (shoppingLists.length === 0) {
+            setSelectedShoppingListId(null)
+            return
+        }
+
+        const selectedListStillExists = shoppingLists.some(list => list.id === selectedShoppingListId)
+        if (!selectedListStillExists) {
+            setSelectedShoppingListId(shoppingLists[0].id)
+        }
+    }, [selectedShoppingListId, shoppingLists])
+
     const createAlertMutation = useMutation({
         mutationFn: () => {
             if (!alertProduct) {
@@ -368,10 +429,72 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
         onSettled: () => queryClient.invalidateQueries({ queryKey: ['notifications'] }),
     })
 
+    const createListMutation = useMutation({
+        mutationFn: () => createShoppingList(clientId!, { name: newListName.trim() }),
+        onSuccess: async (createdList) => {
+            setSelectedShoppingListId(createdList.id)
+            setNewListName('')
+            setNewListOpen(false)
+            setShowListPanel(true)
+            toast.success('Lista de compras criada.')
+            await queryClient.invalidateQueries({ queryKey: ['shoppingLists', clientId] })
+        },
+        onError: (listError: unknown) => {
+            toast.error(getApiErrorMessage(listError, 'Não foi possível criar a lista.'))
+        },
+    })
+
+    const addItemMutation = useMutation({
+        mutationFn: () => {
+            if (!listProduct || !selectedShoppingListId) {
+                throw new Error('Selecione uma lista para adicionar o produto.')
+            }
+
+            return addShoppingListItem(selectedShoppingListId, {
+                marketProductId: listProduct.id,
+                quantity: listQuantity,
+            })
+        },
+        onSuccess: async () => {
+            toast.success('Produto adicionado à lista.')
+            setListProduct(null)
+            setListQuantity(1)
+            setShowListPanel(true)
+            await queryClient.invalidateQueries({ queryKey: ['shoppingListItems', selectedShoppingListId] })
+        },
+        onError: (itemError: unknown) => {
+            toast.error(getApiErrorMessage(itemError, 'Não foi possível adicionar o produto.'))
+        },
+    })
+
+    const deleteListMutation = useMutation({
+        mutationFn: (listId: number) => deleteShoppingList(clientId!, listId),
+        onSuccess: async () => {
+            toast.success('Lista removida.')
+            await queryClient.invalidateQueries({ queryKey: ['shoppingLists', clientId] })
+        },
+        onError: (listError: unknown) => {
+            toast.error(getApiErrorMessage(listError, 'Não foi possível remover a lista.'))
+        },
+    })
+
+    const deleteItemMutation = useMutation({
+        mutationFn: ({ itemId, listId }: { itemId: number; listId: number }) => deleteShoppingListItem(listId, itemId),
+        onSuccess: async (_data, variables) => {
+            toast.success('Item removido da lista.')
+            await queryClient.invalidateQueries({ queryKey: ['shoppingListItems', variables.listId] })
+        },
+        onError: (itemError: unknown) => {
+            toast.error(getApiErrorMessage(itemError, 'Não foi possível remover o item.'))
+        },
+    })
+
     const transformedProducts = useMemo(() => {
-        const source = nearbyMarketProducts.length > 0
-            ? nearbyMarketProducts
-            : (apiProducts as MarketProductResponse[]).map(product => ({ product, market: selectedMarket }))
+        const nearbyMarketById = new Map(distanceMarketResults.map(market => [market.id, market]))
+        const source = (catalogPage?.content ?? []).map(product => ({
+            product,
+            market: nearbyMarketById.get(product.marketId) ?? null,
+        }))
 
         const groupedProducts = new Map<string, Array<{ product: MarketProductResponse; market: MarketResponse | null }>>()
 
@@ -383,33 +506,62 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
         })
 
         return Array.from(groupedProducts.values()).map(items => {
-            const sortedItems = [...items].sort((first, second) => {
+            const byLowestPrice = [...items].sort((first, second) => {
                 const firstPrice = first.product.price != null ? Number(first.product.price) : Number.MAX_VALUE
                 const secondPrice = second.product.price != null ? Number(second.product.price) : Number.MAX_VALUE
                 return firstPrice - secondPrice
             })
-            const cheapest = sortedItems[0]
-            const imageUrl = sortedItems.find(({ product }) => product.imageUrl)?.product.imageUrl ?? null
-            const marketRows = sortedItems.map(({ product, market }) => ({
-                name: product.marketName || market?.name || 'Mercado',
-                price: product.price != null ? Number(product.price) : 0,
-                distance: formatDistance(market),
-            }))
+            const cheapest = byLowestPrice[0]
+            const imageUrl = items.find(({ product }) => product.imageUrl)?.product.imageUrl ?? null
+            const marketRows = items.map(({ product, market }) => {
+                const distanceKm = market?.distanceKm
+                    ?? calculateDistanceKm(
+                        userLatitude,
+                        userLongitude,
+                        product.marketLatitude,
+                        product.marketLongitude,
+                    )
+
+                return {
+                    id: product.id,
+                    marketId: product.marketId,
+                    name: product.marketName || market?.name || 'Mercado',
+                    price: product.price != null ? Number(product.price) : 0,
+                    distance: formatDistanceKm(distanceKm),
+                    distanceKm,
+                }
+            })
             const validPrices = marketRows.map(row => row.price).filter(price => price > 0)
-            const lowestPrice = validPrices[0] ?? 0
+            const lowestPrice = validPrices.length ? Math.min(...validPrices) : 0
+            const highestPrice = validPrices.length ? Math.max(...validPrices) : 0
             const averagePrice = validPrices.length
                 ? validPrices.reduce((sum, price) => sum + price, 0) / validPrices.length
                 : 0
             const savings = averagePrice > 0 && lowestPrice > 0
                 ? Math.round(((averagePrice - lowestPrice) / averagePrice) * 100)
                 : 0
+            const sortedMarketRows = [...marketRows].sort((first, second) => {
+                if (sortBy === 'highest-price') {
+                    return second.price - first.price
+                }
+
+                if (sortBy === 'distance') {
+                    const firstDistance = first.distanceKm ?? Number.MAX_VALUE
+                    const secondDistance = second.distanceKm ?? Number.MAX_VALUE
+                    return firstDistance - secondDistance
+                }
+
+                return first.price - second.price
+            })
 
             return {
                 id: cheapest.product.id,
+                productId: cheapest.product.productId,
                 name: cheapest.product.productName,
                 imageUrl,
-                category: 'all',
+                category: cheapest.product.categoryName || 'Sem categoria',
                 lowestPrice,
+                highestPrice,
                 averagePrice,
                 savings,
                 badge: activeAlertByProductId.has(cheapest.product.id)
@@ -417,40 +569,84 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
                     : marketRows.length > 1
                         ? `${marketRows.length} mercados`
                         : null,
-                markets: marketRows,
+                markets: sortedMarketRows,
             }
         })
-    }, [activeAlertByProductId, apiProducts, nearbyMarketProducts, selectedMarket])
+    }, [activeAlertByProductId, catalogPage?.content, distanceMarketResults, sortBy, userLatitude, userLongitude])
 
     const filteredProducts = useMemo(() =>
         transformedProducts
             .filter(p => deferredSearch.length === 0 || p.name.toLowerCase().includes(deferredSearch.toLowerCase()))
             .filter(p => selectedCategory === 'all' || p.category === selectedCategory)
             .filter(p => p.lowestPrice <= maxPrice)
-            .sort((a, b) => sortBy === 'price' ? a.lowestPrice - b.lowestPrice : b.savings - a.savings),
+            .sort((a, b) => {
+                if (sortBy === 'highest-price') {
+                    return b.highestPrice - a.highestPrice
+                }
+
+                if (sortBy === 'distance') {
+                    const firstDistance = a.markets[0]?.distanceKm ?? Number.MAX_VALUE
+                    const secondDistance = b.markets[0]?.distanceKm ?? Number.MAX_VALUE
+                    return firstDistance - secondDistance
+                }
+
+                return sortBy === 'lowest-price' ? a.lowestPrice - b.lowestPrice : b.savings - a.savings
+            }),
         [deferredSearch, transformedProducts, selectedCategory, maxPrice, sortBy]
     )
 
-    const totalListItems = shoppingLists.reduce((total, list) => total + list.items, 0)
-    const totalListSavings = shoppingLists.reduce((total, list) => total + list.savings, 0)
+    const categoryOptions = useMemo(() => {
+        const dynamicCategories = Array.from(
+            new Set(transformedProducts.map(product => product.category).filter(Boolean)),
+        ).sort((first, second) => first.localeCompare(second))
+
+        return [
+            categories[0],
+            ...dynamicCategories.map(category => ({ id: category, label: category })),
+        ]
+    }, [transformedProducts])
+
+    const shoppingListStats = useMemo(() => {
+        const stats = new Map<number, { items: number; total: number }>()
+
+        shoppingLists.forEach((list, index) => {
+            const items = (shoppingListItemQueries[index]?.data ?? []) as ShoppingListItem[]
+            stats.set(list.id, {
+                items: items.reduce((sum, item) => sum + item.quantity, 0),
+                total: items.reduce((sum, item) => sum + (Number(item.price) * item.quantity), 0),
+            })
+        })
+
+        return stats
+    }, [shoppingListItemQueries, shoppingLists])
+
+    const selectedListItems = useMemo(() => {
+        const selectedIndex = shoppingLists.findIndex(list => list.id === selectedShoppingListId)
+        return selectedIndex >= 0
+            ? ((shoppingListItemQueries[selectedIndex]?.data ?? []) as ShoppingListItem[])
+            : []
+    }, [selectedShoppingListId, shoppingListItemQueries, shoppingLists])
+
+    const selectedListTotal = selectedListItems.reduce((sum, item) => sum + (Number(item.price) * item.quantity), 0)
+    const totalListItems = Array.from(shoppingListStats.values()).reduce((total, list) => total + list.items, 0)
+    const totalListSavings = filteredProducts.reduce((sum, product) => {
+        const selectedQuantity = selectedListItems
+            .filter(item => item.productName === product.name)
+            .reduce((quantity, item) => quantity + item.quantity, 0)
+
+        return sum + (selectedQuantity * Math.max(product.averagePrice - product.lowestPrice, 0))
+    }, 0)
     const activeAlertCount = priceAlerts.filter(alert => alert.active).length
-    const isProductsLoading = isLoading || isLoadingNearbyProducts
-    const nearbyMarketsView = nearbyMarketResults.length > 0
-        ? nearbyMarketResults.map(market => ({
-            id: market.id,
-            name: market.name,
-            distance: formatDistance(market),
-            productsLabel: market.hasCoordinates ? 'Distância calculada' : 'Cidade e endereço cadastrados',
-            open: true,
-            googleMapsUrl: market.googleMapsUrl,
-            address: formatMarketAddress(market),
-        }))
-        : nearbyMarkets.map(market => ({
-            ...market,
-            productsLabel: `${market.products} produtos`,
-            googleMapsUrl: undefined,
-            address: '',
-        }))
+    const isProductsLoading = isLoading
+    const nearbyMarketsView = nearbyMarketResults.map(market => ({
+        id: market.id,
+        name: market.name,
+        distance: formatDistance(market),
+        productsLabel: market.hasCoordinates ? 'Distância calculada' : 'Cidade e endereço cadastrados',
+        open: true,
+        googleMapsUrl: market.googleMapsUrl,
+        address: formatMarketAddress(market),
+    }))
 
     const toggleExpand = useCallback(
         (id: number) => setExpandedId(prev => prev === id ? null : id),
@@ -480,9 +676,24 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
     }, [alertProduct, createAlertMutation, desiredPrice])
 
     const handleAddToList = useCallback((product: TransformedProduct) => {
+        if (!canUseShoppingLists) {
+            toast.info('Entre como usuário para criar listas de compras.')
+            navigate({ to: '/login' })
+            return
+        }
+
+        if (shoppingLists.length === 0) {
+            setListProduct(product)
+            setNewListOpen(true)
+            toast.info('Crie uma lista antes de adicionar produtos.')
+            return
+        }
+
+        setListProduct(product)
+        setSelectedShoppingListId(current => current ?? shoppingLists[0].id)
+        setListQuantity(1)
         setShowListPanel(true)
-        toast.success(`${product.name} adicionado à sua lista.`)
-    }, [])
+    }, [canUseShoppingLists, navigate, shoppingLists])
 
     const handleCreateShoppingList = useCallback(() => {
         const trimmedName = newListName.trim()
@@ -492,21 +703,28 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
             return
         }
 
-        setShoppingLists(current => [
-            {
-                id: Date.now(),
-                name: trimmedName,
-                items: 0,
-                total: 0,
-                savings: 0,
-            },
-            ...current,
-        ])
-        setNewListName('')
-        setNewListOpen(false)
-        setShowListPanel(true)
-        toast.success('Lista de compras criada.')
-    }, [newListName])
+        if (!canUseShoppingLists) {
+            toast.info('Entre como usuário para salvar listas de compras.')
+            navigate({ to: '/login' })
+            return
+        }
+
+        createListMutation.mutate()
+    }, [canUseShoppingLists, createListMutation, navigate, newListName])
+
+    const handleConfirmAddToList = useCallback(() => {
+        if (!selectedShoppingListId) {
+            toast.error('Selecione uma lista.')
+            return
+        }
+
+        if (listQuantity < 1) {
+            toast.error('Informe uma quantidade válida.')
+            return
+        }
+
+        addItemMutation.mutate()
+    }, [addItemMutation, listQuantity, selectedShoppingListId])
 
     const handleMarkNotificationsAsRead = useCallback((event: React.MouseEvent<HTMLButtonElement>) => {
         event.preventDefault()
@@ -700,7 +918,7 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
                 <div className="border-t border-border bg-card/80">
                     <div className="max-w-7xl mx-auto px-4 sm:px-6">
                         <div className="flex items-center gap-2 overflow-x-auto py-2 scrollbar-hide">
-                            {categories.map(cat => (
+                            {categoryOptions.map(cat => (
                                 <button
                                     key={cat.id}
                                     onClick={() => setSelectedCategory(cat.id)}
@@ -840,7 +1058,7 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
 
                                 <Button
                                     variant="outline" size="sm" className="w-full text-xs"
-                                    onClick={() => { setMaxDistance(5); setMaxPrice(100); setSortBy('price') }}
+                                    onClick={() => { setMaxDistance(5); setMaxPrice(100); setSortBy('lowest-price') }}
                                 >
                                     Limpar filtros
                                 </Button>
@@ -869,13 +1087,16 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
                                 <DropdownMenuTrigger asChild>
                                     <Button variant="outline" size="sm" className="text-xs gap-1.5">
                                         <SlidersHorizontal className="w-3.5 h-3.5" />
-                                        {sortBy === 'price' ? 'Menor preço' : 'Maior economia'}
+                                        {sortOptions.find(option => option.id === sortBy)?.label ?? 'Ordenar'}
                                         <ChevronDown className="w-3 h-3" />
                                     </Button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end">
-                                    <DropdownMenuItem onClick={() => setSortBy('price')}>Menor preço</DropdownMenuItem>
-                                    <DropdownMenuItem onClick={() => setSortBy('savings')}>Maior economia</DropdownMenuItem>
+                                    {sortOptions.map(option => (
+                                        <DropdownMenuItem key={option.id} onClick={() => setSortBy(option.id)}>
+                                            {option.label}
+                                        </DropdownMenuItem>
+                                    ))}
                                 </DropdownMenuContent>
                             </DropdownMenu>
                         </div>
@@ -958,6 +1179,16 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
                                             <Skeleton className="h-3 w-2/3" />
                                         </Card>
                                     ))
+                                ) : nearbyMarketsView.length === 0 ? (
+                                    <Card className="p-5 sm:col-span-3">
+                                        <div className="flex flex-col items-center justify-center py-6 text-center text-muted-foreground">
+                                            <Store className="mb-3 h-10 w-10 opacity-30" />
+                                            <p className="text-sm font-medium text-foreground">Nenhum supermercado encontrado nessa região</p>
+                                            <p className="mt-1 max-w-md text-xs">
+                                                Ajuste o raio de busca no perfil, confirme sua localização ou cadastre coordenadas nos mercados.
+                                            </p>
+                                        </div>
+                                    </Card>
                                 ) : nearbyMarketsView.map((market) => (
                                     <Card
                                         key={market.id}
@@ -1008,7 +1239,7 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
 
                     {/*PAINEL DE LISTAS*/}
                     {showListPanel && (
-                        <aside className="w-full shrink-0 lg:w-64">
+                        <aside className="w-full shrink-0 lg:w-80">
                             <Card className="border-border p-4 sticky top-32">
                                 <div className="flex items-center justify-between mb-4">
                                     <div className="flex items-center gap-2">
@@ -1021,37 +1252,96 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
                                 </div>
 
                                 <div className="space-y-3">
-                                    {shoppingLists.map(list => (
-                                        <div key={list.id} className="p-3 bg-muted rounded-lg cursor-pointer hover:bg-primary/10 transition-colors">
-                                            <div className="flex items-center justify-between mb-2">
-                                                <p className="font-medium text-foreground text-sm">{list.name}</p>
-                                                <Badge variant="secondary" className="text-[10px]">{list.items} itens</Badge>
-                                            </div>
-                                            <div className="flex justify-between text-xs">
-                                                <span className="text-muted-foreground">Total</span>
-                                                <span className="font-medium text-foreground">R$ {list.total.toFixed(2)}</span>
-                                            </div>
-                                            <div className="flex justify-between text-xs mt-0.5">
-                                                <span className="text-primary">Economia</span>
-                                                <span className="font-medium text-primary">R$ {list.savings.toFixed(2)}</span>
-                                            </div>
+                                    {!canUseShoppingLists ? (
+                                        <div className="rounded-lg border border-border bg-muted/40 p-3 text-sm text-muted-foreground">
+                                            Faça login como usuário para salvar listas e comparar totais.
                                         </div>
-                                    ))}
+                                    ) : isLoadingShoppingLists ? (
+                                        Array.from({ length: 2 }).map((_, index) => (
+                                            <Skeleton key={index} className="h-20 w-full" />
+                                        ))
+                                    ) : shoppingLists.length === 0 ? (
+                                        <div className="rounded-lg border border-border bg-muted/40 p-3 text-sm text-muted-foreground">
+                                            Nenhuma lista criada. Comece pela lista da semana ou do mês.
+                                        </div>
+                                    ) : shoppingLists.map(list => {
+                                        const stats = shoppingListStats.get(list.id) ?? { items: 0, total: 0 }
+                                        const selected = selectedShoppingListId === list.id
+
+                                        return (
+                                            <button
+                                                key={list.id}
+                                                type="button"
+                                                onClick={() => setSelectedShoppingListId(list.id)}
+                                                className={`w-full rounded-lg border p-3 text-left transition-colors ${selected ? 'border-primary bg-primary/5' : 'border-border bg-muted hover:bg-primary/10'}`}
+                                            >
+                                                <div className="mb-2 flex items-center justify-between gap-2">
+                                                    <p className="truncate text-sm font-medium text-foreground">{list.name}</p>
+                                                    <Badge variant="secondary" className="text-[10px]">{stats.items} itens</Badge>
+                                                </div>
+                                                <div className="flex justify-between text-xs">
+                                                    <span className="text-muted-foreground">Total estimado</span>
+                                                    <span className="font-medium text-foreground">R$ {stats.total.toFixed(2)}</span>
+                                                </div>
+                                            </button>
+                                        )
+                                    })}
                                 </div>
 
                                 <Button size="sm" className="w-full mt-4 text-xs gap-1.5" onClick={() => setNewListOpen(true)}>
                                     <Plus className="w-3.5 h-3.5" /> Nova Lista
                                 </Button>
 
+                                {selectedShoppingListId && (
+                                    <div className="mt-4 rounded-lg border border-border bg-background/70">
+                                        <div className="flex items-center justify-between border-b border-border p-3">
+                                            <span className="text-xs font-semibold text-foreground">Itens da lista</span>
+                                            <Button
+                                                variant="ghost"
+                                                size="icon-xs"
+                                                onClick={() => deleteListMutation.mutate(selectedShoppingListId)}
+                                                disabled={deleteListMutation.isPending}
+                                                aria-label="Remover lista"
+                                            >
+                                                <Trash2 className="h-3.5 w-3.5" />
+                                            </Button>
+                                        </div>
+                                        <div className="max-h-64 divide-y divide-border overflow-auto">
+                                            {selectedListItems.length === 0 ? (
+                                                <p className="p-3 text-xs text-muted-foreground">Adicione produtos para comparar o total.</p>
+                                            ) : selectedListItems.map(item => (
+                                                <div key={item.id} className="p-3">
+                                                    <div className="flex items-start justify-between gap-2">
+                                                        <div className="min-w-0">
+                                                            <p className="truncate text-xs font-semibold text-foreground">{item.productName}</p>
+                                                            <p className="mt-1 text-[11px] text-muted-foreground">{item.marketName} • {item.quantity} un.</p>
+                                                        </div>
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon-xs"
+                                                            onClick={() => deleteItemMutation.mutate({ listId: selectedShoppingListId, itemId: item.id })}
+                                                            disabled={deleteItemMutation.isPending}
+                                                            aria-label={`Remover ${item.productName}`}
+                                                        >
+                                                            <X className="h-3 w-3" />
+                                                        </Button>
+                                                    </div>
+                                                    <p className="mt-2 text-xs font-semibold text-primary">R$ {(Number(item.price) * item.quantity).toFixed(2)}</p>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
                                 <div className="mt-4 p-3 bg-primary/10 rounded-lg">
                                     <div className="flex items-center gap-1.5 mb-1">
-                                        <Zap className="w-3.5 h-3.5 text-primary" />
-                                        <span className="text-xs font-semibold text-primary">Economia total</span>
+                                        <CircleDollarSign className="w-3.5 h-3.5 text-primary" />
+                                        <span className="text-xs font-semibold text-primary">Total selecionado</span>
                                     </div>
                                     <p className="text-xl font-bold text-primary">
-                                        R$ {totalListSavings.toFixed(2)}
+                                        R$ {selectedListTotal.toFixed(2)}
                                     </p>
-                                    <p className="text-[10px] text-muted-foreground mt-0.5">em todas as listas</p>
+                                    <p className="text-[10px] text-muted-foreground mt-0.5">economia estimada: R$ {totalListSavings.toFixed(2)}</p>
                                 </div>
                             </Card>
                         </aside>
@@ -1090,8 +1380,74 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
                         <Button variant="outline" onClick={() => setNewListOpen(false)}>
                             Cancelar
                         </Button>
-                        <Button onClick={handleCreateShoppingList}>
-                            Criar lista
+                        <Button onClick={handleCreateShoppingList} disabled={createListMutation.isPending}>
+                            {createListMutation.isPending ? 'Criando...' : 'Criar lista'}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            <Dialog open={!!listProduct && shoppingLists.length > 0} onOpenChange={(open) => !open && setListProduct(null)}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Adicionar à lista</DialogTitle>
+                        <DialogDescription>
+                            Escolha a lista e a quantidade para comparar o valor total da compra.
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    {listProduct && (
+                        <div className="space-y-4">
+                            <div className="rounded-lg border border-border p-3">
+                                <p className="text-sm font-medium text-foreground">{listProduct.name}</p>
+                                <p className="mt-1 text-xs text-muted-foreground">
+                                    Melhor oferta exibida: R$ {listProduct.lowestPrice.toFixed(2)}
+                                </p>
+                            </div>
+
+                            <div className="space-y-2">
+                                <label htmlFor="shoppingListTarget" className="text-xs font-medium text-muted-foreground">
+                                    Lista
+                                </label>
+                                <Select
+                                    value={selectedShoppingListId ? String(selectedShoppingListId) : undefined}
+                                    onValueChange={(value) => setSelectedShoppingListId(Number(value))}
+                                >
+                                    <SelectTrigger id="shoppingListTarget">
+                                        <SelectValue placeholder="Selecione uma lista" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {shoppingLists.map(list => (
+                                            <SelectItem key={list.id} value={String(list.id)}>
+                                                {list.name}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+
+                            <div className="space-y-2">
+                                <label htmlFor="listQuantity" className="text-xs font-medium text-muted-foreground">
+                                    Quantidade
+                                </label>
+                                <Input
+                                    id="listQuantity"
+                                    type="number"
+                                    min={1}
+                                    step={1}
+                                    value={listQuantity}
+                                    onChange={(event) => setListQuantity(Math.max(1, Number(event.target.value) || 1))}
+                                />
+                            </div>
+                        </div>
+                    )}
+
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setListProduct(null)}>
+                            Cancelar
+                        </Button>
+                        <Button onClick={handleConfirmAddToList} disabled={addItemMutation.isPending}>
+                            {addItemMutation.isPending ? 'Adicionando...' : 'Adicionar'}
                         </Button>
                     </DialogFooter>
                 </DialogContent>

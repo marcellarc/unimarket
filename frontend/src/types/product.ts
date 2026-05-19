@@ -36,6 +36,8 @@ export interface CategoryResponse {
 
 export interface ProductSearchParams {
     name: string
+    page?: number
+    size?: number
 }
 
 export interface MarketProductSearchParams {
@@ -50,6 +52,8 @@ export interface MarketProductResponse {
     productId: number
     marketId: number
     marketName: string
+    marketLatitude?: number | null
+    marketLongitude?: number | null
     productName: string
     brand: string
     categoryName?: string | null
@@ -59,6 +63,23 @@ export interface MarketProductResponse {
     price?: number | null
     stockQuantity?: number | null
     updatedAt?: string | null
+}
+
+export interface PageResponse<T> {
+    content: T[]
+    totalElements: number
+    totalPages: number
+    size: number
+    number: number
+    first: boolean
+    last: boolean
+    numberOfElements: number
+    empty: boolean
+}
+
+export interface ProductCatalogParams {
+    page?: number
+    size?: number
 }
 
 export interface MarketProductUpdateRequest {

@@ -1,5 +1,9 @@
 import logoImg from '@/assets/logo-unimarket-auth.png'
-import { Badge, Button, Card, Input, Label, Switch } from '@/components/ui'
+import {
+    Badge, Button, Card,
+    Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
+    Input, Label, Switch,
+} from '@/components/ui'
 import { useLogout } from '@/hooks/use-logout'
 import { getApiErrorMessage } from '@/lib/api-error'
 import {
@@ -9,12 +13,13 @@ import {
     markNotificationsAsRead,
 } from '@/services/notification'
 import { findLocationByCep } from '@/services/location'
-import { getCurrentUserProfile, updateCurrentUserProfile } from '@/services/user'
+import { deleteUserAccount, getCurrentUserProfile, updateCurrentUserProfile } from '@/services/user'
 import type { PriceNotificationResponse } from '@/types/notification'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import Cookies from 'js-cookie'
 import {
+    AlertTriangle,
     ArrowLeft,
     AtSign,
     Bell,
@@ -126,6 +131,7 @@ export function ProfilePage() {
     const [browserPushEnabled, setBrowserPushEnabled] = useState(() =>
         getStoredBoolean('unimarket.browserPushEnabled', false),
     )
+    const [deleteAccountOpen, setDeleteAccountOpen] = useState(false)
 
     const { data: profile, isLoading: isProfileLoading } = useQuery({
         queryKey: ['userProfile'],
@@ -298,6 +304,22 @@ export function ProfilePage() {
             await queryClient.invalidateQueries({ queryKey: ['priceAlerts'] })
         },
         onError: () => toast.error('Não foi possível desativar o alerta.'),
+    })
+
+    const deleteAccountMutation = useMutation({
+        mutationFn: () => deleteUserAccount(profile!.id),
+        onSuccess: () => {
+            Cookies.remove('accessToken')
+            Cookies.remove('refreshToken')
+            Cookies.remove('userName')
+            Cookies.remove('userEmail')
+            Cookies.remove('userRole')
+            toast.success('Conta excluída com sucesso.')
+            navigate({ to: '/login' })
+        },
+        onError: (error: unknown) => {
+            toast.error(getApiErrorMessage(error, 'Não foi possível excluir a conta.'))
+        },
     })
 
     function handleSaveProfile() {
@@ -893,6 +915,20 @@ export function ProfilePage() {
                             </div>
                         </Card>
 
+                        <Card className="gap-4 border-destructive/30 bg-card/95 p-5 shadow-sm backdrop-blur">
+                            <div className="flex items-center gap-2">
+                                <AlertTriangle className="h-5 w-5 text-destructive" />
+                                <h2 className="text-base font-semibold text-foreground">Excluir conta</h2>
+                            </div>
+                            <p className="text-sm leading-relaxed text-muted-foreground">
+                                Remove seu cadastro de cliente e encerra o acesso a listas, alertas e preferências salvas.
+                            </p>
+                            <Button variant="destructive" onClick={() => setDeleteAccountOpen(true)} disabled={!profile}>
+                                <Trash2 className="h-4 w-4" />
+                                Excluir minha conta
+                            </Button>
+                        </Card>
+
                         <Button className="w-full" onClick={() => navigate({ to: '/dashboard' })}>
                             <Navigation className="h-4 w-4" />
                             Voltar para comparar preços
@@ -900,6 +936,29 @@ export function ProfilePage() {
                     </aside>
                 </div>
             </main>
+
+            <Dialog open={deleteAccountOpen} onOpenChange={setDeleteAccountOpen}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Excluir conta?</DialogTitle>
+                        <DialogDescription>
+                            Esta ação remove sua conta de cliente. Para continuar, confirme que deseja encerrar o acesso ao UniMarket.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setDeleteAccountOpen(false)}>
+                            Cancelar
+                        </Button>
+                        <Button
+                            variant="destructive"
+                            onClick={() => deleteAccountMutation.mutate()}
+                            disabled={deleteAccountMutation.isPending || !profile}
+                        >
+                            {deleteAccountMutation.isPending ? 'Excluindo...' : 'Excluir conta'}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     )
 }

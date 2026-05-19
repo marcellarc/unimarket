@@ -19,6 +19,10 @@ public class MarketProductResponseDTO {
     // nome do mercado
     private String marketName;
 
+    private Double marketLatitude;
+
+    private Double marketLongitude;
+
     // nome do produto
     private String productName;
 

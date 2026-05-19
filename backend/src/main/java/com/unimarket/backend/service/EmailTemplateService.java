@@ -87,7 +87,7 @@ public class EmailTemplateService {
 
         return baseTemplate(
                 "Alerta de preço",
-                "Preço desejado atingido",
+                "Preço desejado atingido!",
                 "Um item monitorado ficou dentro do valor que você escolheu!",
                 content
         );

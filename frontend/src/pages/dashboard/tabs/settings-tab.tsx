@@ -1,12 +1,20 @@
-import { Badge, Button, Card, Input, Label, Skeleton, Switch } from '@/components/ui'
 import {
+    Badge, Button, Card,
+    Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
+    Input, Label, Skeleton, Switch,
+} from '@/components/ui'
+import { getApiErrorMessage } from '@/lib/api-error'
+import {
+    deleteMarketAccount,
     getCurrentMarketProfile,
     syncCurrentMarketProfileFromCnpj,
     updateCurrentMarketProfile,
 } from '@/services/supermarket'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useNavigate } from '@tanstack/react-router'
 import Cookies from 'js-cookie'
 import {
+    AlertTriangle,
     BadgeCheck,
     Bell,
     ExternalLink,
@@ -15,6 +23,7 @@ import {
     MapPin,
     RefreshCw,
     Save,
+    Trash2,
 } from 'lucide-react'
 import { type ReactNode, useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
@@ -42,6 +51,7 @@ function formatZipCode(value: string) {
 
 export function SettingsTab() {
     const queryClient = useQueryClient()
+    const navigate = useNavigate()
 
     const [name, setName] = useState('')
     const [email, setEmail] = useState('')
@@ -56,6 +66,7 @@ export function SettingsTab() {
     const [priceAlertsEnabled, setPriceAlertsEnabled] = useState(true)
     const [reviewAlertsEnabled, setReviewAlertsEnabled] = useState(true)
     const [weeklyReportEnabled, setWeeklyReportEnabled] = useState(true)
+    const [deleteAccountOpen, setDeleteAccountOpen] = useState(false)
 
     const { data: profile, isLoading } = useQuery({
         queryKey: ['marketProfile'],
@@ -121,6 +132,23 @@ export function SettingsTab() {
             await queryClient.invalidateQueries({ queryKey: ['nearbyMarkets'] })
         },
         onError: () => toast.error('Não foi possível atualizar o cadastro agora.'),
+    })
+
+    const deleteAccountMutation = useMutation({
+        mutationFn: () => deleteMarketAccount(profile!.id),
+        onSuccess: () => {
+            Cookies.remove('accessToken')
+            Cookies.remove('refreshToken')
+            Cookies.remove('marketName')
+            Cookies.remove('marketEmail')
+            Cookies.remove('marketId')
+            Cookies.remove('userRole')
+            toast.success('Conta do supermercado excluída.')
+            navigate({ to: '/login' })
+        },
+        onError: (error: unknown) => {
+            toast.error(getApiErrorMessage(error, 'Não foi possível excluir a conta.'))
+        },
     })
 
     function handleUseCurrentLocation() {
@@ -365,8 +393,45 @@ export function SettingsTab() {
                             onCheckedChange={setWeeklyReportEnabled}
                         />
                     </Card>
+
+                    <Card className="gap-4 border-destructive/30 p-5">
+                        <div className="flex items-center gap-2">
+                            <AlertTriangle className="h-4 w-4 text-destructive" />
+                            <h3 className="text-base font-semibold text-foreground">Excluir conta</h3>
+                        </div>
+                        <p className="text-sm leading-relaxed text-muted-foreground">
+                            Remove o supermercado e seus vínculos de produtos do UniMarket.
+                        </p>
+                        <Button variant="destructive" onClick={() => setDeleteAccountOpen(true)} disabled={!profile}>
+                            <Trash2 className="h-4 w-4" />
+                            Excluir supermercado
+                        </Button>
+                    </Card>
                 </aside>
             </div>
+
+            <Dialog open={deleteAccountOpen} onOpenChange={setDeleteAccountOpen}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Excluir supermercado?</DialogTitle>
+                        <DialogDescription>
+                            Esta ação remove a conta do mercado e os produtos vinculados. Confirme apenas se deseja encerrar este cadastro.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setDeleteAccountOpen(false)}>
+                            Cancelar
+                        </Button>
+                        <Button
+                            variant="destructive"
+                            onClick={() => deleteAccountMutation.mutate()}
+                            disabled={deleteAccountMutation.isPending || !profile}
+                        >
+                            {deleteAccountMutation.isPending ? 'Excluindo...' : 'Excluir conta'}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     )
 }

@@ -21,3 +21,7 @@ export async function updateCurrentUserProfile(data: UpdateUserProfileRequest) {
     const response = await api.patch<UserProfile>('/clients/me', data)
     return response.data
 }
+
+export async function deleteUserAccount(clientId: number) {
+    await api.delete(`/clients/${clientId}`)
+}
