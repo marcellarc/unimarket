@@ -37,3 +37,7 @@ export async function syncCurrentMarketProfileFromCnpj() {
     const response = await api.post<MarketResponse>('/markets/me/sync-cnpj')
     return response.data
 }
+
+export async function deleteMarketAccount(marketId: number) {
+    await api.delete(`/markets/${marketId}`)
+}

@@ -17,6 +17,7 @@ import com.unimarket.backend.dto.MarketProductRequestDTO;
 import com.unimarket.backend.dto.MarketProductResponseDTO;
 import com.unimarket.backend.dto.ProductRequestDTO;
 import com.unimarket.backend.dto.ProductResponseDTO;
+import com.unimarket.backend.dto.location.CepLocationResponseDTO;
 import com.unimarket.backend.entity.Category;
 import com.unimarket.backend.entity.Market;
 import com.unimarket.backend.entity.MarketProduct;
@@ -48,6 +49,9 @@ public class MarketProductService {
     // injeta o service responsável por consultar a API Cosmos
     @Autowired
     private CosmosService cosmosService;
+
+    @Autowired
+    private LocationService locationService;
 
     // Cadastra produto e cria o vínculo com o mercado
     @Transactional
@@ -323,13 +327,16 @@ public class MarketProductService {
 
         MarketProductResponseDTO response
                 = new MarketProductResponseDTO();
+        Market market = resolveMarketCoordinates(vinculo.getMarket());
 
         response.setId(vinculo.getId());
 
         response.setProductId(vinculo.getProduct().getId());
-        response.setMarketId(vinculo.getMarket().getId());
+        response.setMarketId(market.getId());
 
-        response.setMarketName(vinculo.getMarket().getName());
+        response.setMarketName(market.getName());
+        response.setMarketLatitude(market.getLatitude());
+        response.setMarketLongitude(market.getLongitude());
 
         response.setProductName(vinculo.getProduct().getName());
         response.setBrand(vinculo.getProduct().getBrand());
@@ -363,5 +370,46 @@ public class MarketProductService {
 
     private boolean hasText(String value) {
         return value != null && !value.isBlank();
+    }
+
+    private Market resolveMarketCoordinates(Market market) {
+        if (market.getLatitude() != null && market.getLongitude() != null) {
+            return market;
+        }
+
+        if (!hasText(market.getZipCode())) {
+            return market;
+        }
+
+        try {
+            CepLocationResponseDTO location = locationService.findByCep(market.getZipCode());
+
+            if (Boolean.TRUE.equals(location.hasCoordinates())) {
+                market.setLatitude(location.latitude());
+                market.setLongitude(location.longitude());
+
+                if (!hasText(market.getStreetAddress()) && hasText(location.streetAddress())) {
+                    market.setStreetAddress(location.streetAddress());
+                }
+
+                if (!hasText(market.getNeighborhood()) && hasText(location.neighborhood())) {
+                    market.setNeighborhood(location.neighborhood());
+                }
+
+                if (!hasText(market.getCity()) && hasText(location.city())) {
+                    market.setCity(location.city());
+                }
+
+                if (!hasText(market.getState()) && hasText(location.state())) {
+                    market.setState(location.state());
+                }
+
+                return marketRepository.save(market);
+            }
+        } catch (RuntimeException exception) {
+            return market;
+        }
+
+        return market;
     }
 }
