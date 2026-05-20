@@ -18,6 +18,7 @@ import {
     BadgeCheck,
     Bell,
     ExternalLink,
+    KeyRound,
     Loader2,
     LocateFixed,
     MapPin,
@@ -62,7 +63,9 @@ export function SettingsTab() {
     const [zipCode, setZipCode] = useState('')
     const [latitude, setLatitude] = useState('')
     const [longitude, setLongitude] = useState('')
-    const [password, setPassword] = useState('')
+    const [currentPassword, setCurrentPassword] = useState('')
+    const [newPassword, setNewPassword] = useState('')
+    const [confirmPassword, setConfirmPassword] = useState('')
     const [priceAlertsEnabled, setPriceAlertsEnabled] = useState(true)
     const [reviewAlertsEnabled, setReviewAlertsEnabled] = useState(true)
     const [weeklyReportEnabled, setWeeklyReportEnabled] = useState(true)
@@ -85,6 +88,9 @@ export function SettingsTab() {
         setZipCode(profile.zipCode ? formatZipCode(profile.zipCode) : '')
         setLatitude(profile.latitude != null ? String(profile.latitude) : '')
         setLongitude(profile.longitude != null ? String(profile.longitude) : '')
+        setPriceAlertsEnabled(profile.priceAlertsEnabled ?? true)
+        setReviewAlertsEnabled(profile.reviewAlertsEnabled ?? true)
+        setWeeklyReportEnabled(profile.weeklyReportEnabled ?? true)
     }, [profile])
 
     const completeness = useMemo(() => {
@@ -103,17 +109,35 @@ export function SettingsTab() {
             zipCode: zipCode.replace(/\D/g, ''),
             latitude: latitude.trim() ? Number(latitude) : undefined,
             longitude: longitude.trim() ? Number(longitude) : undefined,
-            password: password.trim() || undefined,
+            priceAlertsEnabled,
+            reviewAlertsEnabled,
+            weeklyReportEnabled,
         }),
         onSuccess: async (updatedProfile) => {
             Cookies.set('marketName', updatedProfile.name, cookieOptions)
             Cookies.set('marketEmail', email.trim(), cookieOptions)
-            setPassword('')
             toast.success('Configurações salvas.')
             await queryClient.invalidateQueries({ queryKey: ['marketProfile'] })
             await queryClient.invalidateQueries({ queryKey: ['nearbyMarkets'] })
         },
         onError: () => toast.error('Não foi possível salvar as configurações.'),
+    })
+
+    const securityMutation = useMutation({
+        mutationFn: () => updateCurrentMarketProfile({
+            currentPassword: currentPassword.trim(),
+            password: newPassword.trim(),
+        }),
+        onSuccess: async () => {
+            setCurrentPassword('')
+            setNewPassword('')
+            setConfirmPassword('')
+            toast.success('Senha atualizada.')
+            await queryClient.invalidateQueries({ queryKey: ['marketProfile'] })
+        },
+        onError: (error: unknown) => {
+            toast.error(getApiErrorMessage(error, 'Não foi possível atualizar a senha.'))
+        },
     })
 
     const syncMutation = useMutation({
@@ -150,6 +174,25 @@ export function SettingsTab() {
             toast.error(getApiErrorMessage(error, 'Não foi possível excluir a conta.'))
         },
     })
+
+    function handleSaveSecurity() {
+        if (!currentPassword) {
+            toast.error('Informe a senha atual para alterar.')
+            return
+        }
+
+        if (newPassword.length < 6) {
+            toast.error('A nova senha deve ter pelo menos 6 caracteres.')
+            return
+        }
+
+        if (newPassword !== confirmPassword) {
+            toast.error('A confirmação de senha não confere.')
+            return
+        }
+
+        securityMutation.mutate()
+    }
 
     function handleUseCurrentLocation() {
         if (typeof navigator === 'undefined' || !navigator.geolocation) {
@@ -260,15 +303,61 @@ export function SettingsTab() {
                                 <Field label="CNPJ" htmlFor="cnpj">
                                     <Input id="cnpj" value={formatCnpj(profile?.cnpj)} disabled className="bg-muted" />
                                 </Field>
-                                <Field label="Nova senha" htmlFor="password" hint="Deixe em branco para manter a senha atual.">
+                            </div>
+                        </div>
+                    </Card>
+
+                    <Card className="gap-0 p-0">
+                        <div className="border-b border-border p-5">
+                            <div className="flex items-center gap-2">
+                                <KeyRound className="h-4 w-4 text-primary" />
+                                <div>
+                                    <h3 className="text-base font-semibold text-foreground">Segurança</h3>
+                                    <p className="mt-1 text-sm text-muted-foreground">Altere a senha da loja em uma etapa separada.</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="space-y-4 p-5">
+                            <div className="grid gap-4 md:grid-cols-3">
+                                <Field label="Senha atual" htmlFor="market-current-password">
                                     <Input
-                                        id="password"
+                                        id="market-current-password"
                                         type="password"
-                                        value={password}
-                                        onChange={(event) => setPassword(event.target.value)}
+                                        value={currentPassword}
+                                        onChange={(event) => setCurrentPassword(event.target.value)}
+                                        autoComplete="current-password"
+                                    />
+                                </Field>
+                                <Field label="Nova senha" htmlFor="market-new-password">
+                                    <Input
+                                        id="market-new-password"
+                                        type="password"
+                                        value={newPassword}
+                                        onChange={(event) => setNewPassword(event.target.value)}
                                         autoComplete="new-password"
                                     />
                                 </Field>
+                                <Field label="Confirmar nova senha" htmlFor="market-confirm-password">
+                                    <Input
+                                        id="market-confirm-password"
+                                        type="password"
+                                        value={confirmPassword}
+                                        onChange={(event) => setConfirmPassword(event.target.value)}
+                                        autoComplete="new-password"
+                                    />
+                                </Field>
+                            </div>
+
+                            <div className="flex justify-end border-t border-border pt-4">
+                                <Button onClick={handleSaveSecurity} disabled={securityMutation.isPending}>
+                                    {securityMutation.isPending ? (
+                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                    ) : (
+                                        <Save className="h-4 w-4" />
+                                    )}
+                                    Salvar senha
+                                </Button>
                             </div>
                         </div>
                     </Card>

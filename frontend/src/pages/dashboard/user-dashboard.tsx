@@ -638,6 +638,11 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
     }, 0)
     const activeAlertCount = priceAlerts.filter(alert => alert.active).length
     const isProductsLoading = isLoading
+    const productGridClass = showFilters && showListPanel
+        ? 'grid grid-cols-1 gap-4 items-start sm:grid-cols-2'
+        : showFilters || showListPanel
+            ? 'grid grid-cols-1 gap-4 items-start sm:grid-cols-2 xl:grid-cols-3'
+            : 'grid grid-cols-1 gap-4 items-start sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'
     const nearbyMarketsView = nearbyMarketResults.map(market => ({
         id: market.id,
         name: market.name,
@@ -1103,7 +1108,7 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
 
                         {/*GRID DE PRODUTOS*/}
                         {isProductsLoading ? (
-                            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                            <div className={productGridClass}>
                                 {Array.from({ length: 6 }).map((_, index) => (
                                     <Card key={index} className="gap-0 overflow-hidden p-0">
                                         <Skeleton className="h-32 rounded-none" />
@@ -1132,7 +1137,7 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
                                 <p className="text-sm">Tente ajustar os filtros ou busca</p>
                             </div>
                         ) : (
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 items-start">
+                            <div className={productGridClass}>
                                 {filteredProducts.map(product => (
                                     <ProductCard
                                         key={product.id}
@@ -1146,95 +1151,6 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
                             </div>
                         )}
 
-                        {/*Supermercados perto de você*/}
-                        <div className="mt-10">
-                            <div className="flex items-center justify-between mb-4">
-                                <div>
-                                    <h3 className="font-semibold text-foreground">Supermercados perto de você</h3>
-                                    <p className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1">
-                                        <MapPin className="w-3 h-3" /> {[userCity, userState].filter(Boolean).join(', ')}{userZipCode ? ` - CEP ${userZipCode}` : ''}
-                                    </p>
-                                </div>
-                                <Button variant="outline" size="sm" className="text-xs gap-1.5" onClick={handleUseCurrentLocation}>
-                                    <LocateFixed className="w-3.5 h-3.5" /> Usar localização
-                                </Button>
-                                <Button variant="outline" size="sm" className="text-xs gap-1.5" onClick={handleOpenMarketsMap}>
-                                    Ver no mapa <ChevronRight className="w-3.5 h-3.5" />
-                                </Button>
-                                {isLoadingMarkets && (
-                                    <span className="text-xs text-muted-foreground">Atualizando...</span>
-                                )}
-                            </div>
-
-                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                                {isLoadingMarkets ? (
-                                    Array.from({ length: 3 }).map((_, index) => (
-                                        <Card key={index} className="gap-3 p-4">
-                                            <div className="flex items-start justify-between">
-                                                <Skeleton className="h-9 w-9" />
-                                                <Skeleton className="h-5 w-14 rounded-full" />
-                                            </div>
-                                            <Skeleton className="h-4 w-3/4" />
-                                            <Skeleton className="h-3 w-full" />
-                                            <Skeleton className="h-3 w-2/3" />
-                                        </Card>
-                                    ))
-                                ) : nearbyMarketsView.length === 0 ? (
-                                    <Card className="p-5 sm:col-span-3">
-                                        <div className="flex flex-col items-center justify-center py-6 text-center text-muted-foreground">
-                                            <Store className="mb-3 h-10 w-10 opacity-30" />
-                                            <p className="text-sm font-medium text-foreground">Nenhum supermercado encontrado nessa região</p>
-                                            <p className="mt-1 max-w-md text-xs">
-                                                Ajuste o raio de busca no perfil, confirme sua localização ou cadastre coordenadas nos mercados.
-                                            </p>
-                                        </div>
-                                    </Card>
-                                ) : nearbyMarketsView.map((market) => (
-                                    <Card
-                                        key={market.id}
-                                        onClick={() => setSelectedMarketId(market.id)}
-                                        className={`p-4 hover:shadow-md hover:bg-muted/50 transition-all cursor-pointer ${selectedMarketId === market.id ? 'border-primary bg-primary/5' : 'border-border'}`}
-                                    >
-                                        <div className="flex items-start justify-between mb-3">
-                                            <div className="p-2 bg-primary/10 rounded-lg">
-                                                <Store className="w-5 h-5 text-primary" />
-                                            </div>
-                                            <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${market.open
-                                                ? 'bg-green-100 text-green-700'
-                                                : 'bg-red-100 text-red-600'
-                                                }`}>
-                                                {market.open ? 'Aberto' : 'Fechado'}
-                                            </span>
-                                        </div>
-                                        <h4 className="font-medium text-foreground text-sm mb-2">{market.name}</h4>
-                                        {market.address && (
-                                            <p className="text-xs text-muted-foreground mb-2 line-clamp-2">{market.address}</p>
-                                        )}
-                                        <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                                            <span className="flex items-center gap-0.5">
-                                                <MapPin className="w-3 h-3" /> {market.distance}
-                                            </span>
-                                            <span className="flex items-center gap-0.5">
-                                                <Package className="w-3 h-3" /> {market.productsLabel}
-                                            </span>
-                                        </div>
-                                        {market.googleMapsUrl && (
-                                            <Button
-                                                variant="outline"
-                                                size="xs"
-                                                className="mt-3"
-                                                onClick={(event) => {
-                                                    event.stopPropagation()
-                                                    handleOpenMarketMap(nearbyMarketResults.find(item => item.id === market.id)!)
-                                                }}
-                                            >
-                                                Abrir mapa
-                                            </Button>
-                                        )}
-                                    </Card>
-                                ))}
-                            </div>
-                        </div>
                     </div>
 
                     {/*PAINEL DE LISTAS*/}
@@ -1347,6 +1263,99 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
                         </aside>
                     )}
                 </div>
+
+                <section className="mt-8 border-t border-border pt-6">
+                    <div className="rounded-lg border border-border bg-card/95 p-5 shadow-sm backdrop-blur">
+                        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                            <div>
+                                <h3 className="font-semibold text-foreground">Supermercados perto de você</h3>
+                                <p className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
+                                    <MapPin className="h-3 w-3" /> {[userCity, userState].filter(Boolean).join(', ')}{userZipCode ? ` - CEP ${userZipCode}` : ''}
+                                </p>
+                            </div>
+                            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                                {isLoadingMarkets && (
+                                    <span className="text-xs text-muted-foreground">Atualizando...</span>
+                                )}
+                                <Button variant="outline" size="sm" className="text-xs gap-1.5" onClick={handleUseCurrentLocation}>
+                                    <LocateFixed className="h-3.5 w-3.5" /> Usar localização
+                                </Button>
+                                <Button variant="outline" size="sm" className="text-xs gap-1.5" onClick={handleOpenMarketsMap}>
+                                    Ver no mapa <ChevronRight className="h-3.5 w-3.5" />
+                                </Button>
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                            {isLoadingMarkets ? (
+                                Array.from({ length: 3 }).map((_, index) => (
+                                    <Card key={index} className="gap-3 p-4">
+                                        <div className="flex items-start justify-between">
+                                            <Skeleton className="h-9 w-9" />
+                                            <Skeleton className="h-5 w-14 rounded-full" />
+                                        </div>
+                                        <Skeleton className="h-4 w-3/4" />
+                                        <Skeleton className="h-3 w-full" />
+                                        <Skeleton className="h-3 w-2/3" />
+                                    </Card>
+                                ))
+                            ) : nearbyMarketsView.length === 0 ? (
+                                <Card className="p-5 sm:col-span-2 xl:col-span-3">
+                                    <div className="flex flex-col items-center justify-center py-6 text-center text-muted-foreground">
+                                        <Store className="mb-3 h-10 w-10 opacity-30" />
+                                        <p className="text-sm font-medium text-foreground">Nenhum supermercado encontrado nessa região</p>
+                                        <p className="mt-1 max-w-md text-xs">
+                                            Ajuste o raio de busca no perfil, confirme sua localização ou cadastre coordenadas nos mercados.
+                                        </p>
+                                    </div>
+                                </Card>
+                            ) : nearbyMarketsView.map((market) => (
+                                <Card
+                                    key={market.id}
+                                    onClick={() => setSelectedMarketId(market.id)}
+                                    className={`p-4 hover:shadow-md hover:bg-muted/50 transition-all cursor-pointer ${selectedMarketId === market.id ? 'border-primary bg-primary/5' : 'border-border'}`}
+                                >
+                                    <div className="mb-3 flex items-start justify-between">
+                                        <div className="rounded-lg bg-primary/10 p-2">
+                                            <Store className="h-5 w-5 text-primary" />
+                                        </div>
+                                        <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${market.open
+                                            ? 'bg-green-100 text-green-700'
+                                            : 'bg-red-100 text-red-600'
+                                            }`}>
+                                            {market.open ? 'Aberto' : 'Fechado'}
+                                        </span>
+                                    </div>
+                                    <h4 className="mb-2 text-sm font-medium text-foreground">{market.name}</h4>
+                                    {market.address && (
+                                        <p className="mb-2 line-clamp-2 text-xs text-muted-foreground">{market.address}</p>
+                                    )}
+                                    <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                                        <span className="flex items-center gap-0.5">
+                                            <MapPin className="h-3 w-3" /> {market.distance}
+                                        </span>
+                                        <span className="flex items-center gap-0.5">
+                                            <Package className="h-3 w-3" /> {market.productsLabel}
+                                        </span>
+                                    </div>
+                                    {market.googleMapsUrl && (
+                                        <Button
+                                            variant="outline"
+                                            size="xs"
+                                            className="mt-3"
+                                            onClick={(event) => {
+                                                event.stopPropagation()
+                                                handleOpenMarketMap(nearbyMarketResults.find(item => item.id === market.id)!)
+                                            }}
+                                        >
+                                            Abrir mapa
+                                        </Button>
+                                    )}
+                                </Card>
+                            ))}
+                        </div>
+                    </div>
+                </section>
             </div>
 
             <Dialog open={newListOpen} onOpenChange={setNewListOpen}>

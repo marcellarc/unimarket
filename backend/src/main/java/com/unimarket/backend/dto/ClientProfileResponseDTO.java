@@ -16,6 +16,9 @@ public record ClientProfileResponseDTO(
         String locationSource,
         String profileImageUrl,
         Double searchRadiusKm,
+        Boolean priceAlertsEnabled,
+        Boolean weeklySummaryEnabled,
+        Boolean browserPushEnabled,
         LocalDateTime createdAt
 ) {
 }
