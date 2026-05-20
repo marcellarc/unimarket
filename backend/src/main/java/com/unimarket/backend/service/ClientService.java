@@ -124,6 +124,18 @@ public class ClientService {
             client.setSearchRadiusKm(Math.max(1, Math.min(30, dto.getSearchRadiusKm())));
         }
 
+        if (dto.getPriceAlertsEnabled() != null) {
+            client.setPriceAlertsEnabled(dto.getPriceAlertsEnabled());
+        }
+
+        if (dto.getWeeklySummaryEnabled() != null) {
+            client.setWeeklySummaryEnabled(dto.getWeeklySummaryEnabled());
+        }
+
+        if (dto.getBrowserPushEnabled() != null) {
+            client.setBrowserPushEnabled(dto.getBrowserPushEnabled());
+        }
+
         return toProfileResponse(repository.save(client));
     }
 
@@ -151,8 +163,15 @@ public class ClientService {
                 client.getLocationSource(),
                 client.getProfileImageUrl(),
                 client.getSearchRadiusKm(),
+                valueOrDefault(client.getPriceAlertsEnabled(), true),
+                valueOrDefault(client.getWeeklySummaryEnabled(), true),
+                valueOrDefault(client.getBrowserPushEnabled(), false),
                 client.getCreatedAt()
         );
+    }
+
+    private Boolean valueOrDefault(Boolean value, Boolean fallback) {
+        return value == null ? fallback : value;
     }
 
     private String emptyToNull(String value) {

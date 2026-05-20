@@ -26,8 +26,16 @@ public class MarketProfileUpdateDTO {
 
     private Double longitude;
 
+    private String currentPassword;
+
     @Size(min = 6, message = "A senha deve ter pelo menos 6 caracteres")
     private String password;
+
+    private Boolean priceAlertsEnabled;
+
+    private Boolean reviewAlertsEnabled;
+
+    private Boolean weeklyReportEnabled;
 
     public String getName() {
         return name;
@@ -101,11 +109,43 @@ public class MarketProfileUpdateDTO {
         this.longitude = longitude;
     }
 
+    public String getCurrentPassword() {
+        return currentPassword;
+    }
+
+    public void setCurrentPassword(String currentPassword) {
+        this.currentPassword = currentPassword;
+    }
+
     public String getPassword() {
         return password;
     }
 
     public void setPassword(String password) {
         this.password = password;
+    }
+
+    public Boolean getPriceAlertsEnabled() {
+        return priceAlertsEnabled;
+    }
+
+    public void setPriceAlertsEnabled(Boolean priceAlertsEnabled) {
+        this.priceAlertsEnabled = priceAlertsEnabled;
+    }
+
+    public Boolean getReviewAlertsEnabled() {
+        return reviewAlertsEnabled;
+    }
+
+    public void setReviewAlertsEnabled(Boolean reviewAlertsEnabled) {
+        this.reviewAlertsEnabled = reviewAlertsEnabled;
+    }
+
+    public Boolean getWeeklyReportEnabled() {
+        return weeklyReportEnabled;
+    }
+
+    public void setWeeklyReportEnabled(Boolean weeklyReportEnabled) {
+        this.weeklyReportEnabled = weeklyReportEnabled;
     }
 }

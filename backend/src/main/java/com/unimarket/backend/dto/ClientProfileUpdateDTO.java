@@ -38,6 +38,12 @@ public class ClientProfileUpdateDTO {
 
     private Double searchRadiusKm;
 
+    private Boolean priceAlertsEnabled;
+
+    private Boolean weeklySummaryEnabled;
+
+    private Boolean browserPushEnabled;
+
     public String getName() {
         return name;
     }
@@ -148,5 +154,29 @@ public class ClientProfileUpdateDTO {
 
     public void setSearchRadiusKm(Double searchRadiusKm) {
         this.searchRadiusKm = searchRadiusKm;
+    }
+
+    public Boolean getPriceAlertsEnabled() {
+        return priceAlertsEnabled;
+    }
+
+    public void setPriceAlertsEnabled(Boolean priceAlertsEnabled) {
+        this.priceAlertsEnabled = priceAlertsEnabled;
+    }
+
+    public Boolean getWeeklySummaryEnabled() {
+        return weeklySummaryEnabled;
+    }
+
+    public void setWeeklySummaryEnabled(Boolean weeklySummaryEnabled) {
+        this.weeklySummaryEnabled = weeklySummaryEnabled;
+    }
+
+    public Boolean getBrowserPushEnabled() {
+        return browserPushEnabled;
+    }
+
+    public void setBrowserPushEnabled(Boolean browserPushEnabled) {
+        this.browserPushEnabled = browserPushEnabled;
     }
 }

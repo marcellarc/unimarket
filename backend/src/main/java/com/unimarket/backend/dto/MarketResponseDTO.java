@@ -23,6 +23,9 @@ public record MarketResponseDTO(
         String addressSource,
         String googleMapsUrl,
         String directionsUrl,
+        Boolean priceAlertsEnabled,
+        Boolean reviewAlertsEnabled,
+        Boolean weeklyReportEnabled,
         LocalDateTime createdAt
 ) {
 }

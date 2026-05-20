@@ -96,6 +96,15 @@ public class Market {
     @Schema(description = "Longitude do mercado", example = "-46.3336")
     private Double longitude;
 
+    @Column(name = "price_alerts_enabled")
+    private Boolean priceAlertsEnabled = true;
+
+    @Column(name = "review_alerts_enabled")
+    private Boolean reviewAlertsEnabled = true;
+
+    @Column(name = "weekly_report_enabled")
+    private Boolean weeklyReportEnabled = true;
+
     // Campos temporarios usados no fluxo de recuperacao de senha do supermercado.
     @Column(name = "reset_code", length = 6)
     private String resetCode;
