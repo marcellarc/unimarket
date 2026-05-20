@@ -14,9 +14,11 @@ import {
 } from '@/services/notification'
 import { findLocationByCep } from '@/services/location'
 import { deleteUserAccount, getCurrentUserProfile, updateCurrentUserProfile } from '@/services/user'
+import { listShoppingListItems, listShoppingLists } from '@/services/shopping-list'
 import type { PriceNotificationResponse } from '@/types/notification'
+import type { ShoppingListItem } from '@/types/shopping-list'
 import type { UpdateUserProfileRequest } from '@/types/user'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import Cookies from 'js-cookie'
 import {
@@ -97,12 +99,6 @@ function getInitials(value: string) {
         .join('') || 'U'
 }
 
-const shoppingSummary = {
-    lists: 2,
-    items: 20,
-    savings: 57.50,
-}
-
 export function ProfilePage() {
     const navigate = useNavigate()
     const { logout } = useLogout()
@@ -149,8 +145,36 @@ export function ProfilePage() {
         queryFn: listNotifications,
     })
 
+    const clientId = profile?.id
+
+    const { data: shoppingLists = [], isLoading: isShoppingListsLoading } = useQuery({
+        queryKey: ['shoppingLists', clientId],
+        queryFn: () => listShoppingLists(clientId!),
+        enabled: !!clientId,
+    })
+
+    const shoppingListItemQueries = useQueries({
+        queries: shoppingLists.map(list => ({
+            queryKey: ['shoppingListItems', list.id],
+            queryFn: () => listShoppingListItems(list.id),
+            enabled: !!clientId,
+        })),
+    })
+
     const unreadNotifications = notifications.filter(notification => !notification.read).length
     const activeAlerts = priceAlerts.filter(alert => alert.active)
+    const isShoppingSummaryLoading = isShoppingListsLoading || shoppingListItemQueries.some(query => query.isLoading)
+    const shoppingSummary = useMemo(() => {
+        const allItems = shoppingListItemQueries.flatMap(query => (query.data ?? []) as ShoppingListItem[])
+        const items = allItems.reduce((sum, item) => sum + item.quantity, 0)
+        const total = allItems.reduce((sum, item) => sum + (Number(item.price) * item.quantity), 0)
+
+        return {
+            lists: shoppingLists.length,
+            items,
+            total,
+        }
+    }, [shoppingListItemQueries, shoppingLists.length])
     const hasSavedLocation = Boolean(zipCode && city && state)
     const locationStatus = latitude != null && longitude != null
         ? 'Localidade precisa ativa para ordenar mercados por distância.'
@@ -944,9 +968,10 @@ export function ProfilePage() {
                             </div>
 
                             <div className="space-y-3">
-                                <SummaryRow icon={ShoppingCart} label="Itens em listas" value={String(shoppingSummary.items)} />
-                                <SummaryRow icon={Home} label="Listas criadas" value={String(shoppingSummary.lists)} />
-                                <SummaryRow icon={Zap} label="Economia estimada" value={`R$ ${shoppingSummary.savings.toFixed(2)}`} />
+                                <SummaryRow icon={ShoppingCart} label="Itens em listas" value={isShoppingSummaryLoading ? '...' : String(shoppingSummary.items)} />
+                                <SummaryRow icon={Home} label="Listas criadas" value={isShoppingSummaryLoading ? '...' : String(shoppingSummary.lists)} />
+                                <SummaryRow icon={Zap} label="Total em listas" value={isShoppingSummaryLoading ? '...' : `R$ ${shoppingSummary.total.toFixed(2)}`} />
+                                <SummaryRow icon={Bell} label="Alertas ativos" value={String(activeAlerts.length)} />
                                 <SummaryRow icon={Bell} label="Notificações novas" value={String(unreadNotifications)} />
                             </div>
                         </Card>
