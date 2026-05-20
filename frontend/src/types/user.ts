@@ -22,6 +22,9 @@ export interface UserProfile {
     locationSource?: string | null
     profileImageUrl?: string | null
     searchRadiusKm?: number | null
+    priceAlertsEnabled?: boolean | null
+    weeklySummaryEnabled?: boolean | null
+    browserPushEnabled?: boolean | null
     createdAt?: string
 }
 
@@ -40,4 +43,7 @@ export interface UpdateUserProfileRequest {
     locationSource?: string
     profileImageUrl?: string
     searchRadiusKm?: number
+    priceAlertsEnabled?: boolean
+    weeklySummaryEnabled?: boolean
+    browserPushEnabled?: boolean
 }

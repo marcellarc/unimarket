@@ -132,7 +132,27 @@ public class MarketService {
         }
 
         if (hasText(dto.getPassword())) {
+            if (!hasText(dto.getCurrentPassword())) {
+                throw new RuntimeException("Informe a senha atual para definir uma nova senha");
+            }
+
+            if (!passwordEncoder.matches(dto.getCurrentPassword(), market.getPassword())) {
+                throw new RuntimeException("Senha atual invalida");
+            }
+
             market.setPassword(passwordEncoder.encode(dto.getPassword()));
+        }
+
+        if (dto.getPriceAlertsEnabled() != null) {
+            market.setPriceAlertsEnabled(dto.getPriceAlertsEnabled());
+        }
+
+        if (dto.getReviewAlertsEnabled() != null) {
+            market.setReviewAlertsEnabled(dto.getReviewAlertsEnabled());
+        }
+
+        if (dto.getWeeklyReportEnabled() != null) {
+            market.setWeeklyReportEnabled(dto.getWeeklyReportEnabled());
         }
 
         return toResponse(repository.save(market), null);
@@ -282,8 +302,15 @@ public class MarketService {
                 null,
                 buildGoogleMapsUrl(market),
                 buildDirectionsUrl(market),
+                valueOrDefault(market.getPriceAlertsEnabled(), true),
+                valueOrDefault(market.getReviewAlertsEnabled(), true),
+                valueOrDefault(market.getWeeklyReportEnabled(), true),
                 market.getCreatedAt()
         );
+    }
+
+    private Boolean valueOrDefault(Boolean value, Boolean fallback) {
+        return value == null ? fallback : value;
     }
 
     private String buildGoogleMapsUrl(Market market) {

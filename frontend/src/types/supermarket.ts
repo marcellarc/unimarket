@@ -45,6 +45,9 @@ export interface MarketResponse {
     addressSource?: string | null
     googleMapsUrl: string
     directionsUrl: string
+    priceAlertsEnabled?: boolean | null
+    reviewAlertsEnabled?: boolean | null
+    weeklyReportEnabled?: boolean | null
     createdAt: string
 }
 
@@ -58,5 +61,9 @@ export interface UpdateMarketProfileRequest {
     zipCode?: string
     latitude?: number
     longitude?: number
+    currentPassword?: string
     password?: string
+    priceAlertsEnabled?: boolean
+    reviewAlertsEnabled?: boolean
+    weeklyReportEnabled?: boolean
 }

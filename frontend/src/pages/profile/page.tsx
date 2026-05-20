@@ -15,6 +15,7 @@ import {
 import { findLocationByCep } from '@/services/location'
 import { deleteUserAccount, getCurrentUserProfile, updateCurrentUserProfile } from '@/services/user'
 import type { PriceNotificationResponse } from '@/types/notification'
+import type { UpdateUserProfileRequest } from '@/types/user'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import Cookies from 'js-cookie'
@@ -190,41 +191,72 @@ export function ProfilePage() {
             setSearchRadius(profile.searchRadiusKm)
         }
 
+        setPriceAlertsEnabled(profile.priceAlertsEnabled ?? true)
+        setWeeklySummaryEnabled(profile.weeklySummaryEnabled ?? true)
+        setBrowserPushEnabled(profile.browserPushEnabled ?? false)
+
         Cookies.set('userName', profile.name, cookieOptions)
         Cookies.set('userEmail', profile.email, cookieOptions)
     }, [profile])
 
-    useEffect(() => {
+    function persistProfileLocally(updatedProfile: {
+        profileImageUrl?: string | null
+        zipCode?: string | null
+        streetAddress?: string | null
+        city?: string | null
+        state?: string | null
+        neighborhood?: string | null
+        latitude?: number | null
+        longitude?: number | null
+        locationSource?: string | null
+        searchRadiusKm?: number | null
+        priceAlertsEnabled?: boolean | null
+        weeklySummaryEnabled?: boolean | null
+        browserPushEnabled?: boolean | null
+    } = {
+        profileImageUrl,
+        zipCode,
+        streetAddress,
+        city,
+        state,
+        neighborhood,
+        latitude,
+        longitude,
+        locationSource,
+        searchRadiusKm: searchRadius,
+        priceAlertsEnabled,
+        weeklySummaryEnabled,
+        browserPushEnabled,
+    }) {
         if (typeof window === 'undefined') {
             return
         }
 
-        window.localStorage.setItem('unimarket.profile.zipCode', formatCep(zipCode))
-        window.localStorage.setItem('unimarket.profile.streetAddress', streetAddress)
-        window.localStorage.setItem('unimarket.profile.city', city)
-        window.localStorage.setItem('unimarket.profile.state', state)
-        window.localStorage.setItem('unimarket.profile.neighborhood', neighborhood)
-        window.localStorage.setItem('unimarket.profile.imageUrl', profileImageUrl)
-        if (latitude != null && longitude != null) {
-            window.localStorage.setItem('unimarket.profile.latitude', String(latitude))
-            window.localStorage.setItem('unimarket.profile.longitude', String(longitude))
+        window.localStorage.setItem('unimarket.profile.zipCode', formatCep(updatedProfile.zipCode ?? ''))
+        window.localStorage.setItem('unimarket.profile.streetAddress', updatedProfile.streetAddress ?? '')
+        window.localStorage.setItem('unimarket.profile.city', updatedProfile.city ?? '')
+        window.localStorage.setItem('unimarket.profile.state', updatedProfile.state ?? '')
+        window.localStorage.setItem('unimarket.profile.neighborhood', updatedProfile.neighborhood ?? '')
+        window.localStorage.setItem('unimarket.profile.imageUrl', updatedProfile.profileImageUrl ?? '')
+        if (updatedProfile.latitude != null && updatedProfile.longitude != null) {
+            window.localStorage.setItem('unimarket.profile.latitude', String(updatedProfile.latitude))
+            window.localStorage.setItem('unimarket.profile.longitude', String(updatedProfile.longitude))
         } else {
             window.localStorage.removeItem('unimarket.profile.latitude')
             window.localStorage.removeItem('unimarket.profile.longitude')
         }
-        window.localStorage.setItem('unimarket.profile.locationSource', locationSource)
-        window.localStorage.setItem('unimarket.profile.radius', String(searchRadius))
-        window.localStorage.setItem('unimarket.priceAlertsEnabled', String(priceAlertsEnabled))
-        window.localStorage.setItem('unimarket.weeklySummaryEnabled', String(weeklySummaryEnabled))
-        window.localStorage.setItem('unimarket.browserPushEnabled', String(browserPushEnabled))
-    }, [browserPushEnabled, city, latitude, locationSource, longitude, neighborhood, priceAlertsEnabled, profileImageUrl, searchRadius, state, streetAddress, weeklySummaryEnabled, zipCode])
 
-    const updateProfileMutation = useMutation({
-        mutationFn: () => updateCurrentUserProfile({
+        window.localStorage.setItem('unimarket.profile.locationSource', updatedProfile.locationSource ?? '')
+        window.localStorage.setItem('unimarket.profile.radius', String(updatedProfile.searchRadiusKm ?? searchRadius))
+        window.localStorage.setItem('unimarket.priceAlertsEnabled', String(updatedProfile.priceAlertsEnabled ?? true))
+        window.localStorage.setItem('unimarket.weeklySummaryEnabled', String(updatedProfile.weeklySummaryEnabled ?? true))
+        window.localStorage.setItem('unimarket.browserPushEnabled', String(updatedProfile.browserPushEnabled ?? false))
+    }
+
+    function buildProfilePayload(): UpdateUserProfileRequest {
+        return {
             name: name.trim(),
             email: email.trim(),
-            currentPassword: currentPassword.trim() || undefined,
-            password: newPassword.trim() || undefined,
             profileImageUrl: profileImageUrl.trim(),
             zipCode: onlyDigits(zipCode) || undefined,
             streetAddress: streetAddress.trim(),
@@ -235,14 +267,25 @@ export function ProfilePage() {
             longitude: longitude ?? undefined,
             locationSource: locationSource.trim() || undefined,
             searchRadiusKm: searchRadius,
-        }),
+            priceAlertsEnabled,
+            weeklySummaryEnabled,
+            browserPushEnabled,
+        }
+    }
+
+    const updateProfileMutation = useMutation({
+        mutationFn: (data: UpdateUserProfileRequest) => updateCurrentUserProfile(data),
         onSuccess: async (updatedProfile) => {
             Cookies.set('userName', updatedProfile.name, cookieOptions)
             Cookies.set('userEmail', updatedProfile.email, cookieOptions)
             setProfileImageUrl(updatedProfile.profileImageUrl ?? '')
+            setPriceAlertsEnabled(updatedProfile.priceAlertsEnabled ?? true)
+            setWeeklySummaryEnabled(updatedProfile.weeklySummaryEnabled ?? true)
+            setBrowserPushEnabled(updatedProfile.browserPushEnabled ?? false)
             setCurrentPassword('')
             setNewPassword('')
             setConfirmPassword('')
+            persistProfileLocally(updatedProfile)
             toast.success('Perfil atualizado')
             await queryClient.invalidateQueries({ queryKey: ['userProfile'] })
             await queryClient.invalidateQueries({ queryKey: ['nearbyMarkets'] })
@@ -328,24 +371,29 @@ export function ProfilePage() {
             return
         }
 
-        if (newPassword || confirmPassword || currentPassword) {
-            if (!currentPassword) {
-                toast.error('Informe sua senha atual para alterá-la.')
-                return
-            }
+        updateProfileMutation.mutate(buildProfilePayload())
+    }
 
-            if (newPassword.length < 6) {
-                toast.error('A nova senha deve ter pelo menos 6 caracteres.')
-                return
-            }
-
-            if (newPassword !== confirmPassword) {
-                toast.error('A confirmação de senha não confere.')
-                return
-            }
+    function handleSaveSecurity() {
+        if (!currentPassword) {
+            toast.error('Informe sua senha atual para alterar.')
+            return
         }
 
-        updateProfileMutation.mutate()
+        if (newPassword.length < 6) {
+            toast.error('A nova senha deve ter pelo menos 6 caracteres.')
+            return
+        }
+
+        if (newPassword !== confirmPassword) {
+            toast.error('A confirmação de senha não confere.')
+            return
+        }
+
+        updateProfileMutation.mutate({
+            currentPassword: currentPassword.trim(),
+            password: newPassword.trim(),
+        })
     }
 
     function handleProfileImageFile(file?: File) {
@@ -654,7 +702,7 @@ export function ProfilePage() {
                                 </div>
 
                                 <div className="flex justify-end border-t border-border pt-4">
-                                    <Button onClick={handleSaveProfile} disabled={updateProfileMutation.isPending}>
+                                    <Button onClick={handleSaveSecurity} disabled={updateProfileMutation.isPending}>
                                         {updateProfileMutation.isPending ? (
                                             <Loader2 className="h-4 w-4 animate-spin" />
                                         ) : (
@@ -697,6 +745,17 @@ export function ProfilePage() {
                                         label="Resumo semanal"
                                         onCheckedChange={setWeeklySummaryEnabled}
                                     />
+                                </div>
+
+                                <div className="flex justify-end border-t border-border pt-4">
+                                    <Button onClick={handleSaveProfile} disabled={updateProfileMutation.isPending}>
+                                        {updateProfileMutation.isPending ? (
+                                            <Loader2 className="h-4 w-4 animate-spin" />
+                                        ) : (
+                                            <Save className="h-4 w-4" />
+                                        )}
+                                        Salvar preferências
+                                    </Button>
                                 </div>
 
                                 <div className="overflow-hidden rounded-lg border border-border bg-background/60">

@@ -79,6 +79,15 @@ public class Client {
     @Column(name = "search_radius_km")
     private Double searchRadiusKm;
 
+    @Column(name = "price_alerts_enabled")
+    private Boolean priceAlertsEnabled = true;
+
+    @Column(name = "weekly_summary_enabled")
+    private Boolean weeklySummaryEnabled = true;
+
+    @Column(name = "browser_push_enabled")
+    private Boolean browserPushEnabled = false;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     @Schema(description = "Timestamp de quando o cliente foi criado")
     private LocalDateTime createdAt;
