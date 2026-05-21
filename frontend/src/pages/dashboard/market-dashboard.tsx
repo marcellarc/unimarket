@@ -144,7 +144,7 @@ export default function MarketDashboard() {
 
                     <div className="flex items-center gap-2">
                         <div className="hidden md:flex items-center mr-4 text-sm text-muted-foreground">
-                            <MapPin className="w-4 h-4 mr-1 text-primary" /> Santos, SP
+                            <MapPin className="w-4 h-4 mr-1 text-primary" /> Loja parceira
                         </div>
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>

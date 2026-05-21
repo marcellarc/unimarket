@@ -1,11 +1,12 @@
 package com.unimarket.backend.dto;
 
 import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
 public class ClientProfileUpdateDTO {
 
-    @Size(min = 2, max = 14, message = "O nome deve ter entre 2 e 14 caracteres")
+    @Size(min = 2, max = 60, message = "O nome deve ter entre 2 e 60 caracteres")
     private String name;
 
     @Email(message = "Email invalido")
@@ -13,7 +14,11 @@ public class ClientProfileUpdateDTO {
 
     private String currentPassword;
 
-    @Size(min = 6, message = "A senha deve ter pelo menos 6 caracteres")
+    @Size(min = 8, max = 100, message = "A senha deve ter entre 8 e 100 caracteres")
+    @Pattern(
+            regexp = "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[^a-zA-Z\\d])[A-Za-z\\d\\W]+$",
+            message = "A senha deve conter letras maiusculas, minusculas, numero e caractere especial"
+    )
     private String password;
 
     private String streetAddress;
@@ -34,6 +39,7 @@ public class ClientProfileUpdateDTO {
 
     private String locationSource;
 
+    @Size(max = 2_000_000, message = "A imagem de perfil deve ter ate 1 MB")
     private String profileImageUrl;
 
     private Double searchRadiusKm;

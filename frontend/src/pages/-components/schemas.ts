@@ -13,7 +13,7 @@ export const loginSchema = z.object({
         message: 'Selecione um tipo de conta',
     }),
     email: z.string().min(1, 'Email é obrigatório').email('Email inválido').toLowerCase(),
-    password: z.string().min(6, 'A senha deve ter no mínimo 6 caracteres').max(100, 'A senha deve ter no máximo 100 caracteres'),
+    password: z.string().min(1, 'Senha é obrigatória').max(100, 'A senha deve ter no máximo 100 caracteres'),
 });
 
 // Schema Plano com SuperRefine (A melhor prática para React Hook Form)
@@ -39,11 +39,17 @@ export const registerSchema = z.object({
 
     // Validações do USER
     if (data.role === 'USER') {
-        if (!data.name || data.name.trim().length < 3) {
+        if (!data.name || data.name.trim().length < 2) {
             ctx.addIssue({
                 code: z.ZodIssueCode.custom,
-                message: 'O nome deve ter no mínimo 3 caracteres',
+                message: 'O nome deve ter no mínimo 2 caracteres',
                 path: ['name'] // O erro vai aparecer exatamente no input "name"
+            });
+        } else if (data.name.trim().length > 14) {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                message: 'O nome deve ter no máximo 14 caracteres',
+                path: ['name']
             });
         }
     }

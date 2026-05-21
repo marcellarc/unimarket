@@ -1,21 +1,6 @@
 import { redirect } from '@tanstack/react-router'
 import Cookies from 'js-cookie'
-
-const SESSION_COOKIE_NAMES = [
-    'accessToken',
-    'refreshToken',
-    'marketName',
-    'userName',
-    'marketEmail',
-    'userEmail',
-    'marketId',
-    'userId',
-    'userRole',
-] as const
-
-function clearSessionCookies() {
-    SESSION_COOKIE_NAMES.forEach((cookieName) => Cookies.remove(cookieName))
-}
+import { clearSessionState } from './session'
 
 function decodeJwtPayload(token: string): { exp?: number } | null {
     try {
@@ -48,14 +33,14 @@ export function hasActiveAccessToken() {
     const expiresAt = payload?.exp
 
     if (!expiresAt) {
-        clearSessionCookies()
+        clearSessionState()
         return false
     }
 
     const isActive = expiresAt * 1000 > Date.now()
 
     if (!isActive) {
-        clearSessionCookies()
+        clearSessionState()
     }
 
     return isActive

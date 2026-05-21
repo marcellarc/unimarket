@@ -12,6 +12,7 @@ import lombok.Setter;
 public class ClientDTO {
 
     @NotBlank(message = "O nome é obrigatório")
+    @Size(min = 2, max = 14, message = "O nome deve ter entre 2 e 14 caracteres")
     private String name;
 
     @Email(message = "Email inválido")
@@ -20,7 +21,7 @@ public class ClientDTO {
 
     // senha com mínimo 8 caracteres, letras maiúsculas, minúsculas, número e caractere especial
     @NotBlank(message = "A senha é obrigatória")
-    @Size(min = 8, message = "A senha deve ter no mínimo 8 caracteres")
+    @Size(min = 8, max = 100, message = "A senha deve ter entre 8 e 100 caracteres")
     @Pattern(
             regexp = "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[^a-zA-Z\\d])[A-Za-z\\d\\W]+$",
             message = "A senha deve conter letras maiúsculas, minúsculas, número e caractere especial"

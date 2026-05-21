@@ -10,6 +10,8 @@ import {
     syncCurrentMarketProfileFromCnpj,
     updateCurrentMarketProfile,
 } from '@/services/supermarket'
+import { validateStrongPassword } from '@/utils/profile'
+import { clearSessionState } from '@/utils/session'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import Cookies from 'js-cookie'
@@ -161,12 +163,8 @@ export function SettingsTab() {
     const deleteAccountMutation = useMutation({
         mutationFn: () => deleteMarketAccount(profile!.id),
         onSuccess: () => {
-            Cookies.remove('accessToken')
-            Cookies.remove('refreshToken')
-            Cookies.remove('marketName')
-            Cookies.remove('marketEmail')
-            Cookies.remove('marketId')
-            Cookies.remove('userRole')
+            clearSessionState()
+            queryClient.clear()
             toast.success('Conta do supermercado excluída.')
             navigate({ to: '/login' })
         },
@@ -181,8 +179,9 @@ export function SettingsTab() {
             return
         }
 
-        if (newPassword.length < 6) {
-            toast.error('A nova senha deve ter pelo menos 6 caracteres.')
+        const passwordError = validateStrongPassword(newPassword)
+        if (passwordError) {
+            toast.error(passwordError)
             return
         }
 

@@ -12,7 +12,10 @@ import {
 import { useAuth } from '@/hooks/use-auth'
 import { getApiErrorMessage } from '@/lib/api-error'
 import { requestPasswordRecovery, resetPassword } from '@/services/auth'
+import { validateStrongPassword } from '@/utils/profile'
+import { clearSessionState } from '@/utils/session'
 import { zodResolver } from '@hookform/resolvers/zod'
+import { useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate } from '@tanstack/react-router'
 import Cookies from 'js-cookie'
 import { Eye, EyeOff, Loader2, Store, User } from 'lucide-react'
@@ -32,6 +35,7 @@ export function SignInForm() {
     const [isRecovering, setIsRecovering] = useState(false)
     const [isResetting, setIsResetting] = useState(false)
     const navigate = useNavigate()
+    const queryClient = useQueryClient()
     const { login, isLoggingIn } = useAuth()
     const guestCookieOptions = {
         expires: 1,
@@ -65,10 +69,8 @@ export function SignInForm() {
     }
 
     function handleGuestLogin() {
-        Cookies.remove('accessToken')
-        Cookies.remove('refreshToken')
-        Cookies.remove('marketName')
-        Cookies.remove('marketId')
+        clearSessionState()
+        queryClient.clear()
 
         Cookies.set('userRole', 'GUEST', guestCookieOptions)
 
@@ -108,8 +110,9 @@ export function SignInForm() {
             return
         }
 
-        if (newPassword.length < 6) {
-            toast.error('A nova senha deve ter pelo menos 6 caracteres')
+        const passwordError = validateStrongPassword(newPassword)
+        if (passwordError) {
+            toast.error(passwordError)
             return
         }
 
@@ -308,7 +311,7 @@ export function SignInForm() {
                                         type="password"
                                         value={newPassword}
                                         onChange={(event) => setNewPassword(event.target.value)}
-                                        placeholder="Mínimo 6 caracteres"
+                                        placeholder="Mínimo 8 caracteres"
                                     />
                                 </div>
                             </>

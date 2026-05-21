@@ -1,6 +1,9 @@
 import { Button, Input, Label } from '@/components/ui'
 import { useRegister } from '@/hooks/use-register'
+import { MAX_PROFILE_NAME_LENGTH } from '@/utils/profile'
+import { clearSessionState } from '@/utils/session'
 import { zodResolver } from '@hookform/resolvers/zod'
+import { useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate } from '@tanstack/react-router'
 import Cookies from 'js-cookie'
 import { Building2, CheckCircle2, Eye, EyeOff, FileText, Loader2, Store, User, UserCircle } from 'lucide-react'
@@ -14,6 +17,7 @@ export function SignUpForm() {
     const [showPassword, setShowPassword] = useState(false)
     const [showConfirmPassword, setShowConfirmPassword] = useState(false)
     const navigate = useNavigate()
+    const queryClient = useQueryClient()
 
     const { submit, isPending } = useRegister()
 
@@ -45,10 +49,8 @@ export function SignUpForm() {
     }
 
     function handleGuestLogin() {
-        Cookies.remove('accessToken')
-        Cookies.remove('refreshToken')
-        Cookies.remove('marketName')
-        Cookies.remove('marketId')
+        clearSessionState()
+        queryClient.clear()
         Cookies.set('userRole', 'GUEST', {
             expires: 1,
             secure: import.meta.env.PROD,
@@ -126,6 +128,7 @@ export function SignUpForm() {
                                 />
                                 <Input
                                     id="name"
+                                    maxLength={MAX_PROFILE_NAME_LENGTH}
                                     placeholder="O seu nome completo"
                                     className="rounded-full border-primary/30 bg-white pl-10 shadow-sm focus-visible:ring-primary dark:bg-white/10"
                                     {...register('name')}

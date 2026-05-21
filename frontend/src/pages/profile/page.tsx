@@ -18,6 +18,13 @@ import { listShoppingListItems, listShoppingLists } from '@/services/shopping-li
 import type { PriceNotificationResponse } from '@/types/notification'
 import type { ShoppingListItem } from '@/types/shopping-list'
 import type { UpdateUserProfileRequest } from '@/types/user'
+import {
+    MAX_PROFILE_IMAGE_FILE_SIZE_BYTES,
+    MAX_PROFILE_IMAGE_FILE_SIZE_MB,
+    MAX_PROFILE_NAME_LENGTH,
+    validateStrongPassword,
+} from '@/utils/profile'
+import { clearSessionState } from '@/utils/session'
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import Cookies from 'js-cookie'
@@ -54,33 +61,6 @@ const cookieOptions = {
     sameSite: 'strict' as const,
 }
 
-function getStoredBoolean(key: string, fallback: boolean) {
-    if (typeof window === 'undefined') {
-        return fallback
-    }
-
-    const storedValue = window.localStorage.getItem(key)
-    return storedValue === null ? fallback : storedValue === 'true'
-}
-
-function getStoredString(key: string, fallback: string) {
-    if (typeof window === 'undefined') {
-        return fallback
-    }
-
-    return window.localStorage.getItem(key) ?? fallback
-}
-
-function getStoredNumber(key: string) {
-    if (typeof window === 'undefined') {
-        return null
-    }
-
-    const value = window.localStorage.getItem(key)
-    const parsedValue = value ? Number(value) : NaN
-    return Number.isFinite(parsedValue) ? parsedValue : null
-}
-
 function onlyDigits(value: string) {
     return value.replace(/\D/g, '')
 }
@@ -109,25 +89,19 @@ export function ProfilePage() {
     const [currentPassword, setCurrentPassword] = useState('')
     const [newPassword, setNewPassword] = useState('')
     const [confirmPassword, setConfirmPassword] = useState('')
-    const [profileImageUrl, setProfileImageUrl] = useState(() => getStoredString('unimarket.profile.imageUrl', ''))
-    const [zipCode, setZipCode] = useState(() => getStoredString('unimarket.profile.zipCode', ''))
-    const [streetAddress, setStreetAddress] = useState(() => getStoredString('unimarket.profile.streetAddress', ''))
-    const [city, setCity] = useState(() => getStoredString('unimarket.profile.city', 'Santos'))
-    const [state, setState] = useState(() => getStoredString('unimarket.profile.state', 'SP'))
-    const [neighborhood, setNeighborhood] = useState(() => getStoredString('unimarket.profile.neighborhood', ''))
-    const [latitude, setLatitude] = useState<number | null>(() => getStoredNumber('unimarket.profile.latitude'))
-    const [longitude, setLongitude] = useState<number | null>(() => getStoredNumber('unimarket.profile.longitude'))
-    const [locationSource, setLocationSource] = useState(() => getStoredString('unimarket.profile.locationSource', ''))
-    const [searchRadius, setSearchRadius] = useState(() => Number(getStoredString('unimarket.profile.radius', '5')))
-    const [priceAlertsEnabled, setPriceAlertsEnabled] = useState(() =>
-        getStoredBoolean('unimarket.priceAlertsEnabled', true),
-    )
-    const [weeklySummaryEnabled, setWeeklySummaryEnabled] = useState(() =>
-        getStoredBoolean('unimarket.weeklySummaryEnabled', true),
-    )
-    const [browserPushEnabled, setBrowserPushEnabled] = useState(() =>
-        getStoredBoolean('unimarket.browserPushEnabled', false),
-    )
+    const [profileImageUrl, setProfileImageUrl] = useState('')
+    const [zipCode, setZipCode] = useState('')
+    const [streetAddress, setStreetAddress] = useState('')
+    const [city, setCity] = useState('')
+    const [state, setState] = useState('')
+    const [neighborhood, setNeighborhood] = useState('')
+    const [latitude, setLatitude] = useState<number | null>(null)
+    const [longitude, setLongitude] = useState<number | null>(null)
+    const [locationSource, setLocationSource] = useState('')
+    const [searchRadius, setSearchRadius] = useState(5)
+    const [priceAlertsEnabled, setPriceAlertsEnabled] = useState(true)
+    const [weeklySummaryEnabled, setWeeklySummaryEnabled] = useState(true)
+    const [browserPushEnabled, setBrowserPushEnabled] = useState(false)
     const [deleteAccountOpen, setDeleteAccountOpen] = useState(false)
 
     const { data: profile, isLoading: isProfileLoading } = useQuery({
@@ -195,18 +169,18 @@ export function ProfilePage() {
 
         setName(profile.name)
         setEmail(profile.email)
-        setProfileImageUrl(profile.profileImageUrl ?? getStoredString('unimarket.profile.imageUrl', ''))
-        setStreetAddress(profile.streetAddress ?? getStoredString('unimarket.profile.streetAddress', ''))
-        setNeighborhood(profile.neighborhood ?? getStoredString('unimarket.profile.neighborhood', ''))
-        setCity(profile.city ?? getStoredString('unimarket.profile.city', 'Santos'))
-        setState(profile.state ?? getStoredString('unimarket.profile.state', 'SP'))
-        setZipCode(profile.zipCode ? formatCep(profile.zipCode) : getStoredString('unimarket.profile.zipCode', ''))
-        setLocationSource(profile.locationSource ?? getStoredString('unimarket.profile.locationSource', ''))
+        setProfileImageUrl(profile.profileImageUrl ?? '')
+        setStreetAddress(profile.streetAddress ?? '')
+        setNeighborhood(profile.neighborhood ?? '')
+        setCity(profile.city ?? '')
+        setState(profile.state ?? '')
+        setZipCode(profile.zipCode ? formatCep(profile.zipCode) : '')
+        setLocationSource(profile.locationSource ?? '')
 
         if (profile.latitude != null && profile.longitude != null) {
             setLatitude(profile.latitude)
             setLongitude(profile.longitude)
-        } else if (profile.zipCode || profile.city || profile.neighborhood) {
+        } else {
             setLatitude(null)
             setLongitude(null)
         }
@@ -222,60 +196,6 @@ export function ProfilePage() {
         Cookies.set('userName', profile.name, cookieOptions)
         Cookies.set('userEmail', profile.email, cookieOptions)
     }, [profile])
-
-    function persistProfileLocally(updatedProfile: {
-        profileImageUrl?: string | null
-        zipCode?: string | null
-        streetAddress?: string | null
-        city?: string | null
-        state?: string | null
-        neighborhood?: string | null
-        latitude?: number | null
-        longitude?: number | null
-        locationSource?: string | null
-        searchRadiusKm?: number | null
-        priceAlertsEnabled?: boolean | null
-        weeklySummaryEnabled?: boolean | null
-        browserPushEnabled?: boolean | null
-    } = {
-        profileImageUrl,
-        zipCode,
-        streetAddress,
-        city,
-        state,
-        neighborhood,
-        latitude,
-        longitude,
-        locationSource,
-        searchRadiusKm: searchRadius,
-        priceAlertsEnabled,
-        weeklySummaryEnabled,
-        browserPushEnabled,
-    }) {
-        if (typeof window === 'undefined') {
-            return
-        }
-
-        window.localStorage.setItem('unimarket.profile.zipCode', formatCep(updatedProfile.zipCode ?? ''))
-        window.localStorage.setItem('unimarket.profile.streetAddress', updatedProfile.streetAddress ?? '')
-        window.localStorage.setItem('unimarket.profile.city', updatedProfile.city ?? '')
-        window.localStorage.setItem('unimarket.profile.state', updatedProfile.state ?? '')
-        window.localStorage.setItem('unimarket.profile.neighborhood', updatedProfile.neighborhood ?? '')
-        window.localStorage.setItem('unimarket.profile.imageUrl', updatedProfile.profileImageUrl ?? '')
-        if (updatedProfile.latitude != null && updatedProfile.longitude != null) {
-            window.localStorage.setItem('unimarket.profile.latitude', String(updatedProfile.latitude))
-            window.localStorage.setItem('unimarket.profile.longitude', String(updatedProfile.longitude))
-        } else {
-            window.localStorage.removeItem('unimarket.profile.latitude')
-            window.localStorage.removeItem('unimarket.profile.longitude')
-        }
-
-        window.localStorage.setItem('unimarket.profile.locationSource', updatedProfile.locationSource ?? '')
-        window.localStorage.setItem('unimarket.profile.radius', String(updatedProfile.searchRadiusKm ?? searchRadius))
-        window.localStorage.setItem('unimarket.priceAlertsEnabled', String(updatedProfile.priceAlertsEnabled ?? true))
-        window.localStorage.setItem('unimarket.weeklySummaryEnabled', String(updatedProfile.weeklySummaryEnabled ?? true))
-        window.localStorage.setItem('unimarket.browserPushEnabled', String(updatedProfile.browserPushEnabled ?? false))
-    }
 
     function buildProfilePayload(): UpdateUserProfileRequest {
         return {
@@ -297,19 +217,35 @@ export function ProfilePage() {
         }
     }
 
+    function clearPreciseLocation(nextLocationSource = '') {
+        setLatitude(null)
+        setLongitude(null)
+        setLocationSource(nextLocationSource)
+    }
+
     const updateProfileMutation = useMutation({
         mutationFn: (data: UpdateUserProfileRequest) => updateCurrentUserProfile(data),
         onSuccess: async (updatedProfile) => {
             Cookies.set('userName', updatedProfile.name, cookieOptions)
             Cookies.set('userEmail', updatedProfile.email, cookieOptions)
+            setName(updatedProfile.name)
+            setEmail(updatedProfile.email)
             setProfileImageUrl(updatedProfile.profileImageUrl ?? '')
+            setStreetAddress(updatedProfile.streetAddress ?? '')
+            setNeighborhood(updatedProfile.neighborhood ?? '')
+            setCity(updatedProfile.city ?? '')
+            setState(updatedProfile.state ?? '')
+            setZipCode(updatedProfile.zipCode ? formatCep(updatedProfile.zipCode) : '')
+            setLatitude(updatedProfile.latitude ?? null)
+            setLongitude(updatedProfile.longitude ?? null)
+            setLocationSource(updatedProfile.locationSource ?? '')
+            setSearchRadius(updatedProfile.searchRadiusKm ?? 5)
             setPriceAlertsEnabled(updatedProfile.priceAlertsEnabled ?? true)
             setWeeklySummaryEnabled(updatedProfile.weeklySummaryEnabled ?? true)
             setBrowserPushEnabled(updatedProfile.browserPushEnabled ?? false)
             setCurrentPassword('')
             setNewPassword('')
             setConfirmPassword('')
-            persistProfileLocally(updatedProfile)
             toast.success('Perfil atualizado')
             await queryClient.invalidateQueries({ queryKey: ['userProfile'] })
             await queryClient.invalidateQueries({ queryKey: ['nearbyMarkets'] })
@@ -376,11 +312,8 @@ export function ProfilePage() {
     const deleteAccountMutation = useMutation({
         mutationFn: () => deleteUserAccount(profile!.id),
         onSuccess: () => {
-            Cookies.remove('accessToken')
-            Cookies.remove('refreshToken')
-            Cookies.remove('userName')
-            Cookies.remove('userEmail')
-            Cookies.remove('userRole')
+            clearSessionState()
+            queryClient.clear()
             toast.success('Conta excluída com sucesso.')
             navigate({ to: '/login' })
         },
@@ -395,7 +328,26 @@ export function ProfilePage() {
             return
         }
 
+        if (name.trim().length > MAX_PROFILE_NAME_LENGTH) {
+            toast.error(`O nome deve ter no máximo ${MAX_PROFILE_NAME_LENGTH} caracteres.`)
+            return
+        }
+
         updateProfileMutation.mutate(buildProfilePayload())
+    }
+
+    function handleSaveLocation() {
+        if (latitude == null || longitude == null) {
+            if (onlyDigits(zipCode).length !== 8 || !city.trim() || state.trim().length !== 2) {
+                toast.error('Use sua localização atual ou informe um CEP válido antes de salvar.')
+                return
+            }
+        }
+
+        updateProfileMutation.mutate({
+            ...buildProfilePayload(),
+            locationSource: locationSource.trim() || 'CEP',
+        })
     }
 
     function handleSaveSecurity() {
@@ -404,8 +356,9 @@ export function ProfilePage() {
             return
         }
 
-        if (newPassword.length < 6) {
-            toast.error('A nova senha deve ter pelo menos 6 caracteres.')
+        const passwordError = validateStrongPassword(newPassword)
+        if (passwordError) {
+            toast.error(passwordError)
             return
         }
 
@@ -430,8 +383,8 @@ export function ProfilePage() {
             return
         }
 
-        if (file.size > 1_500_000) {
-            toast.error('A imagem deve ter até 1,5 MB.')
+        if (file.size > MAX_PROFILE_IMAGE_FILE_SIZE_BYTES) {
+            toast.error(`A imagem deve ter até ${MAX_PROFILE_IMAGE_FILE_SIZE_MB} MB.`)
             return
         }
 
@@ -476,7 +429,12 @@ export function ProfilePage() {
                 setLocationSource('BROWSER_GEOLOCATION')
                 toast.success('Localização autorizada. A busca por mercados próximos foi refinada.')
             },
-            () => toast.error('Não foi possível acessar sua localização. Use o CEP como alternativa.'),
+            () => {
+                clearPreciseLocation(hasSavedLocation ? 'CEP' : '')
+                toast.error(hasSavedLocation
+                    ? 'Não foi possível acessar sua localização. A busca usará o CEP salvo.'
+                    : 'Não foi possível acessar sua localização. Informe um CEP para calcular a região.')
+            },
             { enableHighAccuracy: true, timeout: 10000 },
         )
     }
@@ -580,7 +538,7 @@ export function ProfilePage() {
                                                 <div>
                                                     <p className="text-sm font-semibold text-foreground">Foto do perfil</p>
                                                     <p className="text-xs text-muted-foreground">
-                                                        Use uma foto ou imagem que ajude a reconhecer sua conta.
+                                                        Use uma foto ou imagem de até {MAX_PROFILE_IMAGE_FILE_SIZE_MB} MB.
                                                     </p>
                                                 </div>
                                                 <div className="grid gap-2 sm:grid-cols-[1fr_auto_auto]">
@@ -617,7 +575,7 @@ export function ProfilePage() {
                                                 <Label htmlFor="profile-name">Nome</Label>
                                                     <Input
                                                     id="profile-name"
-                                                    maxLength={80}
+                                                    maxLength={MAX_PROFILE_NAME_LENGTH}
                                                     value={name}
                                                     onChange={(event) => setName(event.target.value)}
                                                     className="bg-background/80"
@@ -850,7 +808,10 @@ export function ProfilePage() {
                                             id="profile-cep"
                                             inputMode="numeric"
                                             value={formatCep(zipCode)}
-                                            onChange={(event) => setZipCode(formatCep(event.target.value))}
+                                            onChange={(event) => {
+                                                setZipCode(formatCep(event.target.value))
+                                                clearPreciseLocation('')
+                                            }}
                                             placeholder="00000-000"
                                             className="bg-background/80"
                                         />
@@ -875,7 +836,10 @@ export function ProfilePage() {
                                         <Input
                                             id="profile-street"
                                             value={streetAddress}
-                                            onChange={(event) => setStreetAddress(event.target.value)}
+                                            onChange={(event) => {
+                                                setStreetAddress(event.target.value)
+                                                clearPreciseLocation(zipCode ? 'CEP' : '')
+                                            }}
                                             placeholder="Rua, avenida ou ponto de referência"
                                             className="bg-background/80"
                                         />
@@ -886,7 +850,10 @@ export function ProfilePage() {
                                             id="profile-state"
                                             maxLength={2}
                                             value={state}
-                                            onChange={(event) => setState(event.target.value.toUpperCase())}
+                                            onChange={(event) => {
+                                                setState(event.target.value.toUpperCase())
+                                                clearPreciseLocation(zipCode ? 'CEP' : '')
+                                            }}
                                             placeholder="SP"
                                             className="bg-background/80"
                                         />
@@ -899,7 +866,10 @@ export function ProfilePage() {
                                         <Input
                                             id="profile-city"
                                             value={city}
-                                            onChange={(event) => setCity(event.target.value)}
+                                            onChange={(event) => {
+                                                setCity(event.target.value)
+                                                clearPreciseLocation(zipCode ? 'CEP' : '')
+                                            }}
                                             className="bg-background/80"
                                         />
                                     </div>
@@ -908,7 +878,10 @@ export function ProfilePage() {
                                         <Input
                                             id="profile-neighborhood"
                                             value={neighborhood}
-                                            onChange={(event) => setNeighborhood(event.target.value)}
+                                            onChange={(event) => {
+                                                setNeighborhood(event.target.value)
+                                                clearPreciseLocation(zipCode ? 'CEP' : '')
+                                            }}
                                             placeholder="Ex.: Gonzaga"
                                             className="bg-background/80"
                                         />
@@ -943,7 +916,7 @@ export function ProfilePage() {
                                             <LocateFixed className="h-4 w-4" />
                                             Usar localização atual
                                         </Button>
-                                        <Button onClick={handleSaveProfile} disabled={updateProfileMutation.isPending}>
+                                        <Button onClick={handleSaveLocation} disabled={updateProfileMutation.isPending}>
                                             {updateProfileMutation.isPending ? (
                                                 <Loader2 className="h-4 w-4 animate-spin" />
                                             ) : (
@@ -983,7 +956,7 @@ export function ProfilePage() {
                             </div>
                             <div className="space-y-3 text-sm">
                                 <div className="rounded-lg border border-border bg-background/70 p-3">
-                                    <p className="font-medium text-foreground">{city}{state ? `, ${state}` : ''}</p>
+                                    <p className="font-medium text-foreground">{[city, state].filter(Boolean).join(', ') || 'Localidade não informada'}</p>
                                     <p className="text-xs text-muted-foreground">
                                         {neighborhood || 'Bairro não informado'} - {zipCode ? formatCep(zipCode) : 'CEP não informado'} - até {searchRadius} km
                                     </p>

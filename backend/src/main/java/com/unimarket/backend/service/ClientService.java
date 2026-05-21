@@ -105,10 +105,14 @@ public class ClientService {
 
         if (dto.getLatitude() != null) {
             client.setLatitude(dto.getLatitude());
+        } else if (dto.getLocationSource() != null) {
+            client.setLatitude(null);
         }
 
         if (dto.getLongitude() != null) {
             client.setLongitude(dto.getLongitude());
+        } else if (dto.getLocationSource() != null) {
+            client.setLongitude(null);
         }
 
         if (dto.getLocationSource() != null) {

@@ -69,42 +69,6 @@ const sortOptions: Array<{ id: SortMode; label: string }> = [
     { id: 'savings', label: 'Maior economia' },
 ]
 
-function getStoredString(key: string, fallback: string) {
-    if (typeof window === 'undefined') {
-        return fallback
-    }
-
-    return window.localStorage.getItem(key) ?? fallback
-}
-
-function getStoredNumber(key: string) {
-    if (typeof window === 'undefined') {
-        return null
-    }
-
-    const value = window.localStorage.getItem(key)
-    const parsedValue = value ? Number(value) : NaN
-    return Number.isFinite(parsedValue) ? parsedValue : null
-}
-
-function getStoredLocation() {
-    const rawCity = getStoredString('unimarket.profile.city', 'Santos')
-    const rawState = getStoredString('unimarket.profile.state', 'SP')
-
-    if (rawCity.includes(',')) {
-        const [city, state] = rawCity.split(',', 2)
-        return {
-            city: city.trim() || 'Santos',
-            state: state.trim() || rawState || 'SP',
-        }
-    }
-
-    return {
-        city: rawCity || 'Santos',
-        state: rawState || 'SP',
-    }
-}
-
 function formatDistance(market?: MarketResponse | null) {
     if (!market || market.distanceKm == null) {
         return 'Distância indisponível'
@@ -184,7 +148,7 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
     const [searchQuery, setSearchQuery] = useState('')
     const [selectedCategory, setSelectedCategory] = useState('all')
     const [showFilters, setShowFilters] = useState(false)
-    const [maxDistance, setMaxDistance] = useState(() => getStoredNumber('unimarket.profile.radius') ?? 5)
+    const [maxDistance, setMaxDistance] = useState(5)
     const [maxPrice, setMaxPrice] = useState(100)
     const [sortBy, setSortBy] = useState<SortMode>('lowest-price')
     const [showListPanel, setShowListPanel] = useState(false)
@@ -194,11 +158,11 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
     const [listProduct, setListProduct] = useState<TransformedProduct | null>(null)
     const [listQuantity, setListQuantity] = useState(1)
     const [selectedMarketId, setSelectedMarketId] = useState(marketId)
-    const [userLatitude, setUserLatitude] = useState<number | null>(() => getStoredNumber('unimarket.profile.latitude'))
-    const [userLongitude, setUserLongitude] = useState<number | null>(() => getStoredNumber('unimarket.profile.longitude'))
-    const [userCity, setUserCity] = useState(() => getStoredLocation().city)
-    const [userState, setUserState] = useState(() => getStoredLocation().state)
-    const [userZipCode, setUserZipCode] = useState(() => getStoredString('unimarket.profile.zipCode', ''))
+    const [userLatitude, setUserLatitude] = useState<number | null>(null)
+    const [userLongitude, setUserLongitude] = useState<number | null>(null)
+    const [userCity, setUserCity] = useState('')
+    const [userState, setUserState] = useState('')
+    const [userZipCode, setUserZipCode] = useState('')
     const [expandedId, setExpandedId] = useState<number | null>(null)
     const [alertProduct, setAlertProduct] = useState<TransformedProduct | null>(null)
     const [desiredPrice, setDesiredPrice] = useState('')
@@ -207,12 +171,14 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
     const isGuest = userRole === 'GUEST'
     const displayName = isGuest ? 'visitante' : userName
     const canUseNotifications = isLogged && userRole === 'USER'
+    const hasSavedLocation = Boolean((userZipCode || userCity) && userState)
+    const locationLabel = [userCity, userState].filter(Boolean).join(', ') || 'Localidade não informada'
 
     const nearbyMarketParams = useMemo(() => ({
         latitude: userLatitude ?? undefined,
         longitude: userLongitude ?? undefined,
-        city: userCity,
-        state: userState,
+        city: userCity || undefined,
+        state: userState || undefined,
         radiusKm: maxDistance,
     }), [maxDistance, userCity, userLatitude, userLongitude, userState])
 
@@ -224,8 +190,8 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
     const distanceMarketParams = useMemo(() => ({
         latitude: userLatitude ?? undefined,
         longitude: userLongitude ?? undefined,
-        city: userCity,
-        state: userState,
+        city: userCity || undefined,
+        state: userState || undefined,
         radiusKm: userLatitude != null && userLongitude != null ? 5000 : maxDistance,
     }), [maxDistance, userCity, userLatitude, userLongitude, userState])
 
@@ -243,7 +209,7 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
     const clientId = userProfile?.id
     const canUseShoppingLists = isLogged && userRole === 'USER' && !!clientId
 
-    const profileImageUrl = isGuest ? '' : userProfile?.profileImageUrl ?? getStoredString('unimarket.profile.imageUrl', '')
+    const profileImageUrl = isGuest ? '' : userProfile?.profileImageUrl ?? ''
 
     const deferredSearch = useDeferredValue(searchQuery)
 
@@ -296,44 +262,20 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
             return
         }
 
-        if (userProfile.city) {
-            setUserCity(userProfile.city)
-            window.localStorage.setItem('unimarket.profile.city', userProfile.city)
-        }
-
-        if (userProfile.state) {
-            setUserState(userProfile.state)
-            window.localStorage.setItem('unimarket.profile.state', userProfile.state)
-        }
-
-        if (userProfile.zipCode) {
-            setUserZipCode(userProfile.zipCode)
-            window.localStorage.setItem('unimarket.profile.zipCode', userProfile.zipCode)
-        }
-
-        if (userProfile.neighborhood) {
-            window.localStorage.setItem('unimarket.profile.neighborhood', userProfile.neighborhood)
-        }
-
-        if (userProfile.profileImageUrl) {
-            window.localStorage.setItem('unimarket.profile.imageUrl', userProfile.profileImageUrl)
-        }
+        setUserCity(userProfile.city ?? '')
+        setUserState(userProfile.state ?? '')
+        setUserZipCode(userProfile.zipCode ?? '')
 
         if (userProfile.latitude != null && userProfile.longitude != null) {
             setUserLatitude(userProfile.latitude)
             setUserLongitude(userProfile.longitude)
-            window.localStorage.setItem('unimarket.profile.latitude', String(userProfile.latitude))
-            window.localStorage.setItem('unimarket.profile.longitude', String(userProfile.longitude))
-        } else if (userProfile.zipCode || userProfile.city || userProfile.neighborhood) {
+        } else {
             setUserLatitude(null)
             setUserLongitude(null)
-            window.localStorage.removeItem('unimarket.profile.latitude')
-            window.localStorage.removeItem('unimarket.profile.longitude')
         }
 
         if (userProfile.searchRadiusKm != null) {
             setMaxDistance(userProfile.searchRadiusKm)
-            window.localStorage.setItem('unimarket.profile.radius', String(userProfile.searchRadiusKm))
         }
     }, [userProfile])
 
@@ -758,26 +700,32 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
                 setUserLatitude(latitude)
                 setUserLongitude(longitude)
 
-                if (typeof window !== 'undefined') {
-                    window.localStorage.setItem('unimarket.profile.latitude', String(latitude))
-                    window.localStorage.setItem('unimarket.profile.longitude', String(longitude))
-                    window.localStorage.setItem('unimarket.profile.locationSource', 'BROWSER_GEOLOCATION')
-                }
-
                 toast.success('Localização atualizada. Os mercados próximos foram recalculados.')
             },
-            () => toast.error('Não foi possível acessar sua localização'),
+            () => {
+                setUserLatitude(null)
+                setUserLongitude(null)
+
+                toast.error(hasSavedLocation
+                    ? 'Não foi possível acessar sua localização. A busca usará o CEP salvo.'
+                    : 'Não foi possível acessar sua localização. Informe um CEP no perfil para calcular a região.')
+            },
             { enableHighAccuracy: true, timeout: 10000 },
         )
-    }, [])
+    }, [hasSavedLocation])
 
     const handleOpenMarketsMap = useCallback(() => {
+        if (userLatitude == null && userLongitude == null && !hasSavedLocation) {
+            toast.error('Informe um CEP no perfil ou autorize a localização para abrir o mapa.')
+            return
+        }
+
         const query = userLatitude != null && userLongitude != null
             ? `supermercados perto de ${userLatitude},${userLongitude}`
             : `supermercados perto de ${[userCity, userState].filter(Boolean).join(', ')}`
 
         window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`, '_blank', 'noopener,noreferrer')
-    }, [userCity, userLatitude, userLongitude, userState])
+    }, [hasSavedLocation, userCity, userLatitude, userLongitude, userState])
 
     const handleOpenMarketMap = useCallback((market: MarketResponse) => {
         window.open(market.googleMapsUrl, '_blank', 'noopener,noreferrer')
@@ -947,7 +895,7 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
                             <div className="flex flex-wrap items-center gap-2">
                                 <Badge variant="secondary" className="gap-1">
                                     <MapPin className="w-3 h-3" />
-                                    {[userCity, userState].filter(Boolean).join(', ')}
+                                    {locationLabel}
                                 </Badge>
                                 <Badge variant="outline">{isGuest ? 'Visitante' : 'Consumidor'}</Badge>
                             </div>
@@ -1270,7 +1218,7 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
                             <div>
                                 <h3 className="font-semibold text-foreground">Supermercados perto de você</h3>
                                 <p className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
-                                    <MapPin className="h-3 w-3" /> {[userCity, userState].filter(Boolean).join(', ')}{userZipCode ? ` - CEP ${userZipCode}` : ''}
+                                    <MapPin className="h-3 w-3" /> {locationLabel}{userZipCode ? ` - CEP ${userZipCode}` : ''}
                                 </p>
                             </div>
                             <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
