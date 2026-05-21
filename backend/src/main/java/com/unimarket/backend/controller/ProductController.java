@@ -33,7 +33,7 @@ public class ProductController {
 
     // endpoint para listar todos os vínculos mercado-produto paginados
     @Operation(summary = "Listar todos os produtos disponíveis nos mercados")
-    @GetMapping("/")
+    @GetMapping({"", "/"})
     public ResponseEntity<Page<MarketProductResponseDTO>> listAllProducts(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size

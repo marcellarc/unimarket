@@ -34,12 +34,15 @@ export async function listProducts(marketId: number) {
 }
 
 export async function listAllMarketProducts(params: ProductCatalogParams = {}) {
-    const response = await api.get<PageResponse<MarketProductResponse>>('/products/', {
+    const response = await api.get<PageResponse<MarketProductResponse>>('/products', {
         params: {
             page: params.page ?? 0,
             size: params.size ?? 120,
         },
     })
+    if (!response.data || !Array.isArray(response.data.content)) {
+        throw new Error('Resposta de produtos inválida')
+    }
     return response.data
 }
 
