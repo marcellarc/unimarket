@@ -12,9 +12,11 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.unimarket.backend.dto.FeedbackRequestDTO;
+import com.unimarket.backend.dto.FeedbackReplyRequestDTO;
 import com.unimarket.backend.dto.FeedbackResponseDTO;
 import com.unimarket.backend.service.FeedbackService;
 
@@ -68,13 +70,25 @@ public class FeedbackController {
         return ResponseEntity.ok(response);
     }
 
+    // Endpoint para resposta do mercado a um feedback
+    @Operation(summary = "Responder feedback")
+    @PutMapping("/{id}/reply")
+    public ResponseEntity<FeedbackResponseDTO> replyFeedback(
+            @PathVariable Long id,
+            @Valid @RequestBody FeedbackReplyRequestDTO dto
+    ) {
+        FeedbackResponseDTO response = feedbackService.replyFeedback(id, dto);
+        return ResponseEntity.ok(response);
+    }
+
     // Endpoint para deletar um feedback
     @Operation(summary = "Deletar feedback")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteFeedback(
-            @PathVariable Long id
+            @PathVariable Long id,
+            @RequestParam Long clientId
     ) {
-        feedbackService.deleteFeedback(id);
+        feedbackService.deleteFeedback(id, clientId);
         return ResponseEntity.noContent().build();
     }
 }

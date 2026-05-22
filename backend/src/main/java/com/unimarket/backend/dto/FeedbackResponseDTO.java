@@ -21,9 +21,17 @@ public class FeedbackResponseDTO {
     private Long productId;
     private String productName;
 
+    // mercado onde o produto foi avaliado
+    private Long marketId;
+    private String marketName;
+
     // nota e comentario da avaliacao
     private Integer vlNota;
     private String dsComentario;
+
+    // resposta do mercado ao feedback
+    private String marketReply;
+    private LocalDateTime marketRepliedAt;
 
     // data de criacao do feedback
     private LocalDateTime createdAt;

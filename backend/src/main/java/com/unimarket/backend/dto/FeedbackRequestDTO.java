@@ -2,6 +2,7 @@ package com.unimarket.backend.dto;
 
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.Getter;
@@ -20,13 +21,18 @@ public class FeedbackRequestDTO {
     @NotNull(message = "Produto e obrigatorio")
     private Long productId;
 
+    // ID do mercado onde o produto foi avaliado
+    @NotNull(message = "Mercado e obrigatorio")
+    private Long marketId;
+
     // nota de avaliacao do produto
     @NotNull(message = "Nota e obrigatoria")
     @Min(value = 1, message = "Nota deve ser no minimo 1")
     @Max(value = 5, message = "Nota deve ser no maximo 5")
     private Integer vlNota;
 
-    // comentario opcional do cliente
+    // comentario obrigatorio do cliente
+    @NotBlank(message = "Comentario e obrigatorio")
     @Size(max = 500, message = "Comentario deve ter no maximo 500 caracteres")
     private String dsComentario;
 }

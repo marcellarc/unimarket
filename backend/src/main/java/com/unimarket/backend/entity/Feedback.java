@@ -44,12 +44,23 @@ public class Feedback {
     @JoinColumn(name = "cd_produto", nullable = false)
     private Product product;
 
+    @ManyToOne
+    @JoinColumn(name = "market_id")
+    private Market market;
+
     // nota de avaliação do produto
     @Column(nullable = false)
     private Integer vlNota;
 
     // comentário opcional do cliente
+    @Column(length = 500)
     private String dsComentario;
+
+    @Column(name = "market_reply", length = 500)
+    private String marketReply;
+
+    @Column(name = "market_replied_at")
+    private LocalDateTime marketRepliedAt;
 
     // preenchido automaticamente na criação, nunca atualizado
     @Column(name = "created_at", nullable = false, updatable = false)
