@@ -71,27 +71,27 @@ export function SignUpForm() {
     }
 
     return (
-        <div className="flex w-full items-center justify-center py-8">
+        <div className="flex w-full min-w-0 items-center justify-center py-8">
             <form
                 onSubmit={handleSubmit(onSubmit, (errosDoZod) => {
                     console.log("O Zod bloqueou o envio! Veja os erros:", errosDoZod)
                 })}
-                className="w-full max-w-[384px] space-y-5 text-foreground"
+                className="auth-form w-full min-w-0 max-w-[384px] space-y-5 text-foreground"
             >
                 <div className="space-y-2">
                     <h2 className="auth-title whitespace-nowrap text-[2rem] font-extrabold leading-tight text-primary sm:text-[2.35rem]">
                         Crie sua conta
                     </h2>
-                    <p className="auth-support text-sm text-muted-foreground">
+                    <p className="auth-support text-[0.9375rem] leading-relaxed text-muted-foreground">
                         Entre como cliente ou cadastre seu supermercado no UniMarket.
                     </p>
                 </div>
 
 
-                <div className="flex rounded-full border border-primary/15 bg-slate-100 p-1 shadow-sm dark:bg-white/10">
+                <div className="auth-role-toggle flex min-w-0 rounded-full border border-primary/15 bg-slate-100 p-1 shadow-sm dark:bg-white/10">
                     <button
                         type="button"
-                        className={`flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-full py-2 text-sm font-semibold transition-colors ${role === 'USER'
+                        className={`flex min-w-0 flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-full py-2 text-sm font-semibold transition-colors ${role === 'USER'
                             ? 'bg-primary text-primary-foreground shadow-sm'
                             : 'text-slate-500 hover:text-slate-800 dark:text-slate-300 dark:hover:text-white'
                             }`}
@@ -102,7 +102,7 @@ export function SignUpForm() {
 
                     <button
                         type="button"
-                        className={`flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-full py-2 text-sm font-semibold transition-colors ${role === 'MARKET'
+                        className={`flex min-w-0 flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-full py-2 text-sm font-semibold transition-colors ${role === 'MARKET'
                             ? 'bg-primary text-primary-foreground shadow-sm'
                             : 'text-slate-500 hover:text-slate-800 dark:text-slate-300 dark:hover:text-white'
                             }`}
@@ -247,7 +247,7 @@ export function SignUpForm() {
                         {passwordRules.map(rule => (
                             <span
                                 key={rule.label}
-                                className={`inline-flex items-center gap-1 rounded-full border px-2 py-1 text-[11px] font-medium ${rule.valid
+                                className={`inline-flex items-center gap-1 rounded-full border px-2 py-1 text-xs font-medium ${rule.valid
                                     ? 'border-primary/20 bg-primary/10 text-primary'
                                     : 'border-border bg-white/70 text-muted-foreground dark:bg-white/10'
                                     }`}

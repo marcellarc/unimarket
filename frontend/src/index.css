@@ -183,6 +183,20 @@
     letter-spacing: 0;
 }
 
+.auth-form {
+    font-size: 0.9375rem;
+}
+
+.auth-form [data-slot="label"],
+.auth-form [data-slot="button"],
+.auth-form .auth-role-toggle button {
+    font-size: 0.875rem;
+}
+
+.auth-form [data-slot="input"] {
+    font-size: 0.9375rem;
+}
+
 @keyframes auth-illustration-float {
     0%, 100% {
         transform: translateY(0);
