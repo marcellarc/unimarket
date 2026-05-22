@@ -2,7 +2,7 @@ import Cookies from 'js-cookie'
 import { useNavigate } from '@tanstack/react-router'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { logoutApi } from '@/services/auth'
+import { loginGoogleUser, logoutApi } from '@/services/auth'
 import type { LoginRequest, LoginResponse } from '@/types/auth'
 import { loginUser } from '@/services/user'
 import { loginMarket } from '@/services/supermarket'
@@ -75,6 +75,18 @@ export function useAuth() {
         },
     })
 
+    const { mutate: loginWithGoogle, isPending: isLoggingInWithGoogle } = useMutation({
+        mutationFn: (idToken: string) => loginGoogleUser({ idToken }),
+        onSuccess: (data) => {
+            saveSession(data, 'USER')
+            toast.success(`Bem-vindo, ${data.name}!`)
+            navigate({ to: '/dashboard' })
+        },
+        onError: (error: unknown) => {
+            toast.error(getApiErrorMessage(error, 'Erro ao fazer login com Google.'))
+        }
+    })
+
     const { mutate: logout, isPending: isLoggingOut } = useMutation({
         mutationFn: logoutApi,
         onSuccess: () => {
@@ -88,5 +100,5 @@ export function useAuth() {
         },
     })
 
-    return { login, logout, getSession, isLoggingIn, isLoggingOut }
+    return { login, loginWithGoogle, logout, getSession, isLoggingIn, isLoggingInWithGoogle, isLoggingOut }
 }

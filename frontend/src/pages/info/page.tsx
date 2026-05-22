@@ -22,17 +22,20 @@ const team = [
     {
         initials: 'BS',
         name: 'Beatriz Duarte Sibilio',
-        role: 'Pesquisa, documentação e apoio à definição dos fluxos do produto.',
+        imageSrc: '/team/beatriz.jpg',
+        role: 'Descrição...',
     },
     {
         initials: 'KC',
         name: 'Kayo Campos Silva',
-        role: 'Implementação técnica, integrações e evolução das funcionalidades.',
+        imageSrc: '/team/kayo.jpg',
+        role: 'Descrição...',
     },
     {
         initials: 'MM',
         name: 'Marcella Ricoy Curci de Moura',
-        role: 'Experiência do usuário, interfaces e organização visual da plataforma.',
+        imageSrc: '/team/marcella.jpg',
+        role: 'Desenvolvedora frontend, responsável pela interface, experiência do usuário e integração com backend.',
     },
 ] as const
 
@@ -150,8 +153,16 @@ function AboutContent() {
                     <div className="mt-6 grid gap-5">
                         {team.map((member) => (
                             <article key={member.name} className="flex gap-4 border-b border-border pb-5 last:border-b-0 last:pb-0">
-                                <div className="flex size-12 shrink-0 items-center justify-center rounded-full bg-primary text-sm font-bold text-primary-foreground shadow-sm">
-                                    {member.initials}
+                                <div className="relative flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-full border border-primary/15 bg-primary text-sm font-bold text-primary-foreground shadow-sm">
+                                    <span aria-hidden="true">{member.initials}</span>
+                                    <img
+                                        src={member.imageSrc}
+                                        alt={`Foto de ${member.name}`}
+                                        className="absolute inset-0 size-full object-cover"
+                                        onError={(event) => {
+                                            event.currentTarget.style.display = 'none'
+                                        }}
+                                    />
                                 </div>
                                 <div>
                                     <h3 className="font-semibold leading-6 text-foreground">{member.name}</h3>

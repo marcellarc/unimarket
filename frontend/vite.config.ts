@@ -11,6 +11,9 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [react(), tailwindcss(), tanstackRouter()],
     server: {
+      headers: {
+        'Cross-Origin-Opener-Policy': 'same-origin-allow-popups',
+      },
       proxy: {
         '/api': {
           target: env.VITE_API_PROXY_TARGET || 'http://localhost:8080',

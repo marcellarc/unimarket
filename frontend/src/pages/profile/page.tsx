@@ -102,6 +102,7 @@ export function ProfilePage() {
     const [priceAlertsEnabled, setPriceAlertsEnabled] = useState(true)
     const [weeklySummaryEnabled, setWeeklySummaryEnabled] = useState(true)
     const [browserPushEnabled, setBrowserPushEnabled] = useState(false)
+    const [showSecurityForm, setShowSecurityForm] = useState(false)
     const [deleteAccountOpen, setDeleteAccountOpen] = useState(false)
 
     const { data: profile, isLoading: isProfileLoading } = useQuery({
@@ -246,6 +247,7 @@ export function ProfilePage() {
             setCurrentPassword('')
             setNewPassword('')
             setConfirmPassword('')
+            setShowSecurityForm(false)
             toast.success('Perfil atualizado')
             await queryClient.invalidateQueries({ queryKey: ['userProfile'] })
             await queryClient.invalidateQueries({ queryKey: ['nearbyMarkets'] })
@@ -442,21 +444,37 @@ export function ProfilePage() {
     return (
         <div className="app-gradient-bg min-h-screen">
             <header className="sticky top-0 z-40 border-b border-border bg-card/95 shadow-sm backdrop-blur">
-                <div className="mx-auto flex h-14 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6">
-                    <div className="flex items-center gap-3">
-                        <img src={logoImg} alt="UniMarket" className="h-8 w-8 object-contain" />
-                        <div>
-                            <p className="text-sm font-semibold text-foreground">UniMarket</p>
-                            <p className="text-xs text-muted-foreground">Conta do cliente</p>
+                <div className="mx-auto flex min-h-16 max-w-7xl items-center justify-between gap-3 px-4 py-2 sm:px-6">
+                    <button
+                        type="button"
+                        onClick={() => navigate({ to: '/dashboard' })}
+                        className="flex min-w-0 items-center gap-2.5 rounded-full pr-2 transition hover:opacity-85"
+                        aria-label="Ir para o dashboard UniMarket"
+                    >
+                        <img src={logoImg} alt="UniMarket" className="h-9 w-9 shrink-0 object-contain" />
+                        <div className="min-w-0 text-left">
+                            <p className="auth-wordmark truncate text-lg font-semibold text-primary">UniMarket</p>
+                            <p className="truncate text-xs text-muted-foreground">Conta do cliente</p>
                         </div>
-                    </div>
+                    </button>
 
-                    <div className="flex items-center gap-2">
-                        <Button variant="outline" size="sm" onClick={() => navigate({ to: '/dashboard' })}>
+                    <div className="flex shrink-0 items-center gap-2">
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => navigate({ to: '/dashboard' })}
+                            className="h-10 rounded-full border-primary/15 bg-white/80 px-3 text-muted-foreground hover:border-primary/35 hover:text-primary dark:bg-white/10"
+                        >
                             <ArrowLeft className="h-4 w-4" />
-                            Dashboard
+                            <span className="hidden sm:inline">Dashboard</span>
                         </Button>
-                        <Button variant="ghost" size="icon" onClick={() => logout()} aria-label="Sair">
+                        <Button
+                            variant="outline"
+                            size="icon"
+                            onClick={() => logout()}
+                            aria-label="Sair"
+                            className="rounded-full border-primary/15 bg-white/80 text-muted-foreground hover:border-primary/35 hover:text-primary dark:bg-white/10"
+                        >
                             <LogOut className="h-5 w-5" />
                         </Button>
                     </div>
@@ -545,7 +563,7 @@ export function ProfilePage() {
                                                     <Input
                                                         value={profileImageUrl.startsWith('data:') ? 'Imagem enviada do dispositivo' : profileImageUrl}
                                                         onChange={(event) => setProfileImageUrl(event.target.value)}
-                                                        placeholder="URL da imagem"
+                                                        placeholder="Digite aqui"
                                                         disabled={profileImageUrl.startsWith('data:')}
                                                         className="bg-background/80"
                                                     />
@@ -573,11 +591,12 @@ export function ProfilePage() {
                                         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                                             <div className="space-y-2">
                                                 <Label htmlFor="profile-name">Nome</Label>
-                                                    <Input
+                                                <Input
                                                     id="profile-name"
                                                     maxLength={MAX_PROFILE_NAME_LENGTH}
                                                     value={name}
                                                     onChange={(event) => setName(event.target.value)}
+                                                    placeholder="Digite aqui"
                                                     className="bg-background/80"
                                                 />
                                             </div>
@@ -586,11 +605,12 @@ export function ProfilePage() {
                                                     <AtSign className="h-3.5 w-3.5" />
                                                     E-mail
                                                 </Label>
-                                                    <Input
+                                                <Input
                                                     id="profile-email"
                                                     type="email"
                                                     value={email}
                                                     onChange={(event) => setEmail(event.target.value)}
+                                                    placeholder="Digite aqui"
                                                     className="bg-background/80"
                                                 />
                                             </div>
@@ -629,70 +649,100 @@ export function ProfilePage() {
                         </Card>
 
                         <Card className="gap-0 overflow-hidden bg-card/95 p-0 shadow-sm backdrop-blur">
-                            <div className="border-b border-border bg-muted/20 p-5">
+                            <div className="flex flex-col gap-3 border-b border-border bg-muted/20 p-5 sm:flex-row sm:items-center sm:justify-between">
                                 <div className="flex items-center gap-2">
                                     <KeyRound className="h-5 w-5 text-primary" />
                                     <div>
                                         <h2 className="text-base font-semibold text-foreground">Segurança</h2>
-                                        <p className="text-xs text-muted-foreground">Atualize sua senha quando necessário.</p>
+                                        <p className="text-xs text-muted-foreground">
+                                            A senha só aparece quando você decide alterá-la.
+                                        </p>
                                     </div>
                                 </div>
+                                <Button
+                                    type="button"
+                                    variant={showSecurityForm ? 'ghost' : 'outline'}
+                                    size="sm"
+                                    onClick={() => {
+                                        setShowSecurityForm(!showSecurityForm)
+                                        setCurrentPassword('')
+                                        setNewPassword('')
+                                        setConfirmPassword('')
+                                    }}
+                                >
+                                    <KeyRound className="h-4 w-4" />
+                                    {showSecurityForm ? 'Cancelar alteração' : 'Mudar senha'}
+                                </Button>
                             </div>
 
                             <div className="space-y-4 p-5">
-                                <div className="rounded-lg border border-border bg-background/70 p-4">
-                                    <p className="text-sm font-semibold text-foreground">Alteração de senha</p>
-                                    <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                                        Por segurança, confirme sua senha atual antes de definir uma nova. Deixe estes campos em branco se não quiser alterar a senha.
-                                    </p>
-                                </div>
+                                {showSecurityForm ? (
+                                    <>
+                                        <div className="rounded-lg border border-primary/15 bg-primary/5 p-4">
+                                            <p className="text-sm font-semibold text-foreground">Alteração de senha</p>
+                                            <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                                                Por segurança, confirme sua senha atual antes de definir uma nova.
+                                            </p>
+                                        </div>
 
-                                <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-                                    <div className="space-y-2">
-                                        <Label htmlFor="current-password">Senha atual</Label>
-                                        <Input
-                                            id="current-password"
-                                            type="password"
-                                            value={currentPassword}
-                                            onChange={(event) => setCurrentPassword(event.target.value)}
-                                            autoComplete="current-password"
-                                            className="bg-background/80"
-                                        />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <Label htmlFor="new-password">Nova senha</Label>
-                                        <Input
-                                            id="new-password"
-                                            type="password"
-                                            value={newPassword}
-                                            onChange={(event) => setNewPassword(event.target.value)}
-                                            autoComplete="new-password"
-                                            className="bg-background/80"
-                                        />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <Label htmlFor="confirm-password">Confirmar nova senha</Label>
-                                        <Input
-                                            id="confirm-password"
-                                            type="password"
-                                            value={confirmPassword}
-                                            onChange={(event) => setConfirmPassword(event.target.value)}
-                                            autoComplete="new-password"
-                                            className="bg-background/80"
-                                        />
-                                    </div>
-                                </div>
+                                        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                                            <div className="space-y-2">
+                                                <Label htmlFor="current-password">Senha atual</Label>
+                                                <Input
+                                                    id="current-password"
+                                                    type="password"
+                                                    value={currentPassword}
+                                                    onChange={(event) => setCurrentPassword(event.target.value)}
+                                                    autoComplete="current-password"
+                                                    placeholder="Digite aqui"
+                                                    className="bg-background/80"
+                                                />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <Label htmlFor="new-password">Nova senha</Label>
+                                                <Input
+                                                    id="new-password"
+                                                    type="password"
+                                                    value={newPassword}
+                                                    onChange={(event) => setNewPassword(event.target.value)}
+                                                    autoComplete="new-password"
+                                                    placeholder="Digite aqui"
+                                                    className="bg-background/80"
+                                                />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <Label htmlFor="confirm-password">Confirmar nova senha</Label>
+                                                <Input
+                                                    id="confirm-password"
+                                                    type="password"
+                                                    value={confirmPassword}
+                                                    onChange={(event) => setConfirmPassword(event.target.value)}
+                                                    autoComplete="new-password"
+                                                    placeholder="Digite aqui"
+                                                    className="bg-background/80"
+                                                />
+                                            </div>
+                                        </div>
 
-                                <div className="flex justify-end border-t border-border pt-4">
-                                    <Button onClick={handleSaveSecurity} disabled={updateProfileMutation.isPending}>
-                                        {updateProfileMutation.isPending ? (
-                                            <Loader2 className="h-4 w-4 animate-spin" />
-                                        ) : (
-                                            <Save className="h-4 w-4" />
-                                        )}
-                                        Salvar segurança
-                                    </Button>
-                                </div>
+                                        <div className="flex justify-end border-t border-border pt-4">
+                                            <Button onClick={handleSaveSecurity} disabled={updateProfileMutation.isPending}>
+                                                {updateProfileMutation.isPending ? (
+                                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                                ) : (
+                                                    <Save className="h-4 w-4" />
+                                                )}
+                                                Salvar segurança
+                                            </Button>
+                                        </div>
+                                    </>
+                                ) : (
+                                    <div className="rounded-lg border border-border bg-background/70 p-4">
+                                        <p className="text-sm font-semibold text-foreground">Senha protegida</p>
+                                        <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                                            Os campos de alteração ficam ocultos para deixar a tela mais limpa e evitar preenchimentos acidentais.
+                                        </p>
+                                    </div>
+                                )}
                             </div>
                         </Card>
 
@@ -812,7 +862,7 @@ export function ProfilePage() {
                                                 setZipCode(formatCep(event.target.value))
                                                 clearPreciseLocation('')
                                             }}
-                                            placeholder="00000-000"
+                                            placeholder="Digite aqui"
                                             className="bg-background/80"
                                         />
                                     </div>
@@ -840,7 +890,7 @@ export function ProfilePage() {
                                                 setStreetAddress(event.target.value)
                                                 clearPreciseLocation(zipCode ? 'CEP' : '')
                                             }}
-                                            placeholder="Rua, avenida ou ponto de referência"
+                                            placeholder="Digite aqui"
                                             className="bg-background/80"
                                         />
                                     </div>
@@ -854,7 +904,7 @@ export function ProfilePage() {
                                                 setState(event.target.value.toUpperCase())
                                                 clearPreciseLocation(zipCode ? 'CEP' : '')
                                             }}
-                                            placeholder="SP"
+                                            placeholder="Digite aqui"
                                             className="bg-background/80"
                                         />
                                     </div>
@@ -870,6 +920,7 @@ export function ProfilePage() {
                                                 setCity(event.target.value)
                                                 clearPreciseLocation(zipCode ? 'CEP' : '')
                                             }}
+                                            placeholder="Digite aqui"
                                             className="bg-background/80"
                                         />
                                     </div>
@@ -882,7 +933,7 @@ export function ProfilePage() {
                                                 setNeighborhood(event.target.value)
                                                 clearPreciseLocation(zipCode ? 'CEP' : '')
                                             }}
-                                            placeholder="Ex.: Gonzaga"
+                                            placeholder="Digite aqui"
                                             className="bg-background/80"
                                         />
                                     </div>

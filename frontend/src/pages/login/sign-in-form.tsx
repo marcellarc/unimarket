@@ -9,6 +9,7 @@ import {
     Input,
     Label,
 } from '@/components/ui'
+import { GoogleSignInButton } from '@/components/google-sign-in-button'
 import { useAuth } from '@/hooks/use-auth'
 import { getApiErrorMessage } from '@/lib/api-error'
 import { requestPasswordRecovery, resetPassword } from '@/services/auth'
@@ -133,24 +134,24 @@ export function SignInForm() {
     }
 
     return (
-        <div className="flex w-full items-center justify-center py-8 lg:justify-end">
+        <div className="flex w-full min-w-0 items-center justify-center py-8">
             <form
                 onSubmit={handleSubmit(onSubmit)}
-                className="w-full max-w-[384px] space-y-5 text-foreground"
+                className="auth-form w-full min-w-0 max-w-[384px] space-y-5 text-foreground"
             >
                 <div className="space-y-2">
                     <h2 className="auth-title whitespace-nowrap text-[2rem] font-extrabold leading-tight text-primary sm:text-[2.35rem]">
                         Bem-vindo de volta!
                     </h2>
-                    <p className="auth-support text-sm text-muted-foreground">
+                    <p className="auth-support text-[0.9375rem] leading-relaxed text-muted-foreground">
                         Acesse sua conta para comparar preços, salvar listas e encontrar mercados próximos.
                     </p>
                 </div>
 
-                <div className="flex rounded-full border border-primary/15 bg-slate-100 p-1 shadow-sm dark:bg-white/10">
+                <div className="auth-role-toggle flex min-w-0 rounded-full border border-primary/15 bg-slate-100 p-1 shadow-sm dark:bg-white/10">
                     <button
                         type="button"
-                        className={`flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-full py-2 text-sm font-semibold transition-colors ${role === 'USER'
+                        className={`flex min-w-0 flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-full py-2 text-sm font-semibold transition-colors ${role === 'USER'
                             ? 'bg-primary text-primary-foreground shadow-sm'
                             : 'text-slate-500 hover:text-slate-800 dark:text-slate-300 dark:hover:text-white'
                             }`}
@@ -161,7 +162,7 @@ export function SignInForm() {
 
                     <button
                         type="button"
-                        className={`flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-full py-2 text-sm font-semibold transition-colors ${role === 'MARKET'
+                        className={`flex min-w-0 flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-full py-2 text-sm font-semibold transition-colors ${role === 'MARKET'
                             ? 'bg-primary text-primary-foreground shadow-sm'
                             : 'text-slate-500 hover:text-slate-800 dark:text-slate-300 dark:hover:text-white'
                             }`}
@@ -239,9 +240,7 @@ export function SignInForm() {
                     <div className="h-px flex-1 bg-gray-200" />
                 </div>
 
-                <Button type="button" variant="outline" className="w-full cursor-pointer rounded-full border-primary/20 bg-white/80 text-foreground hover:border-primary/40 dark:bg-white/10">
-                    Continuar com Google
-                </Button>
+                <GoogleSignInButton role={role as 'USER' | 'MARKET'} mode="login" />
 
                 <div className="flex items-center gap-4 text-xs text-gray-300">
                     <div className="h-px flex-1 bg-gray-200" />

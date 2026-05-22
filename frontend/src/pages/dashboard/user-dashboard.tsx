@@ -7,9 +7,11 @@ import {
     Input,
     Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
     Skeleton,
+    Textarea,
 } from '@/components/ui'
 import { useLogout } from '@/hooks/use-logout'
 import { getApiErrorMessage } from '@/lib/api-error'
+import { createFeedback } from '@/services/feedback'
 import {
     createPriceAlert,
     listNotifications,
@@ -40,9 +42,9 @@ import {
     CircleDollarSign,
     Filter, List,
     LocateFixed,
-    LogOut, MapPin, Package,
+    LogOut, MapPin, MessageSquare, Package,
     Plus, Search, ShoppingCart,
-    SlidersHorizontal, Store, Tag,
+    SlidersHorizontal, Star, Store, Tag,
     Trash2, User, X
 } from 'lucide-react'
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
@@ -166,6 +168,10 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
     const [expandedId, setExpandedId] = useState<number | null>(null)
     const [alertProduct, setAlertProduct] = useState<TransformedProduct | null>(null)
     const [desiredPrice, setDesiredPrice] = useState('')
+    const [feedbackProduct, setFeedbackProduct] = useState<TransformedProduct | null>(null)
+    const [feedbackMarketId, setFeedbackMarketId] = useState<number | null>(null)
+    const [feedbackRating, setFeedbackRating] = useState(5)
+    const [feedbackComment, setFeedbackComment] = useState('')
     const notifiedBrowserIds = useRef(new Set<number>())
 
     const isGuest = userRole === 'GUEST'
@@ -208,6 +214,7 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
 
     const clientId = userProfile?.id
     const canUseShoppingLists = isLogged && userRole === 'USER' && !!clientId
+    const canUseFeedback = canUseShoppingLists
 
     const profileImageUrl = isGuest ? '' : userProfile?.profileImageUrl ?? ''
 
@@ -346,6 +353,38 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
         },
         onError: () => {
             toast.error('Não foi possível criar o alerta')
+        },
+    })
+
+    const createFeedbackMutation = useMutation({
+        mutationFn: () => {
+            const trimmedComment = feedbackComment.trim()
+
+            if (!feedbackProduct || !feedbackMarketId || !clientId) {
+                throw new Error('Selecione um produto e mercado para avaliar.')
+            }
+
+            return createFeedback({
+                clientId,
+                productId: feedbackProduct.productId,
+                marketId: feedbackMarketId,
+                vlNota: feedbackRating,
+                dsComentario: trimmedComment,
+            })
+        },
+        onSuccess: async () => {
+            toast.success('Feedback enviado ao mercado.')
+            setFeedbackProduct(null)
+            setFeedbackMarketId(null)
+            setFeedbackRating(5)
+            setFeedbackComment('')
+            await queryClient.invalidateQueries({ queryKey: ['feedbacks'] })
+            if (feedbackMarketId) {
+                await queryClient.invalidateQueries({ queryKey: ['marketFeedbacks', feedbackMarketId] })
+            }
+        },
+        onError: (feedbackError: unknown) => {
+            toast.error(getApiErrorMessage(feedbackError, 'Não foi possível enviar o feedback.'))
         },
     })
 
@@ -611,6 +650,45 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
         setDesiredPrice(product.lowestPrice > 0 ? product.lowestPrice.toFixed(2) : '')
     }, [canUseNotifications, navigate])
 
+    const handleCreateFeedback = useCallback((product: TransformedProduct) => {
+        if (!canUseFeedback) {
+            toast.info('Entre como usuário para enviar feedbacks aos mercados.')
+            navigate({ to: '/login' })
+            return
+        }
+
+        if (product.markets.length === 0) {
+            toast.info('Este produto ainda não possui mercado disponível para avaliação.')
+            return
+        }
+
+        setFeedbackProduct(product)
+        setFeedbackMarketId(product.markets[0].marketId)
+        setFeedbackRating(5)
+        setFeedbackComment('')
+    }, [canUseFeedback, navigate])
+
+    const submitFeedback = useCallback(() => {
+        const trimmedComment = feedbackComment.trim()
+
+        if (!feedbackProduct || !feedbackMarketId) {
+            toast.error('Selecione um mercado para avaliar.')
+            return
+        }
+
+        if (feedbackRating < 1 || feedbackRating > 5) {
+            toast.error('Selecione uma nota entre 1 e 5.')
+            return
+        }
+
+        if (trimmedComment.length < 3) {
+            toast.error('Escreva um comentário para o feedback.')
+            return
+        }
+
+        createFeedbackMutation.mutate()
+    }, [createFeedbackMutation, feedbackComment, feedbackMarketId, feedbackProduct, feedbackRating])
+
     const submitAlert = useCallback(() => {
         const numericPrice = Number(desiredPrice)
 
@@ -736,35 +814,41 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
 
             {/* ── NAVBAR ── */}
             <header className="sticky top-0 z-50 border-b border-border bg-card/95 shadow-sm backdrop-blur">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6">
-                    <div className="flex items-center gap-4 h-14">
-                        <div className="flex items-center gap-2 shrink-0">
-                            <img src={logoImg} alt="UniMarket" className="w-7 h-7 object-contain" />
-                            <span className="font-bold text-lg text-foreground hidden sm:block">UniMarket</span>
-                        </div>
+                <div className="mx-auto max-w-7xl px-4 sm:px-6">
+                    <div className="flex min-h-16 items-center gap-3 py-2">
+                        <button
+                            type="button"
+                            onClick={() => navigate({ to: '/dashboard' })}
+                            className="flex shrink-0 items-center gap-2.5 rounded-full pr-2 transition hover:opacity-85"
+                            aria-label="Ir para o dashboard UniMarket"
+                        >
+                            <img src={logoImg} alt="UniMarket" className="h-9 w-9 object-contain" />
+                            <span className="auth-wordmark hidden text-lg font-semibold text-primary sm:block">UniMarket</span>
+                        </button>
 
-                        <div className="flex-1 relative">
+                        <div className="relative hidden min-w-0 flex-1 md:block">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                             <Input
                                 placeholder="Buscar produtos, marcas, categorias..."
                                 value={searchQuery}
                                 onChange={e => setSearchQuery(e.target.value)}
-                                className="h-9 w-full bg-background/80 pl-9 pr-4"
+                                className="h-10 w-full rounded-full border-primary/20 bg-white/85 pl-9 pr-10 shadow-sm focus-visible:ring-primary dark:bg-white/10"
                             />
                             {searchQuery && (
                                 <button
                                     onClick={() => setSearchQuery('')}
-                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full text-muted-foreground transition hover:text-foreground"
+                                    aria-label="Limpar busca"
                                 >
                                     <X className="w-4 h-4" />
                                 </button>
                             )}
                         </div>
 
-                        <div className="flex items-center gap-1 shrink-0">
+                        <div className="ml-auto flex shrink-0 items-center gap-1.5">
                             <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
-                                    <Button variant="ghost" size="icon" className="relative text-muted-foreground">
+                                    <Button variant="outline" size="icon" className="relative rounded-full border-primary/15 bg-white/80 text-muted-foreground hover:border-primary/35 hover:text-primary dark:bg-white/10">
                                         <Bell className="w-5 h-5" />
                                         {unreadCount > 0 && (
                                             <span className="absolute -top-0.5 -right-0.5 min-w-3.5 h-3.5 px-1 bg-destructive text-destructive-foreground text-[9px] rounded-full flex items-center justify-center">
@@ -815,9 +899,21 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
                             </DropdownMenu>
 
                             <Button
-                                variant="ghost" size="icon"
+                                variant="outline"
+                                size="sm"
+                                onClick={() => navigate({ to: '/feedbacks' })}
+                                className="h-10 rounded-full border-primary/15 bg-white/80 px-3 text-muted-foreground hover:border-primary/35 hover:text-primary dark:bg-white/10"
+                                aria-label="Ver feedbacks da comunidade"
+                            >
+                                <MessageSquare className="h-4 w-4" />
+
+                            </Button>
+
+                            <Button
+                                variant="outline" size="icon"
                                 onClick={() => setShowListPanel(!showListPanel)}
-                                className="relative text-muted-foreground"
+                                className="relative rounded-full border-primary/15 bg-white/80 text-muted-foreground hover:border-primary/35 hover:text-primary dark:bg-white/10"
+                                aria-label="Abrir listas de compras"
                             >
                                 <ShoppingCart className="w-5 h-5" />
                                 <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 bg-primary text-primary-foreground text-[9px] rounded-full flex items-center justify-center">
@@ -827,14 +923,18 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
 
                             <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
-                                    <Button variant="ghost" className="h-8 w-8 rounded-full p-0">
-                                        <div className="flex h-full w-full items-center justify-center overflow-hidden rounded-full bg-primary/10 text-xs font-bold text-primary">
+                                    <Button variant="outline" className="h-10 rounded-full border-primary/15 bg-white/80 py-1 pl-1.5 pr-2 text-foreground hover:border-primary/35 dark:bg-white/10 sm:pr-3">
+                                        <div className="flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary/10 text-xs font-bold text-primary">
                                             {profileImageUrl ? (
                                                 <img src={profileImageUrl} alt={displayName} className="h-full w-full object-cover" />
                                             ) : (
                                                 getInitials(displayName)
                                             )}
                                         </div>
+                                        <span className="hidden max-w-28 truncate text-sm font-medium lg:inline">
+                                            {isGuest ? 'Visitante' : userName}
+                                        </span>
+                                        <ChevronDown className="hidden h-3.5 w-3.5 text-muted-foreground sm:block" />
                                     </Button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end" className="w-52 mt-1">
@@ -865,6 +965,25 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
                             </DropdownMenu>
                         </div>
                     </div>
+
+                    <div className="relative pb-3 md:hidden">
+                        <Search className="absolute left-3 top-5 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                        <Input
+                            placeholder="Buscar produtos..."
+                            value={searchQuery}
+                            onChange={e => setSearchQuery(e.target.value)}
+                            className="h-10 rounded-full border-primary/20 bg-white/85 pl-9 pr-10 shadow-sm focus-visible:ring-primary dark:bg-white/10"
+                        />
+                        {searchQuery && (
+                            <button
+                                onClick={() => setSearchQuery('')}
+                                className="absolute right-3 top-5 -translate-y-1/2 rounded-full text-muted-foreground transition hover:text-foreground"
+                                aria-label="Limpar busca"
+                            >
+                                <X className="h-4 w-4" />
+                            </button>
+                        )}
+                    </div>
                 </div>
 
                 {/* Categorias */}
@@ -875,9 +994,9 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
                                 <button
                                     key={cat.id}
                                     onClick={() => setSelectedCategory(cat.id)}
-                                    className={`h-8 shrink-0 rounded-md px-3 text-xs font-medium transition-colors ${selectedCategory === cat.id
+                                    className={`h-8 shrink-0 rounded-full px-3 text-xs font-semibold transition-colors ${selectedCategory === cat.id
                                         ? 'bg-primary text-primary-foreground'
-                                        : 'bg-transparent text-muted-foreground hover:bg-muted hover:text-foreground'
+                                        : 'bg-white/70 text-muted-foreground hover:bg-primary/10 hover:text-primary dark:bg-white/10'
                                         }`}
                                 >
                                     {cat.label}
@@ -1094,6 +1213,7 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
                                         onToggle={toggleExpand}
                                         onAddToList={handleAddToList}
                                         onCreateAlert={handleCreateAlert}
+                                        onCreateFeedback={handleCreateFeedback}
                                     />
                                 ))}
                             </div>
@@ -1405,6 +1525,96 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
                         </Button>
                         <Button onClick={handleConfirmAddToList} disabled={addItemMutation.isPending}>
                             {addItemMutation.isPending ? 'Adicionando...' : 'Adicionar'}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            <Dialog open={!!feedbackProduct} onOpenChange={(open) => !open && setFeedbackProduct(null)}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Enviar feedback</DialogTitle>
+                        <DialogDescription>
+                            Avalie o produto comprado e escolha o mercado que receberá o comentário.
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    {feedbackProduct && (
+                        <div className="space-y-4">
+                            <div className="rounded-lg border border-border p-3">
+                                <p className="text-sm font-medium text-foreground">{feedbackProduct.name}</p>
+                                <p className="mt-1 text-xs text-muted-foreground">
+                                    Feedback vinculado ao produto e ao supermercado selecionado.
+                                </p>
+                            </div>
+
+                            <div className="space-y-2">
+                                <label htmlFor="feedbackMarket" className="text-xs font-medium text-muted-foreground">
+                                    Mercado
+                                </label>
+                                <Select
+                                    value={feedbackMarketId ? String(feedbackMarketId) : undefined}
+                                    onValueChange={(value) => setFeedbackMarketId(Number(value))}
+                                >
+                                    <SelectTrigger id="feedbackMarket">
+                                        <SelectValue placeholder="Selecione o mercado" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {feedbackProduct.markets.map(market => (
+                                            <SelectItem key={market.marketId} value={String(market.marketId)}>
+                                                {market.name} - R$ {market.price.toFixed(2)}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+
+                            <div className="space-y-2">
+                                <p className="text-xs font-medium text-muted-foreground">Nota</p>
+                                <div className="flex gap-1">
+                                    {Array.from({ length: 5 }).map((_, index) => {
+                                        const rating = index + 1
+                                        const active = rating <= feedbackRating
+
+                                        return (
+                                            <button
+                                                key={rating}
+                                                type="button"
+                                                aria-label={`${rating} estrela${rating === 1 ? '' : 's'}`}
+                                                onClick={() => setFeedbackRating(rating)}
+                                                className="rounded-md p-1 text-muted-foreground transition hover:bg-muted hover:text-uniyellow"
+                                            >
+                                                <Star className={`h-6 w-6 ${active ? 'fill-uniyellow text-uniyellow' : ''}`} />
+                                            </button>
+                                        )
+                                    })}
+                                </div>
+                            </div>
+
+                            <div className="space-y-2">
+                                <label htmlFor="feedbackComment" className="text-xs font-medium text-muted-foreground">
+                                    Comentário
+                                </label>
+                                <Textarea
+                                    id="feedbackComment"
+                                    value={feedbackComment}
+                                    onChange={(event) => setFeedbackComment(event.target.value)}
+                                    placeholder="Conte como foi sua experiência com o produto"
+                                    rows={4}
+                                    maxLength={500}
+                                    className="resize-none"
+                                />
+                                <p className="text-right text-[11px] text-muted-foreground">{feedbackComment.length}/500</p>
+                            </div>
+                        </div>
+                    )}
+
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setFeedbackProduct(null)}>
+                            Cancelar
+                        </Button>
+                        <Button onClick={submitFeedback} disabled={createFeedbackMutation.isPending}>
+                            {createFeedbackMutation.isPending ? 'Enviando...' : 'Enviar feedback'}
                         </Button>
                     </DialogFooter>
                 </DialogContent>

@@ -1,6 +1,6 @@
 import { memo, type MouseEvent, useCallback } from 'react'
 import { Badge, Button, Card } from '@/components/ui'
-import { Bell, ChevronDown, ChevronUp, ImageIcon, MapPin, Plus, Store } from 'lucide-react'
+import { Bell, ChevronDown, ChevronUp, ImageIcon, MapPin, MessageSquare, Plus, Store } from 'lucide-react'
 
 export interface TransformedMarket {
     id: number
@@ -31,6 +31,7 @@ interface ProductCardProps {
     onToggle: (id: number) => void
     onAddToList?: (product: TransformedProduct) => void
     onCreateAlert?: (product: TransformedProduct) => void
+    onCreateFeedback?: (product: TransformedProduct) => void
 }
 
 export const ProductCard = memo(function ProductCard({
@@ -39,6 +40,7 @@ export const ProductCard = memo(function ProductCard({
     onToggle,
     onAddToList,
     onCreateAlert,
+    onCreateFeedback,
 }: ProductCardProps) {
     const handleToggle = useCallback(() => {
         onToggle(product.id)
@@ -53,6 +55,11 @@ export const ProductCard = memo(function ProductCard({
         event.stopPropagation()
         onCreateAlert?.(product)
     }, [onCreateAlert, product])
+
+    const handleFeedback = useCallback((event: MouseEvent<HTMLButtonElement>) => {
+        event.stopPropagation()
+        onCreateFeedback?.(product)
+    }, [onCreateFeedback, product])
 
     return (
         <Card
@@ -110,10 +117,14 @@ export const ProductCard = memo(function ProductCard({
                     </div>
                 )}
 
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-3 gap-2">
                     <Button type="button" variant="outline" size="sm" onClick={handleAlert}>
                         <Bell className="h-3.5 w-3.5" />
                         Alerta
+                    </Button>
+                    <Button type="button" variant="outline" size="sm" onClick={handleFeedback}>
+                        <MessageSquare className="h-3.5 w-3.5" />
+                        Avaliar
                     </Button>
                     <Button type="button" variant="outline" size="sm" onClick={handleAdd}>
                         <Plus className="h-3.5 w-3.5" />

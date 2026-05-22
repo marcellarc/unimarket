@@ -2,24 +2,26 @@ import logoImg from '@/assets/logo-unimarket-auth.png';
 import {
     Badge, Button, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
 } from '@/components/ui';
+import { useLogout } from '@/hooks/use-logout';
+import { getCurrentMarketProfile } from '@/services/supermarket';
+import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
+import Cookies from 'js-cookie';
 import {
-    BarChart3,
-    LayoutDashboard, LogOut,
+    ChevronDown,
+    LayoutDashboard,
+    Lock,
+    LogOut,
     MapPin,
     Menu,
     MessageSquare,
     Package,
     Settings,
     Store,
-    User,
-    Lock,
-    type LucideIcon,
+    type LucideIcon
 } from 'lucide-react';
 import { useState } from 'react';
 import { OverviewTab, ProductsTab, ReviewsTab, SettingsTab } from './tabs';
-import { useLogout } from '@/hooks/use-logout';
-import Cookies from 'js-cookie'
 
 type TabType = 'overview' | 'products' | 'reviews' | 'competitors' | 'reports' | 'settings';
 
@@ -33,9 +35,7 @@ interface MenuItem {
 const menuItems: MenuItem[] = [
     { id: 'overview', label: 'Visão Geral', icon: LayoutDashboard },
     { id: 'products', label: 'Estoque', icon: Package },
-    { id: 'reviews', label: 'Avaliações', icon: MessageSquare, badge: 5 },
-    { id: 'competitors', label: 'Concorrência', icon: Store },
-    { id: 'reports', label: 'Relatórios de Buscas', icon: BarChart3 },
+    { id: 'reviews', label: 'Avaliações', icon: MessageSquare },
     { id: 'settings', label: 'Configurações', icon: Settings },
 ];
 
@@ -47,6 +47,12 @@ export default function MarketDashboard() {
 
     const isLogged = Cookies.get('accessToken') !== undefined;
     const marketName = Cookies.get('marketName') || 'Visitante';
+    const { data: marketProfile } = useQuery({
+        queryKey: ['marketProfile'],
+        queryFn: getCurrentMarketProfile,
+        enabled: isLogged,
+    })
+    const locationLabel = [marketProfile?.city, marketProfile?.state].filter(Boolean).join(', ') || 'LocalizaÃ§Ã£o pendente'
 
     const renderContent = () => {
         if (!isLogged && (activeTab === 'products' || activeTab === 'settings')) {
@@ -132,26 +138,31 @@ export default function MarketDashboard() {
             </aside>
 
             <div className="flex-1 flex flex-col min-w-0">
-                <header className="h-16 bg-card/95 border-b border-border flex items-center justify-between px-4 sm:px-6 shrink-0 backdrop-blur">
+                <header className="flex h-16 shrink-0 items-center justify-between border-b border-border bg-card/95 px-4 shadow-sm backdrop-blur sm:px-6">
                     <div className="flex items-center gap-4">
-                        <Button variant="ghost" size="icon" onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="cursor-pointer text-muted-foreground hover:text-foreground">
+                        <Button variant="outline" size="icon" onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="rounded-full border-primary/15 bg-white/80 text-muted-foreground hover:border-primary/35 hover:text-primary dark:bg-white/10">
                             <Menu className="w-5 h-5" />
                         </Button>
-                        <span className="text-sm text-muted-foreground hidden sm:inline-flex items-center gap-2">
-                            Central UniMarket <span className="text-border">/</span> <span className="text-foreground font-medium">{menuItems.find(m => m.id === activeTab)?.label}</span>
-                        </span>
+                        <div className="hidden min-w-0 sm:block">
+                            <p className="text-xs font-semibold uppercase text-primary">Central UniMarket</p>
+                            <p className="truncate text-sm font-medium text-foreground">{menuItems.find(m => m.id === activeTab)?.label}</p>
+                        </div>
                     </div>
 
                     <div className="flex items-center gap-2">
-                        <div className="hidden md:flex items-center mr-4 text-sm text-muted-foreground">
-                            <MapPin className="w-4 h-4 mr-1 text-primary" /> Loja parceira
+                        <div className="mr-2 hidden items-center rounded-full border border-primary/10 bg-white/70 px-3 py-1.5 text-sm text-muted-foreground dark:bg-white/10 md:flex">
+                            <MapPin className="w-4 h-4 mr-1 text-primary" /> {locationLabel}
                         </div>
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" className="relative h-8 w-8 rounded-full cursor-pointer">
-                                    <div className="flex h-full w-full items-center justify-center rounded-full bg-primary/10">
-                                        <User className="w-4 h-4 text-primary cursor-pointer" />
+                                <Button variant="outline" className="h-10 rounded-full border-primary/15 bg-white/80 py-1 pl-1.5 pr-2 hover:border-primary/35 dark:bg-white/10 sm:pr-3">
+                                    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/10">
+                                        <Store className="w-4 h-4 text-primary cursor-pointer" />
                                     </div>
+                                    <span className="hidden max-w-32 truncate text-sm font-medium text-foreground lg:inline">
+                                        {marketName}
+                                    </span>
+                                    <ChevronDown className="hidden h-3.5 w-3.5 text-muted-foreground sm:block" />
                                 </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end" className="w-56 mt-1">
