@@ -7,9 +7,11 @@ import {
     Input,
     Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
     Skeleton,
+    Textarea,
 } from '@/components/ui'
 import { useLogout } from '@/hooks/use-logout'
 import { getApiErrorMessage } from '@/lib/api-error'
+import { createFeedback } from '@/services/feedback'
 import {
     createPriceAlert,
     listNotifications,
@@ -40,9 +42,9 @@ import {
     CircleDollarSign,
     Filter, List,
     LocateFixed,
-    LogOut, MapPin, Package,
+    LogOut, MapPin, MessageSquare, Package,
     Plus, Search, ShoppingCart,
-    SlidersHorizontal, Store, Tag,
+    SlidersHorizontal, Star, Store, Tag,
     Trash2, User, X
 } from 'lucide-react'
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
@@ -202,6 +204,10 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
     const [expandedId, setExpandedId] = useState<number | null>(null)
     const [alertProduct, setAlertProduct] = useState<TransformedProduct | null>(null)
     const [desiredPrice, setDesiredPrice] = useState('')
+    const [feedbackProduct, setFeedbackProduct] = useState<TransformedProduct | null>(null)
+    const [feedbackMarketId, setFeedbackMarketId] = useState<number | null>(null)
+    const [feedbackRating, setFeedbackRating] = useState(5)
+    const [feedbackComment, setFeedbackComment] = useState('')
     const notifiedBrowserIds = useRef(new Set<number>())
 
     const isGuest = userRole === 'GUEST'
@@ -242,6 +248,7 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
 
     const clientId = userProfile?.id
     const canUseShoppingLists = isLogged && userRole === 'USER' && !!clientId
+    const canUseFeedback = canUseShoppingLists
 
     const profileImageUrl = isGuest ? '' : userProfile?.profileImageUrl ?? getStoredString('unimarket.profile.imageUrl', '')
 
@@ -404,6 +411,38 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
         },
         onError: () => {
             toast.error('Não foi possível criar o alerta')
+        },
+    })
+
+    const createFeedbackMutation = useMutation({
+        mutationFn: () => {
+            const trimmedComment = feedbackComment.trim()
+
+            if (!feedbackProduct || !feedbackMarketId || !clientId) {
+                throw new Error('Selecione um produto e mercado para avaliar.')
+            }
+
+            return createFeedback({
+                clientId,
+                productId: feedbackProduct.productId,
+                marketId: feedbackMarketId,
+                vlNota: feedbackRating,
+                dsComentario: trimmedComment,
+            })
+        },
+        onSuccess: async () => {
+            toast.success('Feedback enviado ao mercado.')
+            setFeedbackProduct(null)
+            setFeedbackMarketId(null)
+            setFeedbackRating(5)
+            setFeedbackComment('')
+            await queryClient.invalidateQueries({ queryKey: ['feedbacks'] })
+            if (feedbackMarketId) {
+                await queryClient.invalidateQueries({ queryKey: ['marketFeedbacks', feedbackMarketId] })
+            }
+        },
+        onError: (feedbackError: unknown) => {
+            toast.error(getApiErrorMessage(feedbackError, 'Não foi possível enviar o feedback.'))
         },
     })
 
@@ -669,6 +708,45 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
         setDesiredPrice(product.lowestPrice > 0 ? product.lowestPrice.toFixed(2) : '')
     }, [canUseNotifications, navigate])
 
+    const handleCreateFeedback = useCallback((product: TransformedProduct) => {
+        if (!canUseFeedback) {
+            toast.info('Entre como usuário para enviar feedbacks aos mercados.')
+            navigate({ to: '/login' })
+            return
+        }
+
+        if (product.markets.length === 0) {
+            toast.info('Este produto ainda não possui mercado disponível para avaliação.')
+            return
+        }
+
+        setFeedbackProduct(product)
+        setFeedbackMarketId(product.markets[0].marketId)
+        setFeedbackRating(5)
+        setFeedbackComment('')
+    }, [canUseFeedback, navigate])
+
+    const submitFeedback = useCallback(() => {
+        const trimmedComment = feedbackComment.trim()
+
+        if (!feedbackProduct || !feedbackMarketId) {
+            toast.error('Selecione um mercado para avaliar.')
+            return
+        }
+
+        if (feedbackRating < 1 || feedbackRating > 5) {
+            toast.error('Selecione uma nota entre 1 e 5.')
+            return
+        }
+
+        if (trimmedComment.length < 3) {
+            toast.error('Escreva um comentário para o feedback.')
+            return
+        }
+
+        createFeedbackMutation.mutate()
+    }, [createFeedbackMutation, feedbackComment, feedbackMarketId, feedbackProduct, feedbackRating])
+
     const submitAlert = useCallback(() => {
         const numericPrice = Number(desiredPrice)
 
@@ -865,6 +943,16 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
                                     )}
                                 </DropdownMenuContent>
                             </DropdownMenu>
+
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => navigate({ to: '/feedbacks' })}
+                                className="text-muted-foreground"
+                                aria-label="Ver feedbacks da comunidade"
+                            >
+                                <MessageSquare className="w-5 h-5" />
+                            </Button>
 
                             <Button
                                 variant="ghost" size="icon"
@@ -1146,6 +1234,7 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
                                         onToggle={toggleExpand}
                                         onAddToList={handleAddToList}
                                         onCreateAlert={handleCreateAlert}
+                                        onCreateFeedback={handleCreateFeedback}
                                     />
                                 ))}
                             </div>
@@ -1457,6 +1546,96 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
                         </Button>
                         <Button onClick={handleConfirmAddToList} disabled={addItemMutation.isPending}>
                             {addItemMutation.isPending ? 'Adicionando...' : 'Adicionar'}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            <Dialog open={!!feedbackProduct} onOpenChange={(open) => !open && setFeedbackProduct(null)}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Enviar feedback</DialogTitle>
+                        <DialogDescription>
+                            Avalie o produto comprado e escolha o mercado que receberá o comentário.
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    {feedbackProduct && (
+                        <div className="space-y-4">
+                            <div className="rounded-lg border border-border p-3">
+                                <p className="text-sm font-medium text-foreground">{feedbackProduct.name}</p>
+                                <p className="mt-1 text-xs text-muted-foreground">
+                                    Feedback vinculado ao produto e ao supermercado selecionado.
+                                </p>
+                            </div>
+
+                            <div className="space-y-2">
+                                <label htmlFor="feedbackMarket" className="text-xs font-medium text-muted-foreground">
+                                    Mercado
+                                </label>
+                                <Select
+                                    value={feedbackMarketId ? String(feedbackMarketId) : undefined}
+                                    onValueChange={(value) => setFeedbackMarketId(Number(value))}
+                                >
+                                    <SelectTrigger id="feedbackMarket">
+                                        <SelectValue placeholder="Selecione o mercado" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {feedbackProduct.markets.map(market => (
+                                            <SelectItem key={market.marketId} value={String(market.marketId)}>
+                                                {market.name} - R$ {market.price.toFixed(2)}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+
+                            <div className="space-y-2">
+                                <p className="text-xs font-medium text-muted-foreground">Nota</p>
+                                <div className="flex gap-1">
+                                    {Array.from({ length: 5 }).map((_, index) => {
+                                        const rating = index + 1
+                                        const active = rating <= feedbackRating
+
+                                        return (
+                                            <button
+                                                key={rating}
+                                                type="button"
+                                                aria-label={`${rating} estrela${rating === 1 ? '' : 's'}`}
+                                                onClick={() => setFeedbackRating(rating)}
+                                                className="rounded-md p-1 text-muted-foreground transition hover:bg-muted hover:text-uniyellow"
+                                            >
+                                                <Star className={`h-6 w-6 ${active ? 'fill-uniyellow text-uniyellow' : ''}`} />
+                                            </button>
+                                        )
+                                    })}
+                                </div>
+                            </div>
+
+                            <div className="space-y-2">
+                                <label htmlFor="feedbackComment" className="text-xs font-medium text-muted-foreground">
+                                    Comentário
+                                </label>
+                                <Textarea
+                                    id="feedbackComment"
+                                    value={feedbackComment}
+                                    onChange={(event) => setFeedbackComment(event.target.value)}
+                                    placeholder="Conte como foi sua experiência com o produto"
+                                    rows={4}
+                                    maxLength={500}
+                                    className="resize-none"
+                                />
+                                <p className="text-right text-[11px] text-muted-foreground">{feedbackComment.length}/500</p>
+                            </div>
+                        </div>
+                    )}
+
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setFeedbackProduct(null)}>
+                            Cancelar
+                        </Button>
+                        <Button onClick={submitFeedback} disabled={createFeedbackMutation.isPending}>
+                            {createFeedbackMutation.isPending ? 'Enviando...' : 'Enviar feedback'}
                         </Button>
                     </DialogFooter>
                 </DialogContent>

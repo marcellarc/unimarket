@@ -33,7 +33,7 @@ interface MenuItem {
 const menuItems: MenuItem[] = [
     { id: 'overview', label: 'Visão Geral', icon: LayoutDashboard },
     { id: 'products', label: 'Estoque', icon: Package },
-    { id: 'reviews', label: 'Avaliações', icon: MessageSquare, badge: 5 },
+    { id: 'reviews', label: 'Avaliações', icon: MessageSquare },
     { id: 'competitors', label: 'Concorrência', icon: Store },
     { id: 'reports', label: 'Relatórios de Buscas', icon: BarChart3 },
     { id: 'settings', label: 'Configurações', icon: Settings },
