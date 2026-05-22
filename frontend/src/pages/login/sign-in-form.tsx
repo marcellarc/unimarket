@@ -9,6 +9,7 @@ import {
     Input,
     Label,
 } from '@/components/ui'
+import { GoogleSignInButton } from '@/components/google-sign-in-button'
 import { useAuth } from '@/hooks/use-auth'
 import { getApiErrorMessage } from '@/lib/api-error'
 import { requestPasswordRecovery, resetPassword } from '@/services/auth'
@@ -236,9 +237,7 @@ export function SignInForm() {
                     <div className="h-px flex-1 bg-gray-200" />
                 </div>
 
-                <Button type="button" variant="outline" className="w-full cursor-pointer rounded-full border-primary/20 bg-white/80 text-foreground hover:border-primary/40 dark:bg-white/10">
-                    Continuar com Google
-                </Button>
+                <GoogleSignInButton role={role as 'USER' | 'MARKET'} mode="login" />
 
                 <div className="flex items-center gap-4 text-xs text-gray-300">
                     <div className="h-px flex-1 bg-gray-200" />

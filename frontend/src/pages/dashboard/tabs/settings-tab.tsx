@@ -69,6 +69,7 @@ export function SettingsTab() {
     const [priceAlertsEnabled, setPriceAlertsEnabled] = useState(true)
     const [reviewAlertsEnabled, setReviewAlertsEnabled] = useState(true)
     const [weeklyReportEnabled, setWeeklyReportEnabled] = useState(true)
+    const [showSecurityForm, setShowSecurityForm] = useState(false)
     const [deleteAccountOpen, setDeleteAccountOpen] = useState(false)
 
     const { data: profile, isLoading } = useQuery({
@@ -132,6 +133,7 @@ export function SettingsTab() {
             setCurrentPassword('')
             setNewPassword('')
             setConfirmPassword('')
+            setShowSecurityForm(false)
             toast.success('Senha atualizada.')
             await queryClient.invalidateQueries({ queryKey: ['marketProfile'] })
         },
@@ -292,10 +294,10 @@ export function SettingsTab() {
                         <div className="space-y-4 p-5">
                             <div className="grid gap-4 md:grid-cols-2">
                                 <Field label="Nome de exibição" htmlFor="storeName">
-                                    <Input id="storeName" value={name} onChange={(event) => setName(event.target.value)} />
+                                    <Input id="storeName" value={name} onChange={(event) => setName(event.target.value)} placeholder="Digite aqui" />
                                 </Field>
                                 <Field label="E-mail comercial" htmlFor="email">
-                                    <Input id="email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} />
+                                    <Input id="email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="Digite aqui" />
                                 </Field>
                             </div>
 
@@ -308,57 +310,94 @@ export function SettingsTab() {
                     </Card>
 
                     <Card className="gap-0 p-0">
-                        <div className="border-b border-border p-5">
+                        <div className="flex flex-col gap-3 border-b border-border p-5 sm:flex-row sm:items-center sm:justify-between">
                             <div className="flex items-center gap-2">
                                 <KeyRound className="h-4 w-4 text-primary" />
                                 <div>
                                     <h3 className="text-base font-semibold text-foreground">Segurança</h3>
-                                    <p className="mt-1 text-sm text-muted-foreground">Altere a senha da loja em uma etapa separada.</p>
+                                    <p className="mt-1 text-sm text-muted-foreground">
+                                        A senha fica protegida e só aparece quando você decide alterá-la.
+                                    </p>
                                 </div>
                             </div>
+                            <Button
+                                type="button"
+                                variant={showSecurityForm ? 'ghost' : 'outline'}
+                                size="sm"
+                                onClick={() => {
+                                    setShowSecurityForm(!showSecurityForm)
+                                    setCurrentPassword('')
+                                    setNewPassword('')
+                                    setConfirmPassword('')
+                                }}
+                            >
+                                <KeyRound className="h-4 w-4" />
+                                {showSecurityForm ? 'Cancelar alteração' : 'Mudar senha'}
+                            </Button>
                         </div>
 
                         <div className="space-y-4 p-5">
-                            <div className="grid gap-4 md:grid-cols-3">
-                                <Field label="Senha atual" htmlFor="market-current-password">
-                                    <Input
-                                        id="market-current-password"
-                                        type="password"
-                                        value={currentPassword}
-                                        onChange={(event) => setCurrentPassword(event.target.value)}
-                                        autoComplete="current-password"
-                                    />
-                                </Field>
-                                <Field label="Nova senha" htmlFor="market-new-password">
-                                    <Input
-                                        id="market-new-password"
-                                        type="password"
-                                        value={newPassword}
-                                        onChange={(event) => setNewPassword(event.target.value)}
-                                        autoComplete="new-password"
-                                    />
-                                </Field>
-                                <Field label="Confirmar nova senha" htmlFor="market-confirm-password">
-                                    <Input
-                                        id="market-confirm-password"
-                                        type="password"
-                                        value={confirmPassword}
-                                        onChange={(event) => setConfirmPassword(event.target.value)}
-                                        autoComplete="new-password"
-                                    />
-                                </Field>
-                            </div>
+                            {showSecurityForm ? (
+                                <>
+                                    <div className="rounded-lg border border-primary/15 bg-primary/5 p-4">
+                                        <p className="text-sm font-medium text-foreground">Alteração de senha</p>
+                                        <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                                            Informe a senha atual e defina uma nova senha para a conta do supermercado.
+                                        </p>
+                                    </div>
 
-                            <div className="flex justify-end border-t border-border pt-4">
-                                <Button onClick={handleSaveSecurity} disabled={securityMutation.isPending}>
-                                    {securityMutation.isPending ? (
-                                        <Loader2 className="h-4 w-4 animate-spin" />
-                                    ) : (
-                                        <Save className="h-4 w-4" />
-                                    )}
-                                    Salvar senha
-                                </Button>
-                            </div>
+                                    <div className="grid gap-4 md:grid-cols-3">
+                                        <Field label="Senha atual" htmlFor="market-current-password">
+                                            <Input
+                                                id="market-current-password"
+                                                type="password"
+                                                value={currentPassword}
+                                                onChange={(event) => setCurrentPassword(event.target.value)}
+                                                autoComplete="current-password"
+                                                placeholder="Digite aqui"
+                                            />
+                                        </Field>
+                                        <Field label="Nova senha" htmlFor="market-new-password">
+                                            <Input
+                                                id="market-new-password"
+                                                type="password"
+                                                value={newPassword}
+                                                onChange={(event) => setNewPassword(event.target.value)}
+                                                autoComplete="new-password"
+                                                placeholder="Digite aqui"
+                                            />
+                                        </Field>
+                                        <Field label="Confirmar nova senha" htmlFor="market-confirm-password">
+                                            <Input
+                                                id="market-confirm-password"
+                                                type="password"
+                                                value={confirmPassword}
+                                                onChange={(event) => setConfirmPassword(event.target.value)}
+                                                autoComplete="new-password"
+                                                placeholder="Digite aqui"
+                                            />
+                                        </Field>
+                                    </div>
+
+                                    <div className="flex justify-end border-t border-border pt-4">
+                                        <Button onClick={handleSaveSecurity} disabled={securityMutation.isPending}>
+                                            {securityMutation.isPending ? (
+                                                <Loader2 className="h-4 w-4 animate-spin" />
+                                            ) : (
+                                                <Save className="h-4 w-4" />
+                                            )}
+                                            Salvar senha
+                                        </Button>
+                                    </div>
+                                </>
+                            ) : (
+                                <div className="rounded-lg border border-border bg-muted/30 p-4">
+                                    <p className="text-sm font-medium text-foreground">Senha protegida</p>
+                                    <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                                        Para manter o formulário limpo, os campos de senha ficam ocultos até você iniciar a alteração.
+                                    </p>
+                                </div>
+                            )}
                         </div>
                     </Card>
 
@@ -372,30 +411,30 @@ export function SettingsTab() {
 
                         <div className="space-y-4 p-5">
                             <Field label="Endereço" htmlFor="address">
-                                <Input id="address" value={streetAddress} onChange={(event) => setStreetAddress(event.target.value)} />
+                                <Input id="address" value={streetAddress} onChange={(event) => setStreetAddress(event.target.value)} placeholder="Digite aqui" />
                             </Field>
 
                             <div className="grid gap-4 md:grid-cols-[1fr_1fr_80px_120px]">
                                 <Field label="Bairro" htmlFor="neighborhood">
-                                    <Input id="neighborhood" value={neighborhood} onChange={(event) => setNeighborhood(event.target.value)} />
+                                    <Input id="neighborhood" value={neighborhood} onChange={(event) => setNeighborhood(event.target.value)} placeholder="Digite aqui" />
                                 </Field>
                                 <Field label="Cidade" htmlFor="city">
-                                    <Input id="city" value={city} onChange={(event) => setCity(event.target.value)} />
+                                    <Input id="city" value={city} onChange={(event) => setCity(event.target.value)} placeholder="Digite aqui" />
                                 </Field>
                                 <Field label="UF" htmlFor="state">
-                                    <Input id="state" maxLength={2} value={state} onChange={(event) => setState(event.target.value.toUpperCase())} />
+                                    <Input id="state" maxLength={2} value={state} onChange={(event) => setState(event.target.value.toUpperCase())} placeholder="Digite aqui" />
                                 </Field>
                                 <Field label="CEP" htmlFor="zipCode">
-                                    <Input id="zipCode" value={zipCode} onChange={(event) => setZipCode(formatZipCode(event.target.value))} />
+                                    <Input id="zipCode" value={zipCode} onChange={(event) => setZipCode(formatZipCode(event.target.value))} placeholder="Digite aqui" />
                                 </Field>
                             </div>
 
                             <div className="grid gap-4 md:grid-cols-2">
                                 <Field label="Latitude" htmlFor="lat">
-                                    <Input id="lat" value={latitude} onChange={(event) => setLatitude(event.target.value)} placeholder="-23.9608" />
+                                    <Input id="lat" value={latitude} onChange={(event) => setLatitude(event.target.value)} placeholder="Digite aqui" />
                                 </Field>
                                 <Field label="Longitude" htmlFor="lng">
-                                    <Input id="lng" value={longitude} onChange={(event) => setLongitude(event.target.value)} placeholder="-46.3336" />
+                                    <Input id="lng" value={longitude} onChange={(event) => setLongitude(event.target.value)} placeholder="Digite aqui" />
                                 </Field>
                             </div>
 

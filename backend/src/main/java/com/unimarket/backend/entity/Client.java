@@ -41,6 +41,10 @@ public class Client {
     @Schema(description = "E-mail do cliente", example = "cliente@gmail.com")
     private String email;
 
+    @Column(name = "google_subject", unique = true)
+    @Schema(description = "Identificador estavel da conta Google vinculada ao cliente")
+    private String googleSubject;
+
     @Column(name = "password", nullable = false)
     @Schema(description = "Senha criptografada para autenticacao")
     private String password;

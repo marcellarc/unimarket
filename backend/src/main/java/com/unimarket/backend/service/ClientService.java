@@ -1,6 +1,7 @@
 package com.unimarket.backend.service;
 
 import java.util.Locale;
+import java.util.UUID;
 
 import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -12,6 +13,7 @@ import com.unimarket.backend.dto.ClientProfileResponseDTO;
 import com.unimarket.backend.dto.ClientProfileUpdateDTO;
 import com.unimarket.backend.entity.Client;
 import com.unimarket.backend.repository.ClientRepository;
+import com.unimarket.backend.service.GoogleAuthService.GoogleAccount;
 
 import jakarta.transaction.Transactional;
 
@@ -37,6 +39,25 @@ public class ClientService {
         client.setPassword(passwordEncoder.encode(dto.getPassword()));
 
         return repository.save(client);
+    }
+
+    @Transactional
+    public Client findOrCreateGoogleClient(GoogleAccount account) {
+        String email = account.email().trim().toLowerCase(Locale.ROOT);
+
+        return repository.findByGoogleSubject(account.subject())
+                .or(() -> repository.findByEmail(email)
+                        .map(existingClient -> linkGoogleAccount(existingClient, account)))
+                .orElseGet(() -> {
+                    Client client = new Client();
+                    client.setEmail(email);
+                    client.setName(generateAvailableName(account.name(), email));
+                    client.setGoogleSubject(account.subject());
+                    client.setProfileImageUrl(account.pictureUrl());
+                    client.setPassword(passwordEncoder.encode(UUID.randomUUID() + ":" + account.subject()));
+
+                    return repository.save(client);
+                });
     }
 
     // Retorna o perfil completo usado pela tela de perfil do cliente.
@@ -180,5 +201,31 @@ public class ClientService {
 
     private String onlyDigits(String value) {
         return value == null ? "" : value.replaceAll("\\D", "");
+    }
+
+    private Client linkGoogleAccount(Client client, GoogleAccount account) {
+        client.setGoogleSubject(account.subject());
+
+        if (client.getProfileImageUrl() == null || client.getProfileImageUrl().isBlank()) {
+            client.setProfileImageUrl(account.pictureUrl());
+        }
+
+        return repository.save(client);
+    }
+
+    private String generateAvailableName(String googleName, String email) {
+        String baseName = googleName == null || googleName.trim().isEmpty()
+                ? email.substring(0, email.indexOf('@'))
+                : googleName.trim();
+
+        String candidate = baseName;
+        int suffix = 2;
+
+        while (repository.existsByName(candidate)) {
+            candidate = baseName + " " + suffix;
+            suffix++;
+        }
+
+        return candidate;
     }
 }

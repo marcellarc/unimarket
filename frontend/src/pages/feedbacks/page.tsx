@@ -137,18 +137,28 @@ export function FeedbacksPage() {
     return (
         <main className="app-gradient-bg min-h-screen">
             <header className="sticky top-0 z-40 border-b border-border bg-card/95 shadow-sm backdrop-blur">
-                <div className="mx-auto flex h-14 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6">
-                    <div className="flex items-center gap-3">
-                        <img src={logoImg} alt="UniMarket" className="h-8 w-8 object-contain" />
-                        <div>
-                            <p className="text-sm font-semibold text-foreground">UniMarket</p>
-                            <p className="text-xs text-muted-foreground">Feedbacks da comunidade</p>
+                <div className="mx-auto flex min-h-16 max-w-7xl items-center justify-between gap-3 px-4 py-2 sm:px-6">
+                    <button
+                        type="button"
+                        onClick={() => navigate({ to: '/dashboard' })}
+                        className="flex min-w-0 items-center gap-2.5 rounded-full pr-2 transition hover:opacity-85"
+                        aria-label="Ir para o dashboard UniMarket"
+                    >
+                        <img src={logoImg} alt="UniMarket" className="h-9 w-9 shrink-0 object-contain" />
+                        <div className="min-w-0 text-left">
+                            <p className="auth-wordmark truncate text-lg font-semibold text-primary">UniMarket</p>
+                            <p className="truncate text-xs text-muted-foreground">Feedbacks da comunidade</p>
                         </div>
-                    </div>
+                    </button>
 
-                    <Button variant="outline" size="sm" onClick={() => navigate({ to: '/dashboard' })}>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => navigate({ to: '/dashboard' })}
+                        className="h-10 shrink-0 rounded-full border-primary/15 bg-white/80 px-3 text-muted-foreground hover:border-primary/35 hover:text-primary dark:bg-white/10"
+                    >
                         <ArrowLeft className="h-4 w-4" />
-                        Dashboard
+                        <span className="hidden sm:inline">Dashboard</span>
                     </Button>
                 </div>
             </header>

@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.unimarket.backend.dto.ClientDTO;
 import com.unimarket.backend.dto.MarketDTO;
+import com.unimarket.backend.dto.login.GoogleLoginRequestDTO;
 import com.unimarket.backend.dto.login.LoginRequestDTO;
 import com.unimarket.backend.dto.login.LoginResponseDTO;
 import com.unimarket.backend.dto.token.RefreshTokenRequestDTO;
@@ -17,6 +18,8 @@ import com.unimarket.backend.entity.Client;
 import com.unimarket.backend.entity.Market;
 import com.unimarket.backend.service.AuthService;
 import com.unimarket.backend.service.ClientService;
+import com.unimarket.backend.service.GoogleAuthService;
+import com.unimarket.backend.service.GoogleAuthService.GoogleAccount;
 import com.unimarket.backend.service.MarketService;
 import com.unimarket.backend.service.TokenService;
 
@@ -41,6 +44,9 @@ public class AuthController {
     @Autowired
     private ClientService clientService;
 
+    @Autowired
+    private GoogleAuthService googleAuthService;
+
     //cadastro cliente
     @PostMapping("/register/client")
     @Operation(summary = "Cadastrar um novo cliente")
@@ -54,6 +60,30 @@ public class AuthController {
     public ResponseEntity<?> loginClient(@RequestBody @Valid LoginRequestDTO dto) {
         try {
             Client client = authService.authenticateClient(dto);
+
+            String accessToken = tokenService.generateToken(client);
+            String refreshToken = tokenService.generateRefreshToken(client);
+
+            LoginResponseDTO response = new LoginResponseDTO(
+                    client.getId(),
+                    client.getName(),
+                    client.getEmail(),
+                    accessToken,
+                    refreshToken
+            );
+
+            return ResponseEntity.ok(response);
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(401).body(e.getMessage());
+        }
+    }
+
+    @PostMapping("/login/google/client")
+    @Operation(summary = "Login com Google para clientes")
+    public ResponseEntity<?> loginGoogleClient(@RequestBody @Valid GoogleLoginRequestDTO dto) {
+        try {
+            GoogleAccount googleAccount = googleAuthService.verifyIdToken(dto.idToken());
+            Client client = clientService.findOrCreateGoogleClient(googleAccount);
 
             String accessToken = tokenService.generateToken(client);
             String refreshToken = tokenService.generateRefreshToken(client);

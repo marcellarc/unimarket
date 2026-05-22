@@ -866,35 +866,41 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
 
             {/* ── NAVBAR ── */}
             <header className="sticky top-0 z-50 border-b border-border bg-card/95 shadow-sm backdrop-blur">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6">
-                    <div className="flex items-center gap-4 h-14">
-                        <div className="flex items-center gap-2 shrink-0">
-                            <img src={logoImg} alt="UniMarket" className="w-7 h-7 object-contain" />
-                            <span className="font-bold text-lg text-foreground hidden sm:block">UniMarket</span>
-                        </div>
+                <div className="mx-auto max-w-7xl px-4 sm:px-6">
+                    <div className="flex min-h-16 items-center gap-3 py-2">
+                        <button
+                            type="button"
+                            onClick={() => navigate({ to: '/dashboard' })}
+                            className="flex shrink-0 items-center gap-2.5 rounded-full pr-2 transition hover:opacity-85"
+                            aria-label="Ir para o dashboard UniMarket"
+                        >
+                            <img src={logoImg} alt="UniMarket" className="h-9 w-9 object-contain" />
+                            <span className="auth-wordmark hidden text-lg font-semibold text-primary sm:block">UniMarket</span>
+                        </button>
 
-                        <div className="flex-1 relative">
+                        <div className="relative hidden min-w-0 flex-1 md:block">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                             <Input
                                 placeholder="Buscar produtos, marcas, categorias..."
                                 value={searchQuery}
                                 onChange={e => setSearchQuery(e.target.value)}
-                                className="h-9 w-full bg-background/80 pl-9 pr-4"
+                                className="h-10 w-full rounded-full border-primary/20 bg-white/85 pl-9 pr-10 shadow-sm focus-visible:ring-primary dark:bg-white/10"
                             />
                             {searchQuery && (
                                 <button
                                     onClick={() => setSearchQuery('')}
-                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full text-muted-foreground transition hover:text-foreground"
+                                    aria-label="Limpar busca"
                                 >
                                     <X className="w-4 h-4" />
                                 </button>
                             )}
                         </div>
 
-                        <div className="flex items-center gap-1 shrink-0">
+                        <div className="ml-auto flex shrink-0 items-center gap-1.5">
                             <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
-                                    <Button variant="ghost" size="icon" className="relative text-muted-foreground">
+                                    <Button variant="outline" size="icon" className="relative rounded-full border-primary/15 bg-white/80 text-muted-foreground hover:border-primary/35 hover:text-primary dark:bg-white/10">
                                         <Bell className="w-5 h-5" />
                                         {unreadCount > 0 && (
                                             <span className="absolute -top-0.5 -right-0.5 min-w-3.5 h-3.5 px-1 bg-destructive text-destructive-foreground text-[9px] rounded-full flex items-center justify-center">
@@ -945,19 +951,21 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
                             </DropdownMenu>
 
                             <Button
-                                variant="ghost"
-                                size="icon"
+                                variant="outline"
+                                size="sm"
                                 onClick={() => navigate({ to: '/feedbacks' })}
-                                className="text-muted-foreground"
+                                className="h-10 rounded-full border-primary/15 bg-white/80 px-3 text-muted-foreground hover:border-primary/35 hover:text-primary dark:bg-white/10"
                                 aria-label="Ver feedbacks da comunidade"
                             >
-                                <MessageSquare className="w-5 h-5" />
+                                <MessageSquare className="h-4 w-4" />
+
                             </Button>
 
                             <Button
-                                variant="ghost" size="icon"
+                                variant="outline" size="icon"
                                 onClick={() => setShowListPanel(!showListPanel)}
-                                className="relative text-muted-foreground"
+                                className="relative rounded-full border-primary/15 bg-white/80 text-muted-foreground hover:border-primary/35 hover:text-primary dark:bg-white/10"
+                                aria-label="Abrir listas de compras"
                             >
                                 <ShoppingCart className="w-5 h-5" />
                                 <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 bg-primary text-primary-foreground text-[9px] rounded-full flex items-center justify-center">
@@ -967,14 +975,18 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
 
                             <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
-                                    <Button variant="ghost" className="h-8 w-8 rounded-full p-0">
-                                        <div className="flex h-full w-full items-center justify-center overflow-hidden rounded-full bg-primary/10 text-xs font-bold text-primary">
+                                    <Button variant="outline" className="h-10 rounded-full border-primary/15 bg-white/80 py-1 pl-1.5 pr-2 text-foreground hover:border-primary/35 dark:bg-white/10 sm:pr-3">
+                                        <div className="flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary/10 text-xs font-bold text-primary">
                                             {profileImageUrl ? (
                                                 <img src={profileImageUrl} alt={displayName} className="h-full w-full object-cover" />
                                             ) : (
                                                 getInitials(displayName)
                                             )}
                                         </div>
+                                        <span className="hidden max-w-28 truncate text-sm font-medium lg:inline">
+                                            {isGuest ? 'Visitante' : userName}
+                                        </span>
+                                        <ChevronDown className="hidden h-3.5 w-3.5 text-muted-foreground sm:block" />
                                     </Button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end" className="w-52 mt-1">
@@ -1005,6 +1017,25 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
                             </DropdownMenu>
                         </div>
                     </div>
+
+                    <div className="relative pb-3 md:hidden">
+                        <Search className="absolute left-3 top-5 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                        <Input
+                            placeholder="Buscar produtos..."
+                            value={searchQuery}
+                            onChange={e => setSearchQuery(e.target.value)}
+                            className="h-10 rounded-full border-primary/20 bg-white/85 pl-9 pr-10 shadow-sm focus-visible:ring-primary dark:bg-white/10"
+                        />
+                        {searchQuery && (
+                            <button
+                                onClick={() => setSearchQuery('')}
+                                className="absolute right-3 top-5 -translate-y-1/2 rounded-full text-muted-foreground transition hover:text-foreground"
+                                aria-label="Limpar busca"
+                            >
+                                <X className="h-4 w-4" />
+                            </button>
+                        )}
+                    </div>
                 </div>
 
                 {/* Categorias */}
@@ -1015,9 +1046,9 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
                                 <button
                                     key={cat.id}
                                     onClick={() => setSelectedCategory(cat.id)}
-                                    className={`h-8 shrink-0 rounded-md px-3 text-xs font-medium transition-colors ${selectedCategory === cat.id
+                                    className={`h-8 shrink-0 rounded-full px-3 text-xs font-semibold transition-colors ${selectedCategory === cat.id
                                         ? 'bg-primary text-primary-foreground'
-                                        : 'bg-transparent text-muted-foreground hover:bg-muted hover:text-foreground'
+                                        : 'bg-white/70 text-muted-foreground hover:bg-primary/10 hover:text-primary dark:bg-white/10'
                                         }`}
                                 >
                                     {cat.label}

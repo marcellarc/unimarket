@@ -7,7 +7,10 @@ export interface LoginResponse {
     id: number
     name: string
     email: string
-    password: string
     accessToken: string
     refreshToken: string
+}
+
+export interface GoogleLoginRequest {
+    idToken: string
 }

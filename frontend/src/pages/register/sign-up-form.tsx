@@ -1,4 +1,5 @@
 import { Button, Input, Label } from '@/components/ui'
+import { GoogleSignInButton } from '@/components/google-sign-in-button'
 import { useRegister } from '@/hooks/use-register'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Link, useNavigate } from '@tanstack/react-router'
@@ -309,13 +310,7 @@ export function SignUpForm() {
                 </div>
 
 
-                <Button
-                    type="button"
-                    variant="outline"
-                    className="w-full cursor-pointer rounded-full border-primary/20 bg-white/80 text-foreground hover:border-primary/40 dark:bg-white/10"
-                >
-                    Continuar com Google
-                </Button>
+                <GoogleSignInButton role={role as 'USER' | 'MARKET'} mode="register" />
 
 
                 <div className="flex items-center gap-4 text-xs text-muted-foreground">
