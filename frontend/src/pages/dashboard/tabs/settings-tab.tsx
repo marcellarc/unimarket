@@ -1,7 +1,7 @@
 import {
     Badge, Button, Card,
     Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
-    Input, Label, Skeleton, Switch,
+    Input, Label, Skeleton,
 } from '@/components/ui'
 import { getApiErrorMessage } from '@/lib/api-error'
 import {
@@ -18,7 +18,6 @@ import Cookies from 'js-cookie'
 import {
     AlertTriangle,
     BadgeCheck,
-    Bell,
     ExternalLink,
     KeyRound,
     Loader2,
@@ -496,31 +495,6 @@ export function SettingsTab() {
                         </div>
                     </Card>
 
-                    <Card className="gap-4 p-5">
-                        <div className="flex items-center gap-2">
-                            <Bell className="h-4 w-4 text-muted-foreground" />
-                            <h3 className="text-base font-semibold text-foreground">Preferências de aviso</h3>
-                        </div>
-                        <PreferenceSwitch
-                            checked={priceAlertsEnabled}
-                            description="Receber avisos quando produtos entrarem em alertas de preço."
-                            label="Alertas de preço"
-                            onCheckedChange={setPriceAlertsEnabled}
-                        />
-                        <PreferenceSwitch
-                            checked={reviewAlertsEnabled}
-                            description="Receber aviso quando clientes enviarem novas avaliações."
-                            label="Avaliações"
-                            onCheckedChange={setReviewAlertsEnabled}
-                        />
-                        <PreferenceSwitch
-                            checked={weeklyReportEnabled}
-                            description="Receber um resumo periódico de buscas, listas e visibilidade."
-                            label="Resumo periódico"
-                            onCheckedChange={setWeeklyReportEnabled}
-                        />
-                    </Card>
-
                     <Card className="gap-4 border-destructive/30 p-5">
                         <div className="flex items-center gap-2">
                             <AlertTriangle className="h-4 w-4 text-destructive" />
@@ -579,28 +553,6 @@ function Field({
             <Label htmlFor={htmlFor}>{label}</Label>
             {children}
             {hint && <p className="text-xs text-muted-foreground">{hint}</p>}
-        </div>
-    )
-}
-
-function PreferenceSwitch({
-    checked,
-    description,
-    label,
-    onCheckedChange,
-}: {
-    checked: boolean
-    description: string
-    label: string
-    onCheckedChange: (checked: boolean) => void
-}) {
-    return (
-        <div className="flex items-start justify-between gap-3 rounded-lg border border-border p-3">
-            <div>
-                <p className="text-sm font-medium text-foreground">{label}</p>
-                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{description}</p>
-            </div>
-            <Switch checked={checked} onCheckedChange={onCheckedChange} />
         </div>
     )
 }
