@@ -70,6 +70,7 @@ export function GoogleSignInButton({ role, mode, className }: GoogleSignInButton
     const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined
     const { loginWithGoogle, isLoggingInWithGoogle } = useAuth()
     const visibleLabel = mode === 'register' ? 'Cadastrar com Google' : 'Continuar com Google'
+    const sharedButtonClassName = 'h-9 w-full rounded-full border-primary/20 bg-white/80 font-semibold text-foreground hover:border-primary/40 hover:bg-accent hover:text-accent-foreground dark:bg-white/10 dark:hover:bg-accent/80'
 
     useEffect(() => {
         activeCredentialHandler = (credential: string) => loginWithGoogle(credential)
@@ -119,7 +120,7 @@ export function GoogleSignInButton({ role, mode, className }: GoogleSignInButton
                 client_id: clientId,
                 callback: (response) => {
                     if (!response.credential) {
-                    toast.error('O Google não retornou um token de login.')
+                        toast.error('O Google não retornou um token de login.')
                         return
                     }
 
@@ -151,7 +152,7 @@ export function GoogleSignInButton({ role, mode, className }: GoogleSignInButton
             <Button
                 type="button"
                 variant="outline"
-                className={cn('w-full rounded-full border-primary/20 bg-white/80 font-semibold text-foreground hover:border-primary/40 dark:bg-white/10', className)}
+                className={cn(sharedButtonClassName, className)}
                 onClick={() => toast.info('Login com Google disponível apenas para usuários. Supermercados precisam entrar com e-mail e senha.')}
             >
                 <GoogleLogo />
@@ -165,7 +166,7 @@ export function GoogleSignInButton({ role, mode, className }: GoogleSignInButton
             <Button
                 type="button"
                 variant="outline"
-                className={cn('w-full rounded-full border-primary/20 bg-white/80 font-semibold text-foreground dark:bg-white/10', className)}
+                className={cn(sharedButtonClassName, className)}
                 disabled
             >
                 Google não configurado
@@ -178,7 +179,7 @@ export function GoogleSignInButton({ role, mode, className }: GoogleSignInButton
             <Button
                 type="button"
                 variant="outline"
-                className={cn('w-full rounded-full border-primary/20 bg-white/80 font-semibold text-foreground dark:bg-white/10', className)}
+                className={cn(sharedButtonClassName, className)}
                 disabled
             >
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -188,8 +189,8 @@ export function GoogleSignInButton({ role, mode, className }: GoogleSignInButton
     }
 
     return (
-        <div className={cn('relative flex h-10 w-full items-center justify-center overflow-hidden rounded-full', className)}>
-            <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center gap-2 rounded-full border border-primary/20 bg-white/90 text-sm font-semibold text-foreground shadow-sm transition dark:bg-white/10">
+        <div className={cn('group relative flex h-9 w-full cursor-pointer items-center justify-center overflow-hidden rounded-full', className)}>
+            <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center gap-2 rounded-full border border-primary/20 bg-white/80 text-sm font-semibold text-foreground shadow-sm transition group-hover:border-primary/40 group-hover:bg-accent group-hover:text-accent-foreground dark:bg-white/10 dark:group-hover:bg-accent/80">
                 <GoogleLogo />
                 {visibleLabel}
             </div>
