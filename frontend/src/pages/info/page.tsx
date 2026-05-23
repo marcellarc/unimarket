@@ -22,19 +22,19 @@ const team = [
     {
         initials: 'BS',
         name: 'Beatriz Duarte Sibilio',
-        imageSrc: '/team/beatriz.jpg',
-        role: 'Descrição...',
+        imageSrc: '/team/beatriz.jpeg',
+        role: 'Desenvolvedora backend, responsável pela construção das APIs, regras de negócio e integração de serviços utilizando Java, Spring Boot e Swagger.',
     },
     {
         initials: 'KC',
         name: 'Kayo Campos Silva',
-        imageSrc: '/team/kayo.jpg',
-        role: 'Descrição...',
+        imageSrc: '/team/kayo.jpeg',
+        role: 'Desenvolvedor backend e responsável pela infraestrutura do projeto, deploy da aplicação, hospedagem do backend e banco de dados, além do desenvolvimento de rotas e suporte à arquitetura do sistema com Java, Spring Boot e PostgreSQL.',
     },
     {
         initials: 'MM',
         name: 'Marcella Ricoy Curci de Moura',
-        imageSrc: '/team/marcella.jpg',
+        imageSrc: '/team/marcella.jpeg',
         role: 'Desenvolvedora frontend, responsável pela interface, experiência do usuário e integração com backend.',
     },
 ] as const

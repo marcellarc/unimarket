@@ -157,7 +157,7 @@ export function SignInForm() {
                             }`}
                         onClick={() => setValue('role', 'USER')}
                     >
-                        <User size={14} /> Usuário
+                        <User size={14} /> Cliente
                     </button>
 
                     <button
@@ -336,3 +336,4 @@ export function SignInForm() {
         </div>
     )
 }
+

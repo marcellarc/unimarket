@@ -100,7 +100,7 @@ export function SignUpForm() {
                             }`}
                         onClick={() => setValue('role', 'USER')}
                     >
-                        <User size={14} /> Usuário
+                        <User size={14} /> Cliente
                     </button>
 
                     <button
@@ -348,3 +348,4 @@ export function SignUpForm() {
         </div>
     )
 }
+

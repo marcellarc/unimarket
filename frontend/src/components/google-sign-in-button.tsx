@@ -116,18 +116,18 @@ export function GoogleSignInButton({ role, mode, className }: GoogleSignInButton
 
         if (initializedGoogleClientId !== clientId) {
             window.google.accounts.id.initialize({
-            client_id: clientId,
-            callback: (response) => {
-                if (!response.credential) {
+                client_id: clientId,
+                callback: (response) => {
+                    if (!response.credential) {
                     toast.error('O Google não retornou um token de login.')
-                    return
-                }
+                        return
+                    }
 
-                activeCredentialHandler?.(response.credential)
-            },
-            ux_mode: 'popup',
-            auto_select: false,
-            cancel_on_tap_outside: true,
+                    activeCredentialHandler?.(response.credential)
+                },
+                ux_mode: 'popup',
+                auto_select: false,
+                cancel_on_tap_outside: true,
             })
             initializedGoogleClientId = clientId
         }
@@ -189,11 +189,11 @@ export function GoogleSignInButton({ role, mode, className }: GoogleSignInButton
 
     return (
         <div className={cn('relative flex h-10 w-full items-center justify-center overflow-hidden rounded-full', className)}>
-            <div ref={buttonRef} className="absolute inset-0 z-10 flex w-full justify-center opacity-0" />
-            <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center gap-2 rounded-full border border-primary/20 bg-white/90 text-sm font-semibold text-foreground shadow-sm transition dark:bg-white/10">
+            <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center gap-2 rounded-full border border-primary/20 bg-white/90 text-sm font-semibold text-foreground shadow-sm transition dark:bg-white/10">
                 <GoogleLogo />
                 {visibleLabel}
             </div>
+            <div ref={buttonRef} className="absolute inset-0 z-20 flex w-full justify-center opacity-[0.01]" />
         </div>
     )
 }
