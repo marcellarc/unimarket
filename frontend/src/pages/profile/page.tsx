@@ -5,6 +5,7 @@ import {
     Input, Label, Switch,
 } from '@/components/ui'
 import { useLogout } from '@/hooks/use-logout'
+import { useFeedbackReplyNotifications } from '@/hooks/use-feedback-reply-notifications'
 import { getApiErrorMessage } from '@/lib/api-error'
 import {
     deactivatePriceAlert,
@@ -122,6 +123,7 @@ export function ProfilePage() {
     })
 
     const clientId = profile?.id
+    useFeedbackReplyNotifications(clientId, !!clientId)
 
     const { data: shoppingLists = [], isLoading: isShoppingListsLoading } = useQuery({
         queryKey: ['shoppingLists', clientId],

@@ -10,6 +10,7 @@ import {
     Textarea,
 } from '@/components/ui'
 import { useLogout } from '@/hooks/use-logout'
+import { useFeedbackReplyNotifications } from '@/hooks/use-feedback-reply-notifications'
 import { getApiErrorMessage } from '@/lib/api-error'
 import { createFeedback } from '@/services/feedback'
 import {
@@ -220,6 +221,7 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
     const clientId = userProfile?.id
     const canUseShoppingLists = isLogged && userRole === 'USER' && !!clientId
     const canUseFeedback = canUseShoppingLists
+    useFeedbackReplyNotifications(clientId, canUseFeedback)
 
     const profileImageUrl = isGuest ? '' : userProfile?.profileImageUrl ?? ''
     const [avatarImageFailed, setAvatarImageFailed] = useState(false)
@@ -397,6 +399,10 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
             await queryClient.invalidateQueries({ queryKey: ['feedbacks'] })
             if (feedbackMarketId) {
                 await queryClient.invalidateQueries({ queryKey: ['marketFeedbacks', feedbackMarketId] })
+            }
+
+            if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'default') {
+                Notification.requestPermission()
             }
         },
         onError: (feedbackError: unknown) => {
