@@ -232,19 +232,21 @@ function FaqPanel() {
                             <button
                                 type="button"
                                 aria-expanded={isOpen}
-                                className="flex w-full items-center justify-between gap-4 text-left"
+                                className="group flex w-full items-center justify-between gap-4 text-left"
                                 onClick={() => setOpenQuestion(isOpen ? '' : faq.question)}
                             >
-                                <span className="font-semibold leading-6 text-foreground">{faq.question}</span>
-                                <span className="flex size-7 shrink-0 items-center justify-center rounded-full border border-border text-primary">
+                                <span className="font-semibold leading-6 text-foreground transition-colors group-hover:text-primary">{faq.question}</span>
+                                <span className={`flex size-7 shrink-0 items-center justify-center rounded-full border text-primary transition-all duration-300 ${isOpen ? 'border-primary/25 bg-primary/10 rotate-180' : 'border-border bg-background'}`}>
                                     {isOpen ? <Minus className="size-3.5" /> : <Plus className="size-3.5" />}
                                 </span>
                             </button>
-                            {isOpen ? (
-                                <p className="mt-4 max-w-2xl text-sm leading-7 text-muted-foreground">
-                                    {faq.answer}
-                                </p>
-                            ) : null}
+                            <div className={`grid transition-[grid-template-rows,opacity] duration-300 ease-out ${isOpen ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'}`}>
+                                <div className="overflow-hidden">
+                                    <p className="mt-4 max-w-2xl text-sm leading-7 text-muted-foreground">
+                                        {faq.answer}
+                                    </p>
+                                </div>
+                            </div>
                         </article>
                     )
                 })}
