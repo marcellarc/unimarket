@@ -32,7 +32,7 @@ public class ClientService {
     // Cadastro publico do cliente. A senha nunca deve ser salva em texto puro.
     public Client register(ClientDTO dto) {
         if (repository.findByEmail(dto.getEmail()).isPresent()) {
-            throw new RuntimeException("Email ja cadastrado");
+            throw new RuntimeException("E-mail já cadastrado");
         }
 
         Client client = modelMapper.map(dto, Client.class);
@@ -46,6 +46,7 @@ public class ClientService {
         String email = account.email().trim().toLowerCase(Locale.ROOT);
 
         return repository.findByGoogleSubject(account.subject())
+                .map(existingClient -> linkGoogleAccount(existingClient, account))
                 .or(() -> repository.findByEmail(email)
                         .map(existingClient -> linkGoogleAccount(existingClient, account)))
                 .orElseGet(() -> {
@@ -53,7 +54,7 @@ public class ClientService {
                     client.setEmail(email);
                     client.setName(generateAvailableName(account.name(), email));
                     client.setGoogleSubject(account.subject());
-                    client.setProfileImageUrl(account.pictureUrl());
+                    client.setProfileImageUrl(emptyToNull(account.pictureUrl()));
                     client.setPassword(passwordEncoder.encode(UUID.randomUUID() + ":" + account.subject()));
 
                     return repository.save(client);
@@ -63,7 +64,7 @@ public class ClientService {
     // Retorna o perfil completo usado pela tela de perfil do cliente.
     public ClientProfileResponseDTO getCurrentProfile(Client authenticatedClient) {
         Client client = repository.findById(authenticatedClient.getId())
-                .orElseThrow(() -> new RuntimeException("Cliente nao encontrado"));
+                .orElseThrow(() -> new RuntimeException("Cliente não encontrado"));
 
         return toProfileResponse(client);
     }
@@ -72,7 +73,7 @@ public class ClientService {
     public ClientProfileResponseDTO updateCurrentProfile(Client authenticatedClient, ClientProfileUpdateDTO dto) {
         // Busca novamente no banco para evitar atualizar uma entidade antiga do token.
         Client client = repository.findById(authenticatedClient.getId())
-                .orElseThrow(() -> new RuntimeException("Cliente nao encontrado"));
+                .orElseThrow(() -> new RuntimeException("Cliente não encontrado"));
 
         if (dto.getName() != null && !dto.getName().trim().isEmpty()) {
             client.setName(dto.getName().trim());
@@ -83,7 +84,7 @@ public class ClientService {
             repository.findByEmail(email)
                     .filter(existingClient -> !existingClient.getId().equals(client.getId()))
                     .ifPresent(existingClient -> {
-                        throw new RuntimeException("Email ja cadastrado");
+                        throw new RuntimeException("E-mail já cadastrado");
                     });
 
             client.setEmail(email);
@@ -96,7 +97,7 @@ public class ClientService {
             }
 
             if (!passwordEncoder.matches(dto.getCurrentPassword(), client.getPassword())) {
-                throw new RuntimeException("Senha atual invalida");
+                throw new RuntimeException("Senha atual inválida");
             }
 
             client.setPassword(passwordEncoder.encode(dto.getPassword()));
@@ -168,7 +169,7 @@ public class ClientService {
     public void deleteClient(Long id) {
         // O delete real e interceptado pelo @SQLDelete da entidade Client.
         Client client = repository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Cliente nao encontrado"));
+                .orElseThrow(() -> new RuntimeException("Cliente não encontrado"));
 
         repository.delete(client);
     }
@@ -210,11 +211,22 @@ public class ClientService {
     private Client linkGoogleAccount(Client client, GoogleAccount account) {
         client.setGoogleSubject(account.subject());
 
-        if (client.getProfileImageUrl() == null || client.getProfileImageUrl().isBlank()) {
+        if (shouldUseGoogleProfileImage(client, account.pictureUrl())) {
             client.setProfileImageUrl(account.pictureUrl());
         }
 
         return repository.save(client);
+    }
+
+    private boolean shouldUseGoogleProfileImage(Client client, String googlePictureUrl) {
+        if (googlePictureUrl == null || googlePictureUrl.isBlank()) {
+            return false;
+        }
+
+        String currentImageUrl = client.getProfileImageUrl();
+        return currentImageUrl == null
+                || currentImageUrl.isBlank()
+                || currentImageUrl.toLowerCase(Locale.ROOT).contains("googleusercontent.com");
     }
 
     private String generateAvailableName(String googleName, String email) {

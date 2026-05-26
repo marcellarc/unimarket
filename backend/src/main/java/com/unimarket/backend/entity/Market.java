@@ -21,7 +21,7 @@ import lombok.Setter;
 @Setter
 // Soft delete: ao deletar, o mercado fica marcado em deleted_at.
 @SQLDelete(sql = "UPDATE markets SET deleted_at = NOW() WHERE id = ?")
-// Mercados deletados nao aparecem nas consultas comuns do sistema.
+// Mercados deletados não aparecem nas consultas comuns do sistema.
 @SQLRestriction("deleted_at IS NULL")
 @Entity
 @Table(name = "markets")
@@ -63,12 +63,12 @@ public class Market {
     private String email;
 
     @Column(name = "password", nullable = false)
-    @Schema(description = "Senha criptografada para autenticacao")
+    @Schema(description = "Senha criptografada para autenticação")
     private String password;
 
-    // Endereco usado para exibir o perfil do mercado e calcular distancia para o cliente.
+    // Endereço usado para exibir o perfil do mercado e calcular distância para o cliente.
     @Column(name = "street_address")
-    @Schema(description = "Endereco fisico do mercado", example = "Rua Dom Lara, 123")
+    @Schema(description = "Endereço físico do mercado", example = "Rua Dom Lara, 123")
     private String streetAddress;
 
     @Column(name = "neighborhood")
@@ -87,7 +87,7 @@ public class Market {
     @Schema(description = "CEP do mercado", example = "11000000")
     private String zipCode;
 
-    // Coordenadas usadas pela busca "supermercados perto de voce" e links do Google Maps.
+    // Coordenadas usadas pela busca "supermercados perto de você" e links do Google Maps.
     @Column(name = "latitude")
     @Schema(description = "Latitude do mercado", example = "-23.9608")
     private Double latitude;
@@ -105,7 +105,7 @@ public class Market {
     @Column(name = "weekly_report_enabled")
     private Boolean weeklyReportEnabled = true;
 
-    // Campos temporarios usados no fluxo de recuperacao de senha do supermercado.
+    // Campos temporários usados no fluxo de recuperação de senha do supermercado.
     @Column(name = "reset_code", length = 6)
     private String resetCode;
 

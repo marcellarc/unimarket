@@ -48,12 +48,12 @@ public class EmailService {
     @PostConstruct
     public void logMailStatus() {
         if (isSmtpConfigured()) {
-            logger.info("SMTP configurado para envio de emails. host={}, usernameConfigurado=true, from={}", mailHost, from);
+            logger.info("SMTP configurado para envio de e-mails. host={}, usernameConfigurado=true, from={}", mailHost, from);
             return;
         }
 
         logger.warn(
-                "SMTP nao configurado. Emails serao simulados nos logs. host={}, usernameConfigurado={}, passwordConfigurado={}",
+                "SMTP não configurado. E-mails serão simulados nos logs. host={}, usernameConfigurado={}, passwordConfigurado={}",
                 mailHost,
                 StringUtils.hasText(mailUsername),
                 StringUtils.hasText(mailPassword)
@@ -66,14 +66,14 @@ public class EmailService {
 
     public DeliveryStatus sendHtmlEmail(String to, String subject, String htmlBody) {
         if (!StringUtils.hasText(to)) {
-            logger.warn("Email nao enviado: destinatario vazio. Assunto: {}", subject);
+            logger.warn("E-mail não enviado: destinatário vazio. Assunto: {}", subject);
             return DeliveryStatus.SKIPPED;
         }
 
         JavaMailSender mailSender = mailSenderProvider.getIfAvailable();
         if (mailSender == null || !isSmtpConfigured()) {
             logger.warn(
-                    "Email simulado para {} porque SMTP nao esta completo. host={}, usernameConfigurado={}, passwordConfigurado={}. Assunto: {} | {}",
+                    "E-mail simulado para {} porque SMTP não está completo. host={}, usernameConfigurado={}, passwordConfigurado={}. Assunto: {} | {}",
                     to,
                     mailHost,
                     StringUtils.hasText(mailUsername),
@@ -92,10 +92,10 @@ public class EmailService {
             helper.setSubject(subject);
             helper.setText(htmlBody, true);
             mailSender.send(message);
-            logger.info("Email enviado para {} com assunto {}", to, subject);
+            logger.info("E-mail enviado para {} com assunto {}", to, subject);
             return DeliveryStatus.SENT;
         } catch (MailException | MessagingException exception) {
-            logger.error("Falha ao enviar email para {} com assunto {}", to, subject, exception);
+            logger.error("Falha ao enviar e-mail para {} com assunto {}", to, subject, exception);
             return DeliveryStatus.FAILED;
         }
     }
@@ -105,7 +105,7 @@ public class EmailService {
         DeliveryStatus deliveryStatus = sendHtmlEmail(to, subject, htmlBody);
 
         if (deliveryStatus != DeliveryStatus.SENT) {
-            logger.warn("Email em background nao entregue para {}. status={}", to, deliveryStatus);
+            logger.warn("E-mail em background não entregue para {}. status={}", to, deliveryStatus);
         }
     }
 

@@ -40,39 +40,26 @@ public class EmailTemplateService {
         String productName = notification.getMarketProduct().getProduct().getName();
         String marketName = notification.getMarketProduct().getMarket().getName();
         String currentPrice = formatCurrency(notification.getCurrentPrice());
-        String targetPrice = formatCurrency(notification.getTargetPrice());
-        String savingsText = formatSavings(notification.getCurrentPrice(), notification.getTargetPrice());
+        String targetNote = formatTargetNote(notification.getCurrentPrice(), notification.getTargetPrice());
 
         String content = """
-                <p class="lead">Boa notícia: o item que você acompanha entrou no valor escolhido!</p>
 
                 <div class="deal-card">
                     <div class="deal-top">
                         <span class="eyebrow">Alerta UniMarket</span>
-                        <span class="status-pill">Preço atingido</span>
+                        <span class="status-pill">Alvo atingido</span>
                     </div>
 
                     <h2>%s</h2>
                     <p class="market-name">Disponível em <strong>%s</strong></p>
 
                     <div class="hero-price">
-                        <span>Preço atual</span>
+                        <span>Agora por</span>
                         <strong>%s</strong>
-                        <small>%s</small>
+                        <small>Valor escolhido atingido</small>
                     </div>
 
-                    <table class="price-table" role="presentation" cellspacing="0" cellpadding="0">
-                        <tr>
-                            <td>
-                                <span>Preço no mercado</span>
-                                <strong>%s</strong>
-                            </td>
-                            <td>
-                                <span>Seu alvo</span>
-                                <strong>%s</strong>
-                            </td>
-                        </tr>
-                    </table>
+                    <p class="target-note">%s</p>
                 </div>
 
                 <p class="muted">Abra o UniMarket para conferir disponibilidade e comparar com mercados próximos antes que o valor mude.</p>
@@ -80,9 +67,7 @@ public class EmailTemplateService {
                 escapeHtml(productName),
                 escapeHtml(marketName),
                 currentPrice,
-                escapeHtml(savingsText),
-                currentPrice,
-                targetPrice
+                escapeHtml(targetNote)
         );
 
         return baseTemplate(
@@ -294,28 +279,16 @@ public class EmailTemplateService {
                             line-height: 1;
                             font-weight: 900;
                         }
-                        .price-table {
-                            width: 100%%;
-                            border-collapse: separate;
-                            border-spacing: 10px 0;
-                        }
-                        .price-table td {
-                            width: 50%%;
-                            padding: 14px;
+                        .target-note {
+                            margin: 0;
+                            padding: 12px 14px;
                             border: 1px solid #e2ebf7;
                             border-radius: 12px;
                             background: #ffffff;
-                        }
-                        .price-table span {
-                            display: block;
-                            color: #667085;
-                            font-size: 12px;
-                            margin-bottom: 5px;
-                        }
-                        .price-table strong {
-                            color: #0056df;
-                            font-size: 22px;
-                            line-height: 1.1;
+                            color: #344054;
+                            font-size: 13px;
+                            line-height: 1.45;
+                            text-align: center;
                         }
                         .muted {
                             color: #667085;
@@ -375,18 +348,18 @@ public class EmailTemplateService {
         return NumberFormat.getCurrencyInstance(PT_BR).format(value);
     }
 
-    private String formatSavings(Double currentPrice, Double targetPrice) {
+    private String formatTargetNote(Double currentPrice, Double targetPrice) {
         if (currentPrice == null || targetPrice == null) {
-            return "Dentro do valor que você definiu";
+            return "O produto entrou dentro do valor que você definiu.";
         }
 
         double difference = targetPrice - currentPrice;
 
         if (difference > 0.009) {
-            return formatCurrency(difference) + " abaixo do seu alvo";
+            return "Está " + formatCurrency(difference) + " abaixo do valor escolhido.";
         }
 
-        return "Exatamente no valor que você escolheu";
+        return "Está exatamente no valor que você escolheu.";
     }
 
     private String escapeHtml(String value) {

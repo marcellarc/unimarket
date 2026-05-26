@@ -17,8 +17,8 @@ public class MarketDTO {
     @NotBlank(message = "O CNPJ é obrigatório")
     private String cnpj;
 
-    @Email(message = "Email inválido")
-    @NotBlank(message = "O email é obrigatório")
+    @Email(message = "E-mail inválido")
+    @NotBlank(message = "O e-mail é obrigatório")
     private String email;
 
     // senha com mínimo 8 caracteres, letras maiúsculas, minúsculas, número e caractere especial

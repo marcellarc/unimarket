@@ -368,7 +368,7 @@ public class MarketProductService {
         Long categoryId = dto.getCategoryId();
         if (categoryId != null && categoryId > 0) {
             return categoryRepository.findById(categoryId)
-                    .orElseThrow(() -> new RuntimeException("Categoria nao encontrada"));
+                    .orElseThrow(() -> new RuntimeException("Categoria não encontrada"));
         }
 
         String cosmosCategoryName = simplifyCategoryName(extractCosmosCategoryName(cosmosProduct));
@@ -384,7 +384,7 @@ public class MarketProductService {
                     });
         }
 
-        throw new RuntimeException("Categoria nao encontrada. Selecione uma categoria manualmente.");
+        throw new RuntimeException("Categoria não encontrada. Selecione uma categoria manualmente.");
     }
 
     private String extractCosmosCategoryName(CosmosProductDTO cosmosProduct) {

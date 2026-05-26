@@ -117,7 +117,7 @@ export const ProductCard = memo(function ProductCard({
                     </div>
                 )}
 
-                <div className="grid grid-cols-3 gap-2">
+                <div className={`grid gap-2 ${onAddToList ? 'grid-cols-3' : 'grid-cols-2'}`}>
                     <Button type="button" variant="outline" size="sm" onClick={handleAlert}>
                         <Bell className="h-3.5 w-3.5" />
                         Alerta
@@ -126,10 +126,12 @@ export const ProductCard = memo(function ProductCard({
                         <MessageSquare className="h-3.5 w-3.5" />
                         Avaliar
                     </Button>
-                    <Button type="button" variant="outline" size="sm" onClick={handleAdd}>
-                        <Plus className="h-3.5 w-3.5" />
-                        Lista
-                    </Button>
+                    {onAddToList && (
+                        <Button type="button" variant="outline" size="sm" onClick={handleAdd}>
+                            <Plus className="h-3.5 w-3.5" />
+                            Lista
+                        </Button>
+                    )}
                 </div>
 
                 <button

@@ -52,7 +52,7 @@ export default function MarketDashboard() {
         queryFn: getCurrentMarketProfile,
         enabled: isLogged,
     })
-    const locationLabel = [marketProfile?.city, marketProfile?.state].filter(Boolean).join(', ') || 'LocalizaÃ§Ã£o pendente'
+    const locationLabel = [marketProfile?.city, marketProfile?.state].filter(Boolean).join(', ') || 'Localização pendente'
 
     const renderContent = () => {
         if (!isLogged && (activeTab === 'products' || activeTab === 'settings')) {

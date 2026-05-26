@@ -9,7 +9,7 @@ public class MarketProfileUpdateDTO {
     @Size(min = 2, message = "O nome deve ter pelo menos 2 caracteres")
     private String name;
 
-    @Email(message = "Email invalido")
+    @Email(message = "E-mail inválido")
     private String email;
 
     private String streetAddress;
@@ -32,7 +32,7 @@ public class MarketProfileUpdateDTO {
     @Size(min = 8, max = 100, message = "A senha deve ter entre 8 e 100 caracteres")
     @Pattern(
             regexp = "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[^a-zA-Z\\d])[A-Za-z\\d\\W]+$",
-            message = "A senha deve conter letras maiusculas, minusculas, numero e caractere especial"
+            message = "A senha deve conter letras maiúsculas, minúsculas, número e caractere especial"
     )
     private String password;
 

@@ -90,6 +90,7 @@ export function ProfilePage() {
     const [newPassword, setNewPassword] = useState('')
     const [confirmPassword, setConfirmPassword] = useState('')
     const [profileImageUrl, setProfileImageUrl] = useState('')
+    const [profileImageFailed, setProfileImageFailed] = useState(false)
     const [zipCode, setZipCode] = useState('')
     const [streetAddress, setStreetAddress] = useState('')
     const [city, setCity] = useState('')
@@ -162,6 +163,12 @@ export function ProfilePage() {
         const enabledPreferences = [priceAlertsEnabled, weeklySummaryEnabled, browserPushEnabled].filter(Boolean).length
         return Math.min(100, Math.round(((filledFields + enabledPreferences) / 10) * 100))
     }, [browserPushEnabled, city, email, name, neighborhood, priceAlertsEnabled, profileImageUrl, state, weeklySummaryEnabled, zipCode])
+
+    const showProfileImage = Boolean(profileImageUrl) && !profileImageFailed
+
+    useEffect(() => {
+        setProfileImageFailed(false)
+    }, [profileImageUrl])
 
     useEffect(() => {
         if (!profile) {
@@ -486,8 +493,14 @@ export function ProfilePage() {
                     <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
                         <div className="flex items-center gap-4">
                             <div className="relative flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-primary/15 bg-primary/10 text-lg font-semibold text-primary">
-                                {profileImageUrl ? (
-                                    <img src={profileImageUrl} alt={name || 'Perfil'} className="h-full w-full object-cover" />
+                                {showProfileImage ? (
+                                    <img
+                                        src={profileImageUrl}
+                                        alt={name || 'Perfil'}
+                                        referrerPolicy="no-referrer"
+                                        className="h-full w-full object-cover"
+                                        onError={() => setProfileImageFailed(true)}
+                                    />
                                 ) : (
                                     getInitials(name)
                                 )}
@@ -546,8 +559,14 @@ export function ProfilePage() {
                                     <>
                                         <div className="flex flex-col gap-4 rounded-lg border border-border bg-muted/30 p-4 sm:flex-row sm:items-center">
                                             <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-primary/15 bg-primary/10 text-xl font-semibold text-primary">
-                                                {profileImageUrl ? (
-                                                    <img src={profileImageUrl} alt={name || 'Foto do perfil'} className="h-full w-full object-cover" />
+                                                {showProfileImage ? (
+                                                    <img
+                                                        src={profileImageUrl}
+                                                        alt={name || 'Foto do perfil'}
+                                                        referrerPolicy="no-referrer"
+                                                        className="h-full w-full object-cover"
+                                                        onError={() => setProfileImageFailed(true)}
+                                                    />
                                                 ) : (
                                                     getInitials(name)
                                                 )}

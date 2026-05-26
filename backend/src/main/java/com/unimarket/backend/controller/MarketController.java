@@ -76,7 +76,7 @@ public class MarketController {
 
     private Market getMarket(Authentication authentication) {
         if (authentication == null || !(authentication.getPrincipal() instanceof Market market)) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Supermercado autenticado obrigatorio");
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Supermercado autenticado obrigatório");
         }
 
         return market;

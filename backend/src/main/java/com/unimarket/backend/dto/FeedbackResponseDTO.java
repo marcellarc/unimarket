@@ -5,7 +5,7 @@ import java.time.LocalDateTime;
 import lombok.Getter;
 import lombok.Setter;
 
-// DTO com os dados que o sistema devolve apos criar, atualizar ou consultar um feedback
+// DTO com os dados que o sistema devolve após criar, atualizar ou consultar um feedback.
 @Getter
 @Setter
 public class FeedbackResponseDTO {
@@ -25,7 +25,7 @@ public class FeedbackResponseDTO {
     private Long marketId;
     private String marketName;
 
-    // nota e comentario da avaliacao
+    // Nota e comentário da avaliação.
     private Integer vlNota;
     private String dsComentario;
 

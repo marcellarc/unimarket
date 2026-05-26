@@ -22,7 +22,7 @@ public class LocationController {
     private LocationService locationService;
 
     @GetMapping("/cep/{cep}")
-    @Operation(summary = "Consultar endereco e coordenadas por CEP")
+    @Operation(summary = "Consultar endereço e coordenadas por CEP")
     public ResponseEntity<CepLocationResponseDTO> findByCep(@PathVariable String cep) {
         return ResponseEntity.ok(locationService.findByCep(cep));
     }

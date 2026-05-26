@@ -20,30 +20,30 @@ import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/api/auth/password")
-@Tag(name = "Authentication", description = "Rotas de autenticacao, cadastro e recuperacao de senha")
+@Tag(name = "Authentication", description = "Rotas de autenticação, cadastro e recuperação de senha")
 public class PasswordRecoveryController {
 
     @Autowired
     private PasswordRecoveryService passwordRecoveryService;
 
     @PostMapping("/recover")
-    @Operation(summary = "Solicitar codigo de recuperacao por email")
+    @Operation(summary = "Solicitar código de recuperação por e-mail")
     public ResponseEntity<Map<String, String>> requestRecovery(@RequestBody @Valid PasswordRecoverDTO dto) {
         passwordRecoveryService.requestRecovery(dto);
         return ResponseEntity.ok(Map.of(
                 "message",
-                "Se o email estiver cadastrado, um codigo de recuperacao sera enviado."
+                "Se o e-mail estiver cadastrado, um código de recuperação será enviado."
         ));
     }
 
     @PostMapping("/verify-code")
-    @Operation(summary = "Verificar codigo de recuperacao")
+    @Operation(summary = "Verificar código de recuperação")
     public ResponseEntity<Map<String, Boolean>> verifyCode(@RequestBody @Valid PasswordVerifyCodeDTO dto) {
         return ResponseEntity.ok(Map.of("valid", passwordRecoveryService.verifyCode(dto)));
     }
 
     @PostMapping("/reset")
-    @Operation(summary = "Redefinir senha usando codigo de recuperacao")
+    @Operation(summary = "Redefinir senha usando código de recuperação")
     public ResponseEntity<Map<String, String>> resetPassword(@RequestBody @Valid PasswordResetDTO dto) {
         passwordRecoveryService.resetPassword(dto);
         return ResponseEntity.ok(Map.of("message", "Senha redefinida com sucesso!"));

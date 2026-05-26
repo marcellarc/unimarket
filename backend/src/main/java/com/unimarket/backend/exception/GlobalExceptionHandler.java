@@ -33,8 +33,8 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Map<String, String>> handleValidationException(MethodArgumentNotValidException ex) {
         String message = ex.getBindingResult().getFieldErrors().stream()
                 .findFirst()
-                .map(error -> error.getDefaultMessage() == null ? "Dados invalidos" : error.getDefaultMessage())
-                .orElse("Dados invalidos");
+                .map(error -> error.getDefaultMessage() == null ? "Dados inválidos" : error.getDefaultMessage())
+                .orElse("Dados inválidos");
 
         return ResponseEntity
                 .status(HttpStatus.BAD_REQUEST)

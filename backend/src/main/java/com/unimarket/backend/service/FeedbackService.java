@@ -101,7 +101,7 @@ public class FeedbackService {
         if (!feedback.getCliente().getId().equals(client.getId())) {
             throw new ResponseStatusException(
                     HttpStatus.FORBIDDEN,
-                    "Feedback nao pertence a este cliente"
+                    "Feedback não pertence a este cliente"
             );
         }
 
@@ -140,7 +140,7 @@ public class FeedbackService {
         if (!feedback.getCliente().getId().equals(client.getId())) {
             throw new ResponseStatusException(
                     HttpStatus.FORBIDDEN,
-                    "Feedback nao pertence a este cliente"
+                    "Feedback não pertence a este cliente"
             );
         }
 
@@ -213,7 +213,7 @@ public class FeedbackService {
         return feedbackRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(
                 HttpStatus.NOT_FOUND,
-                "Feedback nao encontrado"
+                "Feedback não encontrado"
         ));
     }
 
@@ -222,7 +222,7 @@ public class FeedbackService {
         marketProductRepository.findByMarketIdAndProductId(marketId, productId)
                 .orElseThrow(() -> new ResponseStatusException(
                 HttpStatus.BAD_REQUEST,
-                "Produto nao vinculado a este mercado"
+                "Produto não vinculado a este mercado"
         ));
     }
 }

@@ -91,7 +91,7 @@ public class PasswordRecoveryService {
         }
 
         Market market = marketRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("Codigo invalido ou expirado"));
+                .orElseThrow(() -> new RuntimeException("Código inválido ou expirado"));
 
         validateCodeOrThrow(market.getResetCode(), market.getResetCodeExpiresAt(), dto.code());
         market.setPassword(passwordEncoder.encode(dto.newPassword()));

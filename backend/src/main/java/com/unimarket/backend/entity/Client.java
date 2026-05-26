@@ -46,10 +46,10 @@ public class Client {
     private String googleSubject;
 
     @Column(name = "password", nullable = false)
-    @Schema(description = "Senha criptografada para autenticacao")
+    @Schema(description = "Senha criptografada para autenticação")
     private String password;
 
-    // Dados de endereco usados para localizar supermercados proximos ao cliente.
+    // Dados de endereço usados para localizar supermercados próximos ao cliente.
     @Column(name = "street_address")
     private String streetAddress;
 
@@ -75,11 +75,11 @@ public class Client {
     @Column(name = "location_source")
     private String locationSource;
 
-    // URL da imagem escolhida pelo usuario; o arquivo em si nao fica salvo nesta entidade.
+    // URL da imagem escolhida pelo usuário; o arquivo em si não fica salvo nesta entidade.
     @Column(name = "profile_image_url", columnDefinition = "TEXT")
     private String profileImageUrl;
 
-    // Raio padrao usado na busca de mercados proximos.
+    // Raio padrão usado na busca de mercados próximos.
     @Column(name = "search_radius_km")
     private Double searchRadiusKm;
 
@@ -104,7 +104,7 @@ public class Client {
     @Schema(description = "Timestamp de quando o cliente foi deletado")
     private LocalDateTime deletedAt;
 
-    // Campos temporarios usados no fluxo de recuperacao de senha.
+    // Campos temporários usados no fluxo de recuperação de senha.
     @Column(name = "reset_code", length = 6)
     private String resetCode;
 

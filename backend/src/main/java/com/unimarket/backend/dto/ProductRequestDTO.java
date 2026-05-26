@@ -26,7 +26,7 @@ public class ProductRequestDTO {
     private String imageUrl;
 
     // ID da categoria a qual o produto pertence.
-    // Opcional quando a API Cosmos retorna a categoria pelo codigo de barras.
+    // Opcional quando a API Cosmos retorna a categoria pelo código de barras.
     private Long categoryId;
 
     // código de barras — usado para evitar duplicatas no cadastro (opcional)

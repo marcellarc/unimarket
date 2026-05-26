@@ -9,7 +9,7 @@ import lombok.Setter;
 @Setter
 public class CategoryRequestDTO {
 
-    @NotBlank(message = "Nome da categoria e obrigatorio")
-    @Size(max = 100, message = "Nome da categoria deve ter no maximo 100 caracteres")
+    @NotBlank(message = "Nome da categoria é obrigatório")
+    @Size(max = 100, message = "Nome da categoria deve ter no máximo 100 caracteres")
     private String name;
 }

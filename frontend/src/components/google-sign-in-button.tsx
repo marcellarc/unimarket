@@ -102,7 +102,7 @@ export function GoogleSignInButton({ role, mode, className }: GoogleSignInButton
         script.async = true
         script.defer = true
         script.onload = () => setScriptReady(true)
-        script.onerror = () => toast.error('Nao foi possivel carregar o login com Google.')
+        script.onerror = () => toast.error('Não foi possível carregar o login com Google.')
 
         document.body.appendChild(script)
     }, [clientId, role])

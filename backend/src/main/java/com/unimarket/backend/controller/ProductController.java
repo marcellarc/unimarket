@@ -45,19 +45,19 @@ public class ProductController {
         return ResponseEntity.ok(response);
     }
 
-    @Operation(summary = "Buscar produto por codigo de barras")
+    @Operation(summary = "Buscar produto por código de barras")
     @GetMapping("/lookup")
     public ResponseEntity<CosmosLookupResponseDTO> lookupByBarCode(@RequestParam String barCode) {
         String normalizedBarCode = normalizeBarCode(barCode);
 
         if (normalizedBarCode == null || !normalizedBarCode.matches("\\d{8,14}")) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Informe um codigo de barras valido com 8 a 14 digitos.");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Informe um código de barras válido com 8 a 14 dígitos.");
         }
 
         CosmosLookupResponseDTO response = cosmosService.lookupByBarCode(normalizedBarCode);
 
         if (response == null) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Produto nao encontrado. Preencha os dados manualmente.");
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Produto não encontrado. Preencha os dados manualmente.");
         }
 
         return ResponseEntity.ok(response);

@@ -61,7 +61,7 @@ class MarketProductServiceTest {
         request.setCategoryId(null);
 
         Market market = market();
-        CosmosProductDTO cosmosProduct = cosmosProduct("Bebidas Nao Alcoolicas - Prontas para Beber", "Refrigerantes");
+        CosmosProductDTO cosmosProduct = cosmosProduct("Bebidas Não Alcoólicas - Prontas para Beber", "Refrigerantes");
         Category savedCategory = category(10L, "Refrigerantes");
 
         when(marketRepository.findById(1L)).thenReturn(Optional.of(market));
@@ -100,7 +100,7 @@ class MarketProductServiceTest {
 
         RuntimeException exception = assertThrows(RuntimeException.class, () -> service.createProduct(request, 1L));
 
-        assertEquals("Categoria nao encontrada. Selecione uma categoria manualmente.", exception.getMessage());
+        assertEquals("Categoria não encontrada. Selecione uma categoria manualmente.", exception.getMessage());
     }
 
     private ProductRequestDTO productRequest() {

@@ -6,12 +6,13 @@ import {
     Barcode,
     Boxes,
     Clock,
+    Filter,
     Package,
     Search,
     Trash2,
     TrendingUp,
 } from 'lucide-react'
-import { Badge, Button, Card, Input, Skeleton, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui'
+import { Badge, Button, Card, Input, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Skeleton, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui'
 import { deleteMarketProduct, listProducts, searchProductsByMarketId } from '@/services/product'
 import { ProductFormDialog } from '@/pages/dashboard/product-form-dialog'
 import { EditProductDialog } from '@/pages/dashboard/edit-product-dialog'
@@ -67,6 +68,7 @@ function getInventorySummary(products: MarketProductResponse[]) {
 export function ProductsTab() {
     const [searchQuery, setSearchQuery] = useState('')
     const [selectedCategory, setSelectedCategory] = useState('all')
+    const [showFilters, setShowFilters] = useState(false)
     const queryClient = useQueryClient()
 
     const marketIdStr = Cookies.get('marketId')
@@ -181,32 +183,59 @@ export function ProductsTab() {
                 <InventoryMetric icon={TrendingUp} label="Valor em estoque" value={formatCurrency(summary.totalValue)} />
             </div>
 
-            {categories.length > 1 && (
-                <div className="flex flex-wrap gap-2">
-                    {categories.map((category) => {
-                        const isActive = selectedCategory === category
-                        const count = category === 'all'
-                            ? products.length
-                            : products.filter((product) => (product.categoryName || 'Sem categoria') === category).length
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <Button
+                    type="button"
+                    variant={showFilters ? 'default' : 'outline'}
+                    size="sm"
+                    className="w-fit gap-1.5 text-xs"
+                    onClick={() => setShowFilters((current) => !current)}
+                >
+                    <Filter className="h-3.5 w-3.5" />
+                    Filtros
+                </Button>
+                {selectedCategory !== 'all' && (
+                    <p className="text-xs text-muted-foreground">
+                        Categoria: <span className="font-medium text-foreground">{selectedCategory}</span>
+                    </p>
+                )}
+            </div>
 
-                        return (
-                            <button
-                                key={category}
-                                type="button"
-                                onClick={() => setSelectedCategory(category)}
-                                className={`inline-flex h-8 items-center gap-2 rounded-md border px-3 text-xs font-medium transition-colors ${isActive
-                                    ? 'border-primary bg-primary text-primary-foreground'
-                                    : 'border-border bg-card text-muted-foreground hover:border-primary/40 hover:text-foreground'
-                                    }`}
-                            >
-                                {category === 'all' ? 'Todas' : category}
-                                <span className={`rounded px-1.5 py-0.5 text-[10px] ${isActive ? 'bg-white/20' : 'bg-muted text-muted-foreground'}`}>
-                                    {count}
-                                </span>
-                            </button>
-                        )
-                    })}
-                </div>
+            {showFilters && (
+                <Card className="max-w-md gap-3 p-4">
+                    <div className="space-y-2">
+                        <label htmlFor="market-category-filter" className="text-xs font-semibold text-muted-foreground">
+                            Categoria
+                        </label>
+                        <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+                            <SelectTrigger id="market-category-filter">
+                                <SelectValue placeholder="Selecione a categoria" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {categories.map((category) => {
+                                    const count = category === 'all'
+                                        ? products.length
+                                        : products.filter((product) => (product.categoryName || 'Sem categoria') === category).length
+
+                                    return (
+                                        <SelectItem key={category} value={category}>
+                                            {category === 'all' ? 'Todas' : category} ({count})
+                                        </SelectItem>
+                                    )
+                                })}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="w-fit text-xs"
+                        onClick={() => setSelectedCategory('all')}
+                    >
+                        Limpar filtros
+                    </Button>
+                </Card>
             )}
 
             <Card className="overflow-hidden">

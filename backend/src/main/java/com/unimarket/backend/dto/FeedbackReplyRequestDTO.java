@@ -11,6 +11,6 @@ import lombok.Setter;
 public class FeedbackReplyRequestDTO {
 
     @NotBlank(message = "Resposta e obrigatoria")
-    @Size(max = 500, message = "Resposta deve ter no maximo 500 caracteres")
+    @Size(max = 500, message = "Resposta deve ter no máximo 500 caracteres")
     private String reply;
 }

@@ -34,13 +34,13 @@ public class GoogleAuthService {
 
     public GoogleAccount verifyIdToken(String idToken) {
         if (googleClientId == null || googleClientId.isBlank()) {
-            throw new RuntimeException("Login com Google nao configurado no servidor");
+            throw new RuntimeException("Login com Google não configurado no servidor");
         }
 
         try {
             String[] tokenParts = idToken.split("\\.");
             if (tokenParts.length != 3) {
-                throw new RuntimeException("Token do Google invalido");
+                throw new RuntimeException("Token do Google inválido");
             }
 
             JsonNode header = readJwtPart(tokenParts[0]);
@@ -49,7 +49,7 @@ public class GoogleAuthService {
             String algorithm = requiredText(header, "alg");
 
             if (!"RS256".equals(algorithm)) {
-                throw new RuntimeException("Algoritmo do token do Google nao suportado");
+                throw new RuntimeException("Algoritmo do token do Google não suportado");
             }
 
             PublicKey publicKey = fetchGooglePublicKey(keyId);
@@ -65,7 +65,7 @@ public class GoogleAuthService {
         } catch (RuntimeException exception) {
             throw exception;
         } catch (Exception exception) {
-            throw new RuntimeException("Nao foi possivel validar o token do Google", exception);
+            throw new RuntimeException("Não foi possível validar o token do Google", exception);
         }
     }
 
@@ -82,7 +82,7 @@ public class GoogleAuthService {
 
         HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
         if (response.statusCode() < 200 || response.statusCode() >= 300) {
-            throw new RuntimeException("Nao foi possivel carregar as chaves publicas do Google");
+            throw new RuntimeException("Não foi possível carregar as chaves públicas do Google");
         }
 
         JsonNode keys = objectMapper.readTree(response.body()).path("keys");
@@ -92,7 +92,7 @@ public class GoogleAuthService {
             }
         }
 
-        throw new RuntimeException("Chave publica do Google nao encontrada");
+        throw new RuntimeException("Chave pública do Google não encontrada");
     }
 
     private RSAPublicKey buildRsaPublicKey(JsonNode key) throws Exception {
@@ -113,14 +113,14 @@ public class GoogleAuthService {
 
         byte[] signatureBytes = Base64.getUrlDecoder().decode(encodedSignature);
         if (!signature.verify(signatureBytes)) {
-            throw new RuntimeException("Assinatura do token do Google invalida");
+            throw new RuntimeException("Assinatura do token do Google inválida");
         }
     }
 
     private void validateClaims(JsonNode payload) {
         String issuer = requiredText(payload, "iss");
         if (!GOOGLE_ISSUER.equals(issuer) && !GOOGLE_ISSUER_SHORT.equals(issuer)) {
-            throw new RuntimeException("Emissor do token do Google invalido");
+            throw new RuntimeException("Emissor do token do Google inválido");
         }
 
         String audience = requiredText(payload, "aud");
@@ -134,7 +134,7 @@ public class GoogleAuthService {
         }
 
         if (!payload.path("email_verified").asBoolean(false)) {
-            throw new RuntimeException("E-mail do Google nao verificado");
+            throw new RuntimeException("E-mail do Google não verificado");
         }
     }
 

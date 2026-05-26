@@ -54,7 +54,7 @@ public class ClientController {
 
     private Client getClient(Authentication authentication) {
         if (authentication == null || !(authentication.getPrincipal() instanceof Client client)) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Cliente autenticado obrigatorio");
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Cliente autenticado obrigatório");
         }
 
         return client;

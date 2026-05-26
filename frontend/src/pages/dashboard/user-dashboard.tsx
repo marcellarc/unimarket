@@ -42,6 +42,7 @@ import {
     ChevronRight,
     CircleDollarSign,
     Filter, List,
+    Lock,
     LocateFixed,
     LogOut, MapPin, MessageSquare, Package,
     Plus, Search, ShoppingCart,
@@ -221,6 +222,8 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
     const canUseFeedback = canUseShoppingLists
 
     const profileImageUrl = isGuest ? '' : userProfile?.profileImageUrl ?? ''
+    const [avatarImageFailed, setAvatarImageFailed] = useState(false)
+    const showProfileImage = Boolean(profileImageUrl) && !avatarImageFailed
 
     const deferredSearch = useDeferredValue(searchQuery)
 
@@ -272,6 +275,10 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
         setCatalogPageNumber(0)
         setExpandedId(null)
     }, [deferredSearch])
+
+    useEffect(() => {
+        setAvatarImageFailed(false)
+    }, [profileImageUrl])
 
     useEffect(() => {
         if (!userProfile) {
@@ -871,7 +878,7 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
                                     <Button variant="outline" size="icon" className="relative rounded-full border-primary/15 bg-white/80 text-muted-foreground hover:border-primary/35 hover:text-primary dark:bg-white/10">
                                         <Bell className="w-5 h-5" />
                                         {unreadCount > 0 && (
-                                            <span className="absolute -top-0.5 -right-0.5 min-w-3.5 h-3.5 px-1 bg-destructive text-destructive-foreground text-[9px] rounded-full flex items-center justify-center">
+                                            <span className="absolute -top-0.5 -right-0.5 flex h-3.5 min-w-3.5 items-center justify-center rounded-full bg-uniyellow px-1 text-[9px] font-bold text-primary shadow-sm ring-1 ring-white">
                                                 {unreadCount}
                                             </span>
                                         )}
@@ -945,8 +952,14 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
                                 <DropdownMenuTrigger asChild>
                                     <Button variant="outline" className="h-10 rounded-full border-primary/15 bg-white/80 py-1 pl-1.5 pr-2 text-foreground hover:border-primary/35 dark:bg-white/10 sm:pr-3">
                                         <div className="flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary/10 text-xs font-bold text-primary">
-                                            {profileImageUrl ? (
-                                                <img src={profileImageUrl} alt={displayName} className="h-full w-full object-cover" />
+                                            {showProfileImage ? (
+                                                <img
+                                                    src={profileImageUrl}
+                                                    alt={displayName}
+                                                    referrerPolicy="no-referrer"
+                                                    className="h-full w-full object-cover"
+                                                    onError={() => setAvatarImageFailed(true)}
+                                                />
                                             ) : (
                                                 getInitials(displayName)
                                             )}
@@ -970,9 +983,11 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
                                             <User className="w-4 h-4 mr-2" /> Meu Perfil
                                         </DropdownMenuItem>
                                     )}
-                                    <DropdownMenuItem onClick={() => setShowListPanel(true)} className="cursor-pointer">
-                                        <List className="w-4 h-4 mr-2" /> Minhas Listas
-                                    </DropdownMenuItem>
+                                    {canUseShoppingLists && (
+                                        <DropdownMenuItem onClick={() => setShowListPanel(true)} className="cursor-pointer">
+                                            <List className="w-4 h-4 mr-2" /> Minhas Listas
+                                        </DropdownMenuItem>
+                                    )}
                                     <DropdownMenuSeparator />
                                     <DropdownMenuItem
                                         onClick={() => isLogged ? logout() : navigate({ to: '/login' })}
@@ -1006,25 +1021,6 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
                     </div>
                 </div>
 
-                {/* Categorias */}
-                <div className="border-t border-border bg-card/80">
-                    <div className="max-w-7xl mx-auto px-4 sm:px-6">
-                        <div className="flex items-center gap-2 overflow-x-auto py-2 scrollbar-hide">
-                            {categoryOptions.map(cat => (
-                                <button
-                                    key={cat.id}
-                                    onClick={() => setSelectedCategory(cat.id)}
-                                    className={`h-8 shrink-0 rounded-full px-3 text-xs font-semibold transition-colors ${selectedCategory === cat.id
-                                        ? 'bg-primary text-primary-foreground'
-                                        : 'bg-white/70 text-muted-foreground hover:bg-primary/10 hover:text-primary dark:bg-white/10'
-                                        }`}
-                                >
-                                    {cat.label}
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-                </div>
             </header>
 
             <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
@@ -1068,10 +1064,12 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
 
                     <div className="mt-5 flex flex-col gap-3 border-t border-border pt-4 sm:flex-row sm:items-center sm:justify-between">
                         <div className="flex flex-wrap gap-2">
-                            <Button size="sm" onClick={() => setShowListPanel(true)}>
-                                <ShoppingCart className="w-4 h-4" />
-                                Minhas listas
-                            </Button>
+                            {canUseShoppingLists && (
+                                <Button size="sm" onClick={() => setShowListPanel(true)}>
+                                    <ShoppingCart className="w-4 h-4" />
+                                    Minhas listas
+                                </Button>
+                            )}
                             <Button variant="outline" size="sm" onClick={handleOpenProfile}>
                                 <User className="w-4 h-4" />
                                 {isGuest ? 'Salvar preferências' : 'Perfil e preferências'}
@@ -1094,6 +1092,24 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
                                     <button onClick={() => setShowFilters(false)} className="text-muted-foreground hover:text-foreground">
                                         <X className="w-4 h-4" />
                                     </button>
+                                </div>
+
+                                <div>
+                                    <p className="text-xs font-medium text-muted-foreground mb-2 flex items-center gap-1">
+                                        <Package className="w-3 h-3" /> Categoria
+                                    </p>
+                                    <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+                                        <SelectTrigger className="h-9 text-xs">
+                                            <SelectValue placeholder="Categoria" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {categoryOptions.map(category => (
+                                                <SelectItem key={category.id} value={category.id}>
+                                                    {category.label}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
                                 </div>
 
                                 <div>
@@ -1150,7 +1166,7 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
 
                                 <Button
                                     variant="outline" size="sm" className="w-full text-xs"
-                                    onClick={() => { setMaxDistance(5); setMaxPrice(100); setSortBy('lowest-price') }}
+                                    onClick={() => { setSelectedCategory('all'); setMaxDistance(5); setMaxPrice(100); setSortBy('lowest-price') }}
                                 >
                                     Limpar filtros
                                 </Button>
@@ -1237,7 +1253,7 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
                                             product={product}
                                             isExpanded={expandedId === product.id}
                                             onToggle={toggleExpand}
-                                            onAddToList={handleAddToList}
+                                            onAddToList={canUseShoppingLists ? handleAddToList : undefined}
                                             onCreateAlert={handleCreateAlert}
                                             onCreateFeedback={handleCreateFeedback}
                                         />
@@ -1295,8 +1311,17 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
 
                                 <div className="space-y-3">
                                     {!canUseShoppingLists ? (
-                                        <div className="rounded-lg border border-border bg-muted/40 p-3 text-sm text-muted-foreground">
-                                            Faça login como usuário para salvar listas e comparar totais.
+                                        <div className="rounded-lg border border-border bg-muted/40 p-4 text-center">
+                                            <div className="mx-auto mb-3 grid h-10 w-10 place-items-center rounded-full bg-primary/10 text-primary">
+                                                <Lock className="h-5 w-5" />
+                                            </div>
+                                            <p className="text-sm font-semibold text-foreground">Listas disponíveis após login</p>
+                                            <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                                                Entre como usuário para criar listas de compras, salvar produtos e comparar o total.
+                                            </p>
+                                            <Button size="sm" className="mt-4 w-full text-xs" onClick={() => navigate({ to: '/login' })}>
+                                                Fazer login
+                                            </Button>
                                         </div>
                                     ) : isLoadingShoppingLists ? (
                                         Array.from({ length: 2 }).map((_, index) => (
@@ -1330,11 +1355,13 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
                                     })}
                                 </div>
 
-                                <Button size="sm" className="w-full mt-4 text-xs gap-1.5" onClick={() => setNewListOpen(true)}>
-                                    <Plus className="w-3.5 h-3.5" /> Nova Lista
-                                </Button>
+                                {canUseShoppingLists && (
+                                    <Button size="sm" className="w-full mt-4 text-xs gap-1.5" onClick={() => setNewListOpen(true)}>
+                                        <Plus className="w-3.5 h-3.5" /> Nova Lista
+                                    </Button>
+                                )}
 
-                                {selectedShoppingListId && (
+                                {canUseShoppingLists && selectedShoppingListId && (
                                     <div className="mt-4 rounded-lg border border-border bg-background/70">
                                         <div className="flex items-center justify-between border-b border-border p-3">
                                             <span className="text-xs font-semibold text-foreground">Itens da lista</span>
@@ -1375,16 +1402,18 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
                                     </div>
                                 )}
 
-                                <div className="mt-4 p-3 bg-primary/10 rounded-lg">
-                                    <div className="flex items-center gap-1.5 mb-1">
-                                        <CircleDollarSign className="w-3.5 h-3.5 text-primary" />
-                                        <span className="text-xs font-semibold text-primary">Total selecionado</span>
+                                {canUseShoppingLists && (
+                                    <div className="mt-4 p-3 bg-primary/10 rounded-lg">
+                                        <div className="flex items-center gap-1.5 mb-1">
+                                            <CircleDollarSign className="w-3.5 h-3.5 text-primary" />
+                                            <span className="text-xs font-semibold text-primary">Total selecionado</span>
+                                        </div>
+                                        <p className="text-xl font-bold text-primary">
+                                            R$ {selectedListTotal.toFixed(2)}
+                                        </p>
+                                        <p className="text-[10px] text-muted-foreground mt-0.5">economia estimada: R$ {totalListSavings.toFixed(2)}</p>
                                     </div>
-                                    <p className="text-xl font-bold text-primary">
-                                        R$ {selectedListTotal.toFixed(2)}
-                                    </p>
-                                    <p className="text-[10px] text-muted-foreground mt-0.5">economia estimada: R$ {totalListSavings.toFixed(2)}</p>
-                                </div>
+                                )}
                             </Card>
                         </aside>
                     )}

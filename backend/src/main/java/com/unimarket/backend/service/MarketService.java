@@ -51,18 +51,18 @@ public class MarketService {
         String email = dto.getEmail().trim().toLowerCase(Locale.ROOT);
 
         if (repository.findByCnpj(sanitizedCnpj).isPresent()) {
-            throw new RuntimeException("CNPJ ja cadastrado");
+            throw new RuntimeException("CNPJ já cadastrado");
         }
 
         if (repository.findByEmail(email).isPresent()) {
-            throw new RuntimeException("Email ja cadastrado");
+            throw new RuntimeException("E-mail já cadastrado");
         }
 
         Market market = modelMapper.map(dto, Market.class);
         market.setCnpj(sanitizedCnpj);
         market.setEmail(email);
         market.setPassword(passwordEncoder.encode(dto.getPassword()));
-        // Tenta completar endereco e coordenadas antes de salvar.
+        // Tenta completar endereço e coordenadas antes de salvar.
         enrichLocation(market);
 
         return repository.save(market);
@@ -71,10 +71,10 @@ public class MarketService {
     // Perfil usado na aba de configuracoes do mercado.
     public MarketResponseDTO getCurrentProfile(Market authenticatedMarket) {
         Market market = repository.findById(authenticatedMarket.getId())
-                .orElseThrow(() -> new RuntimeException("Mercado nao encontrado"));
+                .orElseThrow(() -> new RuntimeException("Mercado não encontrado"));
 
         if (needsLocationEnrichment(market)) {
-            // Mercados antigos podem nao ter cidade, UF ou coordenadas.
+            // Mercados antigos podem não ter cidade, UF ou coordenadas.
             enrichLocation(market);
             market = repository.save(market);
         }
@@ -85,7 +85,7 @@ public class MarketService {
     @Transactional
     public MarketResponseDTO updateCurrentProfile(Market authenticatedMarket, MarketProfileUpdateDTO dto) {
         Market market = repository.findById(authenticatedMarket.getId())
-                .orElseThrow(() -> new RuntimeException("Mercado nao encontrado"));
+                .orElseThrow(() -> new RuntimeException("Mercado não encontrado"));
 
         if (hasText(dto.getName())) {
             market.setName(dto.getName().trim());
@@ -96,7 +96,7 @@ public class MarketService {
             repository.findByEmail(email)
                     .filter(existingMarket -> !existingMarket.getId().equals(market.getId()))
                     .ifPresent(existingMarket -> {
-                        throw new RuntimeException("Email ja cadastrado");
+                        throw new RuntimeException("E-mail já cadastrado");
                     });
             market.setEmail(email);
         }
@@ -161,7 +161,7 @@ public class MarketService {
     @Transactional
     public MarketResponseDTO refreshCurrentProfileFromCnpj(Market authenticatedMarket) {
         Market market = repository.findById(authenticatedMarket.getId())
-                .orElseThrow(() -> new RuntimeException("Mercado nao encontrado"));
+                .orElseThrow(() -> new RuntimeException("Mercado não encontrado"));
 
         // Sincroniza novamente com a BrasilAPI quando o cadastro do CNPJ precisar ser revisto.
         enrichLocation(market);
@@ -178,7 +178,7 @@ public class MarketService {
         markets.stream()
                 .filter(this::needsLocationEnrichment)
                 .forEach(market -> {
-                    // Completa dados ausentes antes de calcular distancia.
+                    // Completa dados ausentes antes de calcular distância.
                     enrichLocation(market);
                     repository.save(market);
                 });
@@ -198,7 +198,7 @@ public class MarketService {
                     }
 
                     if (hasText(locationFilter.city())) {
-                        // Fallback para usuarios sem permissao de geolocalizacao.
+                        // Fallback para usuários sem permissão de geolocalização.
                         return equalsNormalized(response.city(), locationFilter.city())
                                 && (!hasText(locationFilter.state()) || equalsNormalized(response.state(), locationFilter.state()));
                     }
@@ -215,7 +215,7 @@ public class MarketService {
     public void deleteMarket(Long id) {
         // Remove logicamente os vinculos de produto antes do soft delete do mercado.
         Market market = repository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Mercado nao encontrado"));
+                .orElseThrow(() -> new RuntimeException("Mercado não encontrado"));
 
         marketProductRepository.findByMarketId(id)
                 .forEach(marketProductRepository::delete);
@@ -339,7 +339,7 @@ public class MarketService {
     }
 
     private double calculateDistanceKm(double lat1, double lon1, double lat2, double lon2) {
-        // Formula de Haversine: calcula distancia aproximada entre duas coordenadas.
+        // Fórmula de Haversine: calcula distância aproximada entre duas coordenadas.
         final int earthRadiusKm = 6371;
         double dLat = Math.toRadians(lat2 - lat1);
         double dLon = Math.toRadians(lon2 - lon1);
@@ -415,7 +415,7 @@ public class MarketService {
     }
 
     private boolean isBlankOrPending(String value) {
-        // Alguns CNPJs retornam endereco pendente; nesse caso aceitamos sobrescrever.
+        // Alguns CNPJs retornam endereço pendente; nesse caso aceitamos sobrescrever.
         return !hasText(value) || normalize(value).contains("pendente");
     }
 

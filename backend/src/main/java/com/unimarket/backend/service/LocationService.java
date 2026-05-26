@@ -23,11 +23,11 @@ public class LocationService {
         String sanitizedCep = onlyDigits(cep);
 
         if (sanitizedCep.length() != 8) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "CEP deve conter 8 digitos");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "CEP deve conter 8 dígitos");
         }
 
         CepLocationResponseDTO location = brasilApiCepService.findAddressByCep(sanitizedCep)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "CEP nao encontrado"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "CEP não encontrado"));
 
         if (Boolean.TRUE.equals(location.hasCoordinates())) {
             return location;
