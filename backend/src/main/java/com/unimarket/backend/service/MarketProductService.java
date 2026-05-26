@@ -120,11 +120,7 @@ public class MarketProductService {
                 product.setImageUrl(dto.getImageUrl());
             }
 
-            // busca a categoria
-            Category category = categoryRepository.findById(dto.getCategoryId())
-                    .orElseThrow(() -> new RuntimeException("Categoria não encontrada"));
-
-            product.setCategory(category);
+            product.setCategory(resolveCategory(dto, cosmosProduct));
 
             // salva o produto no catálogo global
             product = productRepository.save(product);
@@ -366,6 +362,56 @@ public class MarketProductService {
         String normalized = barCode.replaceAll("\\D", "");
 
         return normalized.isBlank() ? null : normalized;
+    }
+
+    private Category resolveCategory(ProductRequestDTO dto, CosmosProductDTO cosmosProduct) {
+        Long categoryId = dto.getCategoryId();
+        if (categoryId != null && categoryId > 0) {
+            return categoryRepository.findById(categoryId)
+                    .orElseThrow(() -> new RuntimeException("Categoria nao encontrada"));
+        }
+
+        String cosmosCategoryName = simplifyCategoryName(extractCosmosCategoryName(cosmosProduct));
+
+        if (hasText(cosmosCategoryName)) {
+            String normalizedName = normalizeCategoryName(cosmosCategoryName);
+
+            return categoryRepository.findByNameIgnoreCase(normalizedName)
+                    .orElseGet(() -> {
+                        Category category = new Category();
+                        category.setName(normalizedName);
+                        return categoryRepository.save(category);
+                    });
+        }
+
+        throw new RuntimeException("Categoria nao encontrada. Selecione uma categoria manualmente.");
+    }
+
+    private String extractCosmosCategoryName(CosmosProductDTO cosmosProduct) {
+        if (cosmosProduct == null) {
+            return null;
+        }
+
+        if (cosmosProduct.getCategory() != null && hasText(cosmosProduct.getCategory().getDescription())) {
+            return cosmosProduct.getCategory().getDescription();
+        }
+
+        return cosmosProduct.getGpc() != null ? cosmosProduct.getGpc().getDescription() : null;
+    }
+
+    private String normalizeCategoryName(String value) {
+        return value.trim().replaceAll("\\s+", " ");
+    }
+
+    private String simplifyCategoryName(String value) {
+        if (!hasText(value)) {
+            return null;
+        }
+
+        String withoutParentheses = value.replaceAll("\\s*\\([^)]*\\)", "");
+        String firstCategory = withoutParentheses.split("\\s*/\\s*")[0];
+
+        return normalizeCategoryName(firstCategory);
     }
 
     private boolean hasText(String value) {

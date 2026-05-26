@@ -38,6 +38,7 @@ import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/rea
 import { useNavigate } from '@tanstack/react-router'
 import {
     Bell, ChevronDown,
+    ChevronLeft,
     ChevronRight,
     CircleDollarSign,
     Filter, List,
@@ -70,6 +71,8 @@ const sortOptions: Array<{ id: SortMode; label: string }> = [
     { id: 'distance', label: 'Proximidade' },
     { id: 'savings', label: 'Maior economia' },
 ]
+
+const PRODUCT_PAGE_SIZE = 8
 
 function formatDistance(market?: MarketResponse | null) {
     if (!market || market.distanceKm == null) {
@@ -153,6 +156,7 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
     const [maxDistance, setMaxDistance] = useState(5)
     const [maxPrice, setMaxPrice] = useState(100)
     const [sortBy, setSortBy] = useState<SortMode>('lowest-price')
+    const [catalogPageNumber, setCatalogPageNumber] = useState(0)
     const [showListPanel, setShowListPanel] = useState(false)
     const [newListOpen, setNewListOpen] = useState(false)
     const [newListName, setNewListName] = useState('')
@@ -220,11 +224,11 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
 
     const deferredSearch = useDeferredValue(searchQuery)
 
-    const { data: catalogPage, isLoading, error } = useQuery({
-        queryKey: ['globalMarketProducts', deferredSearch],
+    const { data: catalogPage, isLoading, isFetching, error } = useQuery({
+        queryKey: ['globalMarketProducts', deferredSearch, catalogPageNumber],
         queryFn: () => deferredSearch.trim()
-            ? searchGeneralProducts({ name: deferredSearch.trim(), page: 0, size: 160 })
-            : listAllMarketProducts({ page: 0, size: 160 }),
+            ? searchGeneralProducts({ name: deferredSearch.trim(), page: catalogPageNumber, size: PRODUCT_PAGE_SIZE })
+            : listAllMarketProducts({ page: catalogPageNumber, size: PRODUCT_PAGE_SIZE }),
     })
 
     const { data: priceAlerts = [] } = useQuery({
@@ -263,6 +267,11 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
                 .map(alert => alert.marketProductId),
         )
     }, [priceAlerts])
+
+    useEffect(() => {
+        setCatalogPageNumber(0)
+        setExpandedId(null)
+    }, [deferredSearch])
 
     useEffect(() => {
         if (!userProfile) {
@@ -619,11 +628,16 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
     }, 0)
     const activeAlertCount = priceAlerts.filter(alert => alert.active).length
     const isProductsLoading = isLoading
+    const currentCatalogPage = catalogPage?.number ?? catalogPageNumber
+    const totalCatalogPages = catalogPage?.totalPages ?? 0
+    const totalCatalogItems = catalogPage?.totalElements ?? filteredProducts.length
+    const hasPreviousCatalogPage = Boolean(catalogPage && !catalogPage.first)
+    const hasNextCatalogPage = Boolean(catalogPage && !catalogPage.last)
     const productGridClass = showFilters && showListPanel
-        ? 'grid grid-cols-1 gap-4 items-start sm:grid-cols-2'
+        ? 'grid grid-cols-1 items-start gap-4 sm:grid-cols-2'
         : showFilters || showListPanel
-            ? 'grid grid-cols-1 gap-4 items-start sm:grid-cols-2 xl:grid-cols-3'
-            : 'grid grid-cols-1 gap-4 items-start sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'
+            ? 'grid grid-cols-1 items-start gap-4 sm:grid-cols-2 xl:grid-cols-3'
+            : 'grid grid-cols-1 items-start gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'
     const nearbyMarketsView = nearbyMarketResults.map(market => ({
         id: market.id,
         name: market.name,
@@ -638,6 +652,12 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
         (id: number) => setExpandedId(prev => prev === id ? null : id),
         []
     )
+
+    const goToCatalogPage = useCallback((page: number) => {
+        const lastPage = Math.max(totalCatalogPages - 1, 0)
+        setCatalogPageNumber(Math.min(Math.max(page, 0), lastPage))
+        setExpandedId(null)
+    }, [totalCatalogPages])
 
     const handleCreateAlert = useCallback((product: TransformedProduct) => {
         if (!canUseNotifications) {
@@ -1151,13 +1171,18 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
                                     <Filter className="w-3.5 h-3.5" /> Filtros
                                 </Button>
                                 <span className="text-sm text-muted-foreground">
-                                    <span className="font-medium text-foreground">{filteredProducts.length}</span> produtos encontrados
+                                    <span className="font-medium text-foreground">{totalCatalogItems}</span> produtos encontrados
+                                    {totalCatalogPages > 1 && (
+                                        <span className="ml-2 text-xs">
+                                            Página {currentCatalogPage + 1} de {totalCatalogPages}
+                                        </span>
+                                    )}
                                 </span>
                             </div>
 
                             <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
-                                    <Button variant="outline" size="sm" className="text-xs gap-1.5">
+                                    <Button variant="outline" size="sm" className="text-xs gap-1.5" disabled={isFetching && !isProductsLoading}>
                                         <SlidersHorizontal className="w-3.5 h-3.5" />
                                         {sortOptions.find(option => option.id === sortBy)?.label ?? 'Ordenar'}
                                         <ChevronDown className="w-3 h-3" />
@@ -1177,7 +1202,7 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
                         {isProductsLoading ? (
                             <div className={productGridClass}>
                                 {Array.from({ length: 6 }).map((_, index) => (
-                                    <Card key={index} className="gap-0 overflow-hidden p-0">
+                                    <Card key={index} className="min-h-[480px] gap-0 overflow-hidden p-0">
                                         <Skeleton className="h-32 rounded-none" />
                                         <div className="space-y-3 p-4">
                                             <Skeleton className="h-4 w-3/4" />
@@ -1204,19 +1229,52 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
                                 <p className="text-sm">Tente ajustar os filtros ou busca</p>
                             </div>
                         ) : (
-                            <div className={productGridClass}>
-                                {filteredProducts.map(product => (
-                                    <ProductCard
-                                        key={product.id}
-                                        product={product}
-                                        isExpanded={expandedId === product.id}
-                                        onToggle={toggleExpand}
-                                        onAddToList={handleAddToList}
-                                        onCreateAlert={handleCreateAlert}
-                                        onCreateFeedback={handleCreateFeedback}
-                                    />
-                                ))}
-                            </div>
+                            <>
+                                <div className={productGridClass}>
+                                    {filteredProducts.map(product => (
+                                        <ProductCard
+                                            key={product.id}
+                                            product={product}
+                                            isExpanded={expandedId === product.id}
+                                            onToggle={toggleExpand}
+                                            onAddToList={handleAddToList}
+                                            onCreateAlert={handleCreateAlert}
+                                            onCreateFeedback={handleCreateFeedback}
+                                        />
+                                    ))}
+                                </div>
+
+                                {totalCatalogPages > 1 && (
+                                    <div className="mt-5 flex flex-col gap-3 border-t border-border/70 pt-4 sm:flex-row sm:items-center sm:justify-between">
+                                        <p className="text-xs text-muted-foreground">
+                                            Página <span className="font-medium text-foreground">{currentCatalogPage + 1}</span> de{' '}
+                                            <span className="font-medium text-foreground">{totalCatalogPages}</span>
+                                        </p>
+                                        <div className="flex items-center gap-2">
+                                            <Button
+                                                type="button"
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() => goToCatalogPage(currentCatalogPage - 1)}
+                                                disabled={!hasPreviousCatalogPage || isFetching}
+                                            >
+                                                <ChevronLeft className="h-4 w-4" />
+                                                Anterior
+                                            </Button>
+                                            <Button
+                                                type="button"
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() => goToCatalogPage(currentCatalogPage + 1)}
+                                                disabled={!hasNextCatalogPage || isFetching}
+                                            >
+                                                Próxima
+                                                <ChevronRight className="h-4 w-4" />
+                                            </Button>
+                                        </div>
+                                    </div>
+                                )}
+                            </>
                         )}
 
                     </div>

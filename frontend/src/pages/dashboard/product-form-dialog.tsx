@@ -16,7 +16,7 @@ import {
     SelectValue,
     Textarea,
 } from '@/components/ui'
-import { createProduct, listCategories, lookupProductByBarcode } from '@/services/product'
+import { createCategory, createProduct, listCategories, lookupProductByBarcode } from '@/services/product'
 import type { CategoryResponse } from '@/types/product'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -44,6 +44,7 @@ const initialValues: MarketProductFormData = {
 export function ProductFormDialog({ marketId }: ProductFormDialogProps) {
     const [open, setOpen] = useState(false)
     const [lookupMessage, setLookupMessage] = useState<string | null>(null)
+    const [automaticCategoryName, setAutomaticCategoryName] = useState<string | null>(null)
     const queryClient = useQueryClient()
 
     const {
@@ -62,42 +63,59 @@ export function ProductFormDialog({ marketId }: ProductFormDialogProps) {
         data: categories = [],
         isLoading: isLoadingCategories,
         isError: hasCategoryError,
+        refetch: refetchCategories,
     } = useQuery({
         queryKey: ['categories'],
         queryFn: listCategories,
         enabled: open,
     })
 
-    const selectedCategoryId = watch('categoryId')
+    const selectedCategoryId = watch('categoryId') ?? 0
     const selectedCategory = categories.find((category) => category.id === selectedCategoryId)
     const barCodeField = register('barCode')
     const imageUrl = watch('imageUrl')
     const productName = watch('productName')
     const brand = watch('brand')
     const normalizedBarCode = (watch('barCode') || '').replace(/\D/g, '').slice(0, 14)
+    const categoryPreviewName = selectedCategory?.name || automaticCategoryName
 
     useEffect(() => {
-        if (open && !selectedCategoryId && categories.length > 0) {
-            setValue('categoryId', categories[0].id, { shouldValidate: true })
+        if (!open || !automaticCategoryName || selectedCategoryId || categories.length === 0) {
+            return
         }
-    }, [categories, open, selectedCategoryId, setValue])
+
+        const matchingCategory = categories.find(
+            (category) => normalizeText(category.name) === normalizeText(automaticCategoryName),
+        )
+
+        if (matchingCategory) {
+            setValue('categoryId', matchingCategory.id, { shouldValidate: true })
+        }
+    }, [automaticCategoryName, categories, open, selectedCategoryId, setValue])
 
     const lookupMutation = useMutation({
         mutationFn: lookupProductByBarcode,
-        onSuccess: (product) => {
+        onSuccess: async (product) => {
             setValue('productName', product.productName || '', { shouldDirty: true, shouldValidate: true })
             setValue('brand', product.brand || '', { shouldDirty: true, shouldValidate: true })
             setValue('description', product.description || '', { shouldDirty: true })
             setValue('imageUrl', product.imageUrl || '', { shouldDirty: true, shouldValidate: true })
 
+            const resolvedCategory = await resolveLookupCategory(product.categoryName)
+            setAutomaticCategoryName(resolvedCategory?.name ?? null)
+            setValue('categoryId', resolvedCategory?.id ?? 0, { shouldDirty: true, shouldValidate: true })
+
             if (product.averagePrice && product.averagePrice > 0) {
                 setValue('price', product.averagePrice, { shouldDirty: true, shouldValidate: true })
             }
 
-            setLookupMessage('Dados do produto preenchidos automaticamente. Revise categoria, preço e estoque antes de salvar.')
+            setLookupMessage(resolvedCategory
+                ? 'Dados do produto e categoria preenchidos automaticamente. Revise preço e estoque antes de salvar.'
+                : 'Dados do produto preenchidos automaticamente. Selecione categoria, preço e estoque antes de salvar.')
             toast.success('Produto encontrado no catálogo.')
         },
         onError: () => {
+            setAutomaticCategoryName(null)
             setLookupMessage('Não encontramos esse código. Preencha os dados manualmente para cadastrar.')
             toast.info('Cadastro manual disponível.')
         },
@@ -109,12 +127,15 @@ export function ProductFormDialog({ marketId }: ProductFormDialogProps) {
             productName: data.productName.trim(),
             brand: data.brand.trim(),
             barCode: data.barCode ? data.barCode.replace(/\D/g, '') : undefined,
+            categoryId: data.categoryId,
         }),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['products', marketId] })
             queryClient.invalidateQueries({ queryKey: ['searchProductsByMarketId', marketId] })
+            queryClient.invalidateQueries({ queryKey: ['categories'] })
             reset(initialValues)
             setLookupMessage(null)
+            setAutomaticCategoryName(null)
             setOpen(false)
             toast.success('Produto cadastrado com sucesso.')
         },
@@ -138,8 +159,40 @@ export function ProductFormDialog({ marketId }: ProductFormDialogProps) {
         setOpen(nextOpen)
         if (!nextOpen) {
             setLookupMessage(null)
+            setAutomaticCategoryName(null)
         }
     }
+
+    async function resolveLookupCategory(apiCategoryName?: string | null) {
+        const suggestedName = simplifyCategoryName(apiCategoryName)
+
+        if (!suggestedName) {
+            return null
+        }
+
+        const availableCategories = categories.length > 0
+            ? categories
+            : (await refetchCategories()).data ?? []
+        const matchingCategory = findSimilarCategory(availableCategories, suggestedName)
+
+        if (matchingCategory) {
+            return matchingCategory
+        }
+
+        try {
+            const createdCategory = await createCategory({ name: suggestedName })
+            queryClient.setQueryData<CategoryResponse[]>(['categories'], (current = []) => {
+                const nextCategories = [...current, createdCategory]
+                return nextCategories.sort((first, second) => first.name.localeCompare(second.name))
+            })
+            return createdCategory
+        } catch (error) {
+            const refreshedCategories = (await refetchCategories()).data ?? []
+            return findSimilarCategory(refreshedCategories, suggestedName)
+        }
+    }
+
+    const isMissingManualCategory = hasCategoryError || categories.length === 0 || !selectedCategoryId
 
     return (
         <Dialog open={open} onOpenChange={handleOpenChange}>
@@ -198,7 +251,13 @@ export function ProductFormDialog({ marketId }: ProductFormDialogProps) {
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <Field label="Categoria *" error={errors.categoryId?.message}>
+                        <Field
+                            label="Categoria"
+                            error={errors.categoryId?.message}
+                            hint={automaticCategoryName
+                                ? 'Categoria preenchida automaticamente.'
+                                : 'Obrigatória para cadastrar o produto.'}
+                        >
                             <CategorySelect
                                 categories={categories}
                                 disabled={isLoadingCategories || hasCategoryError || categories.length === 0}
@@ -260,7 +319,7 @@ export function ProductFormDialog({ marketId }: ProductFormDialogProps) {
                                     {productName || 'Prévia do produto'}
                                 </p>
                                 <p className="truncate text-xs text-muted-foreground">
-                                    {[brand, selectedCategory?.name].filter(Boolean).join(' • ') || 'Marca e categoria aparecerão aqui'}
+                                    {[brand, categoryPreviewName].filter(Boolean).join(' • ') || 'Marca e categoria aparecerão aqui'}
                                 </p>
                                 {normalizedBarCode && (
                                     <p className="mt-1 text-xs tabular-nums text-muted-foreground">
@@ -281,7 +340,7 @@ export function ProductFormDialog({ marketId }: ProductFormDialogProps) {
                         <Button type="button" variant="outline" onClick={() => setOpen(false)}>
                             Cancelar
                         </Button>
-                        <Button type="submit" disabled={isPending || isLoadingCategories || categories.length === 0}>
+                        <Button type="submit" disabled={isPending || isLoadingCategories || isMissingManualCategory}>
                             {isPending && <Loader2 className="w-4 h-4 animate-spin" />}
                             {isPending ? 'Cadastrando...' : 'Cadastrar item'}
                         </Button>
@@ -358,4 +417,40 @@ function Field({
             {error && <p className="text-xs text-destructive">{error}</p>}
         </div>
     )
+}
+
+function normalizeText(value: string) {
+    return value
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .trim()
+        .replace(/\s+/g, ' ')
+        .toLowerCase()
+}
+
+function simplifyCategoryName(value?: string | null) {
+    if (!value?.trim()) {
+        return null
+    }
+
+    return value
+        .replace(/\s*\([^)]*\)/g, '')
+        .split(/\s*\/\s*/)[0]
+        .trim()
+        .replace(/\s+/g, ' ')
+}
+
+function findSimilarCategory(categories: CategoryResponse[], categoryName: string) {
+    const normalizedCategoryName = normalizeText(categoryName)
+    const categoryWords = new Set(normalizedCategoryName.split(' ').filter(Boolean))
+
+    return categories.find((category) => {
+        const normalizedOptionName = normalizeText(category.name)
+        const optionWords = normalizedOptionName.split(' ').filter(Boolean)
+
+        return normalizedOptionName === normalizedCategoryName
+            || normalizedCategoryName.startsWith(`${normalizedOptionName} `)
+            || normalizedOptionName.startsWith(`${normalizedCategoryName} `)
+            || optionWords.some((word) => word.length > 3 && categoryWords.has(word))
+    })
 }

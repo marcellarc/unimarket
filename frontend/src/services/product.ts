@@ -7,6 +7,7 @@ import type {
     MarketProductCreateRequest,
     CosmosProductLookup,
     CategoryResponse,
+    CategoryCreateRequest,
     PageResponse,
     ProductCatalogParams,
 } from '@/types/product'
@@ -25,6 +26,11 @@ export async function lookupProductByBarcode(barCode: string) {
 
 export async function listCategories() {
     const response = await api.get<CategoryResponse[]>('/categories')
+    return response.data
+}
+
+export async function createCategory(data: CategoryCreateRequest) {
+    const response = await api.post<CategoryResponse>('/categories', data)
     return response.data
 }
 

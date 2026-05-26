@@ -34,6 +34,10 @@ export interface CategoryResponse {
     name: string
 }
 
+export interface CategoryCreateRequest {
+    name: string
+}
+
 export interface ProductSearchParams {
     name: string
     page?: number

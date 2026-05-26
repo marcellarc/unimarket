@@ -31,6 +31,9 @@ public class CosmosProductDTO {
     // categoria do produto
     private GpcDTO gpc;
 
+    // categoria comercial do produto
+    private CategoryDTO category;
+
     // DTO interno representando a marca
     @Getter
     @Setter
@@ -47,5 +50,16 @@ public class CosmosProductDTO {
     public static class GpcDTO {
         private String code;
         private String description;
+    }
+
+    @Getter
+    @Setter
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class CategoryDTO {
+        private Long id;
+        private String description;
+
+        @JsonProperty("parent_id")
+        private Long parentId;
     }
 }

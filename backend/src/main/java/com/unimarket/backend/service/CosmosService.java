@@ -75,10 +75,18 @@ public class CosmosService {
         response.setImageUrl(product.getThumbnail());
         response.setBarCode(product.getGtin() != null ? product.getGtin() : barCode);
         response.setAveragePrice(product.getAvgPrice());
-        response.setCategoryName(product.getGpc() != null ? product.getGpc().getDescription() : null);
+        response.setCategoryName(extractCategoryName(product));
         response.setSource("catalogo");
 
         return response;
+    }
+
+    private String extractCategoryName(CosmosProductDTO product) {
+        if (product.getCategory() != null && hasText(product.getCategory().getDescription())) {
+            return product.getCategory().getDescription();
+        }
+
+        return product.getGpc() != null ? product.getGpc().getDescription() : null;
     }
 
     private boolean hasText(String value) {

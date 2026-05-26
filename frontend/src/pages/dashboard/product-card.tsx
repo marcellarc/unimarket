@@ -63,12 +63,12 @@ export const ProductCard = memo(function ProductCard({
 
     return (
         <Card
-            className={`gap-0 overflow-hidden p-0 transition-[border-color,box-shadow,background-color] ${isExpanded
-                ? 'border-primary shadow-md'
-                : 'border-border hover:border-primary/30 hover:bg-card'
+            className={`flex flex-col gap-0 overflow-hidden p-0 transition-[border-color,box-shadow,background-color] ${isExpanded
+                ? 'min-h-[480px] border-primary shadow-md'
+                : 'h-[480px] border-border hover:border-primary/30 hover:bg-card'
                 }`}
         >
-            <div className="relative border-b border-border/80 bg-muted/25 p-4">
+            <div className="relative shrink-0 border-b border-border/80 bg-muted/25 p-4">
                 <div className="flex h-32 items-center justify-center rounded-md border border-border bg-background/75">
                     <ProductImage src={product.imageUrl} name={product.name} />
                 </div>
@@ -80,7 +80,7 @@ export const ProductCard = memo(function ProductCard({
                 )}
             </div>
 
-            <div className="border-b border-border/80 p-4">
+            <div className="flex h-[90px] shrink-0 flex-col justify-center border-b border-border/80 p-4">
                 <h3 className="line-clamp-2 text-sm font-semibold leading-snug text-foreground">{product.name}</h3>
                 <p className="mt-1 text-xs text-muted-foreground">
                     {product.markets.length > 0
@@ -89,7 +89,7 @@ export const ProductCard = memo(function ProductCard({
                 </p>
             </div>
 
-            <div className="space-y-4 p-4">
+            <div className="flex min-h-[220px] shrink-0 flex-col gap-4 p-4">
                 <div className="flex items-end justify-between gap-3">
                     <div>
                         <p className="text-xs text-muted-foreground">Menor preço</p>
@@ -135,7 +135,7 @@ export const ProductCard = memo(function ProductCard({
                 <button
                     type="button"
                     onClick={handleToggle}
-                    className="flex w-full items-center justify-center border-t border-border/80 pt-3 text-xs font-medium text-muted-foreground transition-colors hover:text-primary"
+                    className="mt-auto flex w-full items-center justify-center border-t border-border/80 pt-3 text-xs font-medium text-muted-foreground transition-colors hover:text-primary"
                 >
                     {isExpanded ? 'Ocultar mercados' : 'Comparar mercados'}
                     {isExpanded ? <ChevronUp className="ml-1 h-3.5 w-3.5" /> : <ChevronDown className="ml-1 h-3.5 w-3.5" />}
