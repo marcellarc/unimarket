@@ -202,7 +202,7 @@ export function ProductFormDialog({ marketId }: ProductFormDialogProps) {
                     <span className="hidden sm:inline">Adicionar item</span>
                 </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogContent className="max-w-2xl">
                 <DialogHeader>
                     <DialogTitle>Novo produto no estoque</DialogTitle>
                     <DialogDescription>
@@ -210,8 +210,8 @@ export function ProductFormDialog({ marketId }: ProductFormDialogProps) {
                     </DialogDescription>
                 </DialogHeader>
 
-                <form onSubmit={handleSubmit((data) => mutate(data))} className="space-y-4">
-                    <div className="grid grid-cols-1 gap-3 rounded-lg border border-border bg-muted/30 p-4 md:grid-cols-[1fr_auto] md:items-end">
+                <form onSubmit={handleSubmit((data) => mutate(data))} className="space-y-3 sm:space-y-4">
+                    <div className="grid min-w-0 grid-cols-1 gap-3 rounded-lg border border-border bg-muted/30 p-3 sm:p-4 md:grid-cols-[1fr_auto] md:items-end">
                         <Field label="Código de barras" error={errors.barCode?.message} hint="Use de 8 a 14 dígitos">
                             <Input
                                 inputMode="numeric"
@@ -229,7 +229,7 @@ export function ProductFormDialog({ marketId }: ProductFormDialogProps) {
                             variant="outline"
                             onClick={handleLookup}
                             disabled={lookupMutation.isPending || normalizedBarCode.length < 8}
-                            className="md:mb-[1.45rem]"
+                            className="w-full md:mb-[1.45rem] md:w-auto"
                         >
                             {lookupMutation.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
                             Buscar dados
@@ -241,7 +241,7 @@ export function ProductFormDialog({ marketId }: ProductFormDialogProps) {
                         )}
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="grid min-w-0 grid-cols-1 gap-3 md:grid-cols-2 md:gap-4">
                         <Field label="Nome do produto *" error={errors.productName?.message}>
                             <Input placeholder="Arroz Branco 5kg" {...register('productName')} />
                         </Field>
@@ -250,7 +250,7 @@ export function ProductFormDialog({ marketId }: ProductFormDialogProps) {
                         </Field>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="grid min-w-0 grid-cols-1 gap-3 md:grid-cols-2 md:gap-4">
                         <Field
                             label="Categoria"
                             error={errors.categoryId?.message}
@@ -273,7 +273,7 @@ export function ProductFormDialog({ marketId }: ProductFormDialogProps) {
                         </Field>
                     </div>
 
-                    <div className="grid grid-cols-1 gap-4 rounded-lg border border-border bg-card p-4 md:grid-cols-2">
+                    <div className="grid min-w-0 grid-cols-1 gap-3 rounded-lg border border-border bg-card p-3 sm:p-4 md:grid-cols-2 md:gap-4">
                         <Field label="Preço de venda *" error={errors.price?.message}>
                             <div className="relative">
                                 <CircleDollarSign className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -306,7 +306,7 @@ export function ProductFormDialog({ marketId }: ProductFormDialogProps) {
                     </Field>
 
                     {(imageUrl || productName || brand || normalizedBarCode) && (
-                        <div className="flex items-center gap-3 rounded-lg border border-border bg-muted/20 p-3">
+                        <div className="flex min-w-0 items-start gap-3 rounded-lg border border-border bg-muted/20 p-3">
                             {imageUrl ? (
                                 <img src={imageUrl} alt="" className="h-16 w-16 rounded-md border border-border object-cover" />
                             ) : (
@@ -314,11 +314,11 @@ export function ProductFormDialog({ marketId }: ProductFormDialogProps) {
                                     <Barcode className="h-5 w-5" />
                                 </div>
                             )}
-                            <div className="min-w-0">
-                                <p className="truncate text-sm font-semibold text-foreground">
+                            <div className="min-w-0 flex-1">
+                                <p className="line-clamp-2 text-sm font-semibold leading-snug text-foreground">
                                     {productName || 'Prévia do produto'}
                                 </p>
-                                <p className="truncate text-xs text-muted-foreground">
+                                <p className="break-words text-xs text-muted-foreground">
                                     {[brand, categoryPreviewName].filter(Boolean).join(' • ') || 'Marca e categoria aparecerão aqui'}
                                 </p>
                                 {normalizedBarCode && (
@@ -336,11 +336,11 @@ export function ProductFormDialog({ marketId }: ProductFormDialogProps) {
                         </p>
                     )}
 
-                    <DialogFooter className="gap-2 pt-2">
-                        <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+                    <DialogFooter className="pt-2">
+                        <Button type="button" variant="outline" className="w-full sm:w-auto" onClick={() => setOpen(false)}>
                             Cancelar
                         </Button>
-                        <Button type="submit" disabled={isPending || isLoadingCategories || isMissingManualCategory}>
+                        <Button type="submit" className="w-full sm:w-auto" disabled={isPending || isLoadingCategories || isMissingManualCategory}>
                             {isPending && <Loader2 className="w-4 h-4 animate-spin" />}
                             {isPending ? 'Cadastrando...' : 'Cadastrar item'}
                         </Button>

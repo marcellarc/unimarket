@@ -20,6 +20,7 @@ import {
     markNotificationsAsRead,
 } from '@/services/notification'
 import type { PriceNotificationResponse } from '@/types/notification'
+import { findLocationByCep } from '@/services/location'
 import { listAllMarketProducts, searchGeneralProducts } from '@/services/product'
 import {
     addShoppingListItem,
@@ -75,6 +76,7 @@ const sortOptions: Array<{ id: SortMode; label: string }> = [
 ]
 
 const PRODUCT_PAGE_SIZE = 8
+const PROXIMITY_PRODUCT_PAGE_SIZE = 120
 
 function formatDistance(market?: MarketResponse | null) {
     if (!market || market.distanceKm == null) {
@@ -121,6 +123,33 @@ function formatDistanceKm(distanceKm?: number | null) {
     return distanceKm == null ? 'Distância indisponível' : `${distanceKm.toFixed(1)} km`
 }
 
+function formatNotificationTime(value: string) {
+    const createdAt = new Date(value).getTime()
+
+    if (Number.isNaN(createdAt)) {
+        return ''
+    }
+
+    const diffMinutes = Math.max(0, Math.round((Date.now() - createdAt) / 60000))
+
+    if (diffMinutes < 1) {
+        return 'agora'
+    }
+
+    if (diffMinutes < 60) {
+        return `${diffMinutes} min`
+    }
+
+    const diffHours = Math.round(diffMinutes / 60)
+
+    if (diffHours < 24) {
+        return `${diffHours} h`
+    }
+
+    const diffDays = Math.round(diffHours / 24)
+    return `${diffDays} d`
+}
+
 function formatMarketAddress(market: MarketResponse) {
     return [market.streetAddress, market.neighborhood, market.city, market.state]
         .filter(Boolean)
@@ -140,6 +169,10 @@ function getInitials(value: string) {
         .join('') || 'U'
 }
 
+function onlyDigits(value: string) {
+    return value.replace(/\D/g, '')
+}
+
 interface UserDashboardProps {
     userName: string
     isLogged: boolean
@@ -157,6 +190,8 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
     const [showFilters, setShowFilters] = useState(false)
     const [maxDistance, setMaxDistance] = useState(5)
     const [maxPrice, setMaxPrice] = useState(100)
+    const [isDistanceFilterActive, setIsDistanceFilterActive] = useState(false)
+    const [isMaxPriceFilterActive, setIsMaxPriceFilterActive] = useState(false)
     const [sortBy, setSortBy] = useState<SortMode>('lowest-price')
     const [catalogPageNumber, setCatalogPageNumber] = useState(0)
     const [showListPanel, setShowListPanel] = useState(false)
@@ -179,12 +214,21 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
     const [feedbackRating, setFeedbackRating] = useState(5)
     const [feedbackComment, setFeedbackComment] = useState('')
     const notifiedBrowserIds = useRef(new Set<number>())
+    const shoppingListPanelRef = useRef<HTMLElement | null>(null)
+    const pendingShoppingListScroll = useRef(false)
 
     const isGuest = userRole === 'GUEST'
     const displayName = isGuest ? 'visitante' : userName
     const canUseNotifications = isLogged && userRole === 'USER'
     const hasSavedLocation = Boolean((userZipCode || userCity) && userState)
     const locationLabel = [userCity, userState].filter(Boolean).join(', ') || 'Localidade não informada'
+
+    const userZipCodeDigits = onlyDigits(userZipCode)
+    const shouldResolveZipCoordinates = isLogged
+        && userRole === 'USER'
+        && userLatitude == null
+        && userLongitude == null
+        && userZipCodeDigits.length === 8
 
     const nearbyMarketParams = useMemo(() => ({
         latitude: userLatitude ?? undefined,
@@ -218,6 +262,13 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
         enabled: isLogged && userRole === 'USER',
     })
 
+    const { data: zipLocation } = useQuery({
+        queryKey: ['userZipLocation', userZipCodeDigits],
+        queryFn: () => findLocationByCep(userZipCodeDigits),
+        enabled: shouldResolveZipCoordinates,
+        retry: false,
+    })
+
     const clientId = userProfile?.id
     const canUseShoppingLists = isLogged && userRole === 'USER' && !!clientId
     const canUseFeedback = canUseShoppingLists
@@ -228,12 +279,13 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
     const showProfileImage = Boolean(profileImageUrl) && !avatarImageFailed
 
     const deferredSearch = useDeferredValue(searchQuery)
+    const catalogQueryPageSize = sortBy === 'distance' ? PROXIMITY_PRODUCT_PAGE_SIZE : PRODUCT_PAGE_SIZE
 
     const { data: catalogPage, isLoading, isFetching, error } = useQuery({
-        queryKey: ['globalMarketProducts', deferredSearch, catalogPageNumber],
+        queryKey: ['globalMarketProducts', deferredSearch, catalogPageNumber, catalogQueryPageSize],
         queryFn: () => deferredSearch.trim()
-            ? searchGeneralProducts({ name: deferredSearch.trim(), page: catalogPageNumber, size: PRODUCT_PAGE_SIZE })
-            : listAllMarketProducts({ page: catalogPageNumber, size: PRODUCT_PAGE_SIZE }),
+            ? searchGeneralProducts({ name: deferredSearch.trim(), page: catalogPageNumber, size: catalogQueryPageSize })
+            : listAllMarketProducts({ page: catalogPageNumber, size: catalogQueryPageSize }),
     })
 
     const { data: priceAlerts = [] } = useQuery({
@@ -276,7 +328,7 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
     useEffect(() => {
         setCatalogPageNumber(0)
         setExpandedId(null)
-    }, [deferredSearch])
+    }, [catalogQueryPageSize, deferredSearch])
 
     useEffect(() => {
         setAvatarImageFailed(false)
@@ -303,6 +355,18 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
             setMaxDistance(userProfile.searchRadiusKm)
         }
     }, [userProfile])
+
+    useEffect(() => {
+        if (!zipLocation?.hasCoordinates || zipLocation.latitude == null || zipLocation.longitude == null) {
+            return
+        }
+
+        setUserLatitude(current => current ?? zipLocation.latitude ?? null)
+        setUserLongitude(current => current ?? zipLocation.longitude ?? null)
+        setUserCity(current => current || zipLocation.city || '')
+        setUserState(current => current || zipLocation.state || '')
+        setUserZipCode(current => current || zipLocation.zipCode || '')
+    }, [zipLocation])
 
     useEffect(() => {
         if (!canUseNotifications || typeof window === 'undefined' || !('Notification' in window)) {
@@ -346,6 +410,37 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
             setSelectedShoppingListId(shoppingLists[0].id)
         }
     }, [selectedShoppingListId, shoppingLists])
+
+    const scrollToShoppingListPanel = useCallback(() => {
+        if (typeof window === 'undefined') {
+            return
+        }
+
+        window.requestAnimationFrame(() => {
+            shoppingListPanelRef.current?.scrollIntoView({
+                behavior: 'smooth',
+                block: 'start',
+            })
+        })
+    }, [])
+
+    const openShoppingListPanel = useCallback(() => {
+        pendingShoppingListScroll.current = true
+        setShowListPanel(true)
+
+        if (showListPanel) {
+            scrollToShoppingListPanel()
+        }
+    }, [scrollToShoppingListPanel, showListPanel])
+
+    useEffect(() => {
+        if (!showListPanel || !pendingShoppingListScroll.current) {
+            return
+        }
+
+        pendingShoppingListScroll.current = false
+        scrollToShoppingListPanel()
+    }, [scrollToShoppingListPanel, showListPanel])
 
     const createAlertMutation = useMutation({
         mutationFn: () => {
@@ -438,7 +533,7 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
             setSelectedShoppingListId(createdList.id)
             setNewListName('')
             setNewListOpen(false)
-            setShowListPanel(true)
+            openShoppingListPanel()
             toast.success('Lista de compras criada.')
             await queryClient.invalidateQueries({ queryKey: ['shoppingLists', clientId] })
         },
@@ -462,7 +557,7 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
             toast.success('Produto adicionado à lista.')
             setListProduct(null)
             setListQuantity(1)
-            setShowListPanel(true)
+            openShoppingListPanel()
             await queryClient.invalidateQueries({ queryKey: ['shoppingListItems', selectedShoppingListId] })
         },
         onError: (itemError: unknown) => {
@@ -508,21 +603,15 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
             groupedProducts.set(key, current)
         })
 
-        return Array.from(groupedProducts.values()).map(items => {
-            const byLowestPrice = [...items].sort((first, second) => {
-                const firstPrice = first.product.price != null ? Number(first.product.price) : Number.MAX_VALUE
-                const secondPrice = second.product.price != null ? Number(second.product.price) : Number.MAX_VALUE
-                return firstPrice - secondPrice
-            })
-            const cheapest = byLowestPrice[0]
+        return Array.from(groupedProducts.values()).flatMap(items => {
             const imageUrl = items.find(({ product }) => product.imageUrl)?.product.imageUrl ?? null
             const marketRows = items.map(({ product, market }) => {
                 const distanceKm = market?.distanceKm
                     ?? calculateDistanceKm(
                         userLatitude,
                         userLongitude,
-                        product.marketLatitude,
-                        product.marketLongitude,
+                        market?.latitude ?? product.marketLatitude,
+                        market?.longitude ?? product.marketLongitude,
                     )
 
                 return {
@@ -533,7 +622,12 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
                     distance: formatDistanceKm(distanceKm),
                     distanceKm,
                 }
-            })
+            }).filter(market => !isDistanceFilterActive || market.distanceKm == null || market.distanceKm <= maxDistance)
+
+            if (marketRows.length === 0) {
+                return []
+            }
+
             const validPrices = marketRows.map(row => row.price).filter(price => price > 0)
             const lowestPrice = validPrices.length ? Math.min(...validPrices) : 0
             const highestPrice = validPrices.length ? Math.max(...validPrices) : 0
@@ -556,32 +650,34 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
 
                 return first.price - second.price
             })
+            const cheapestMarketRow = [...marketRows].sort((first, second) => first.price - second.price)[0]
+            const representativeProduct = items.find(({ product }) => product.id === cheapestMarketRow.id)?.product ?? items[0].product
 
-            return {
-                id: cheapest.product.id,
-                productId: cheapest.product.productId,
-                name: cheapest.product.productName,
+            return [{
+                id: representativeProduct.id,
+                productId: representativeProduct.productId,
+                name: representativeProduct.productName,
                 imageUrl,
-                category: cheapest.product.categoryName || 'Sem categoria',
+                category: representativeProduct.categoryName || 'Sem categoria',
                 lowestPrice,
                 highestPrice,
                 averagePrice,
                 savings,
-                badge: activeAlertByProductId.has(cheapest.product.id)
+                badge: activeAlertByProductId.has(representativeProduct.id)
                     ? 'Alerta ativo'
                     : marketRows.length > 1
                         ? `${marketRows.length} mercados`
                         : null,
                 markets: sortedMarketRows,
-            }
+            }]
         })
-    }, [activeAlertByProductId, catalogPage?.content, distanceMarketResults, sortBy, userLatitude, userLongitude])
+    }, [activeAlertByProductId, catalogPage?.content, distanceMarketResults, isDistanceFilterActive, maxDistance, sortBy, userLatitude, userLongitude])
 
     const filteredProducts = useMemo(() =>
         transformedProducts
             .filter(p => deferredSearch.length === 0 || p.name.toLowerCase().includes(deferredSearch.toLowerCase()))
             .filter(p => selectedCategory === 'all' || p.category === selectedCategory)
-            .filter(p => p.lowestPrice <= maxPrice)
+            .filter(p => !isMaxPriceFilterActive || p.lowestPrice <= maxPrice)
             .sort((a, b) => {
                 if (sortBy === 'highest-price') {
                     return b.highestPrice - a.highestPrice
@@ -595,7 +691,7 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
 
                 return sortBy === 'lowest-price' ? a.lowestPrice - b.lowestPrice : b.savings - a.savings
             }),
-        [deferredSearch, transformedProducts, selectedCategory, maxPrice, sortBy]
+        [deferredSearch, transformedProducts, selectedCategory, isMaxPriceFilterActive, maxPrice, sortBy]
     )
 
     const categoryOptions = useMemo(() => {
@@ -750,8 +846,8 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
         setListProduct(product)
         setSelectedShoppingListId(current => current ?? shoppingLists[0].id)
         setListQuantity(1)
-        setShowListPanel(true)
-    }, [canUseShoppingLists, navigate, shoppingLists])
+        openShoppingListPanel()
+    }, [canUseShoppingLists, navigate, openShoppingListPanel, shoppingLists])
 
     const handleCreateShoppingList = useCallback(() => {
         const trimmedName = newListName.trim()
@@ -890,17 +986,33 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
                                         )}
                                     </Button>
                                 </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end" className="w-80 mt-1">
-                                    <div className="px-3 py-2 flex items-center justify-between gap-3">
-                                        <div>
-                                            <p className="text-sm font-medium text-foreground">Notificações</p>
-                                            <p className="text-xs text-muted-foreground">{unreadCount} Não lida{unreadCount !== 1 ? 's' : ''}</p>
+                                <DropdownMenuContent align="end" className="mt-2 w-[min(calc(100vw-2rem),24rem)] overflow-hidden rounded-lg border-primary/10 p-0 shadow-lg">
+                                    <div className="bg-primary/5 px-4 py-3">
+                                        <div className="flex items-center justify-between gap-3">
+                                            <div className="flex items-center gap-2">
+                                                <div className="grid h-9 w-9 place-items-center rounded-full bg-primary text-primary-foreground shadow-sm">
+                                                    <Bell className="h-4 w-4" />
+                                                </div>
+                                                <div>
+                                                    <p className="text-sm font-semibold text-foreground">Central de alertas</p>
+                                                    <p className="text-xs text-muted-foreground">
+                                                        {unreadCount > 0
+                                                            ? `${unreadCount} novidade${unreadCount !== 1 ? 's' : ''} de preço`
+                                                            : 'Tudo tranquilo por aqui'}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            {unreadCount > 0 && (
+                                                <Badge className="rounded-full bg-uniyellow text-primary hover:bg-uniyellow">
+                                                    {unreadCount}
+                                                </Badge>
+                                            )}
                                         </div>
                                         {unreadCount > 0 && (
                                             <Button
                                                 variant="ghost"
                                                 size="sm"
-                                                className="h-7 px-2 text-xs cursor-pointer"
+                                                className="mt-3 h-8 w-full justify-center rounded-full bg-background/80 px-3 text-xs cursor-pointer hover:bg-background"
                                                 disabled={markAsReadMutation.isPending}
                                                 onClick={handleMarkNotificationsAsRead}
                                             >
@@ -908,25 +1020,57 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
                                             </Button>
                                         )}
                                     </div>
-                                    <DropdownMenuSeparator />
                                     {!canUseNotifications ? (
-                                        <div className="px-3 py-4 text-sm text-muted-foreground">
-                                            Faça login como usuário para receber alertas de preço.
+                                        <div className="p-4 text-sm text-muted-foreground">
+                                            <div className="rounded-lg border border-dashed border-primary/25 bg-background/70 p-4 text-center">
+                                                <Lock className="mx-auto mb-2 h-5 w-5 text-primary" />
+                                                Faça login como usuário para receber alertas de preço.
+                                            </div>
                                         </div>
                                     ) : notifications.length === 0 ? (
-                                        <div className="px-3 py-4 text-sm text-muted-foreground">
-                                            Não há notificações.
+                                        <div className="p-5 text-center text-sm text-muted-foreground">
+                                            <div className="mx-auto mb-3 grid h-12 w-12 place-items-center rounded-full bg-primary/10 text-primary">
+                                                <Star className="h-5 w-5" />
+                                            </div>
+                                            <p className="font-medium text-foreground">Sem alertas novos</p>
+                                            <p className="mt-1 text-xs">Quando um preço cair, ele aparece aqui.</p>
                                         </div>
                                     ) : (
-                                        notifications.slice(0, 5).map(notification => (
-                                            <DropdownMenuItem key={notification.id} className="items-start gap-2 py-3 cursor-default">
-                                                <span className={`mt-1 h-2 w-2 shrink-0 rounded-full ${notification.read ? 'bg-muted' : 'bg-primary'}`} />
-                                                <div className="min-w-0">
-                                                    <p className="text-sm font-medium text-foreground">{notification.productName}</p>
-                                                    <p className="text-xs text-muted-foreground leading-relaxed">{notification.message}</p>
-                                                </div>
-                                            </DropdownMenuItem>
-                                        ))
+                                        <div className="max-h-96 overflow-auto p-2">
+                                            {notifications.slice(0, 6).map(notification => (
+                                                <DropdownMenuItem
+                                                    key={notification.id}
+                                                    className="mb-1 items-start gap-3 rounded-lg p-3 cursor-default focus:bg-primary/5"
+                                                >
+                                                    <span
+                                                        className={`mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full ring-4 ${notification.read
+                                                            ? 'bg-muted-foreground/25 ring-muted'
+                                                            : 'bg-primary ring-primary/10'
+                                                            }`}
+                                                        aria-hidden="true"
+                                                    />
+                                                    <div className="min-w-0 flex-1">
+                                                        <div className="flex items-start justify-between gap-3">
+                                                            <p className="line-clamp-2 text-sm font-semibold leading-snug text-foreground">
+                                                                {notification.productName}
+                                                            </p>
+                                                            <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-[10px] text-muted-foreground">
+                                                                {formatNotificationTime(notification.createdAt)}
+                                                            </span>
+                                                        </div>
+                                                        <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-muted-foreground">
+                                                            {notification.message}
+                                                        </p>
+                                                        <div className="mt-2 flex flex-wrap items-center gap-1.5 text-[10px]">
+                                                            <Badge variant="secondary" className="rounded-full">
+                                                                R$ {Number(notification.currentPrice).toFixed(2)}
+                                                            </Badge>
+                                                            <span className="text-muted-foreground">em {notification.marketName}</span>
+                                                        </div>
+                                                    </div>
+                                                </DropdownMenuItem>
+                                            ))}
+                                        </div>
                                     )}
                                 </DropdownMenuContent>
                             </DropdownMenu>
@@ -944,7 +1088,14 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
 
                             <Button
                                 variant="outline" size="icon"
-                                onClick={() => setShowListPanel(!showListPanel)}
+                                onClick={() => {
+                                    if (showListPanel) {
+                                        setShowListPanel(false)
+                                        return
+                                    }
+
+                                    openShoppingListPanel()
+                                }}
                                 className="relative rounded-full border-primary/15 bg-white/80 text-muted-foreground hover:border-primary/35 hover:text-primary dark:bg-white/10"
                                 aria-label="Abrir listas de compras"
                             >
@@ -990,7 +1141,7 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
                                         </DropdownMenuItem>
                                     )}
                                     {canUseShoppingLists && (
-                                        <DropdownMenuItem onClick={() => setShowListPanel(true)} className="cursor-pointer">
+                                        <DropdownMenuItem onClick={openShoppingListPanel} className="cursor-pointer">
                                             <List className="w-4 h-4 mr-2" /> Minhas Listas
                                         </DropdownMenuItem>
                                     )}
@@ -1030,59 +1181,66 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
             </header>
 
             <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
-                <section className="mb-6 rounded-lg border border-border bg-card/95 p-5 shadow-sm backdrop-blur">
-                    <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-                        <div>
-                            <div className="flex flex-wrap items-center gap-2">
-                                <Badge variant="secondary" className="gap-1">
-                                    <MapPin className="w-3 h-3" />
-                                    {locationLabel}
-                                </Badge>
-                                <Badge variant="outline">{isGuest ? 'Visitante' : 'Consumidor'}</Badge>
-                            </div>
-                            <h1 className="mt-3 text-2xl font-semibold tracking-tight text-foreground">
-                                {isGuest
-                                    ? 'Boas-vindas ao UniMarket. Explore preços perto de você.'
-                                    : `Olá, ${displayName}! Encontre o melhor preço antes de comprar.`}
-                            </h1>
-                            <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">
-                                {isGuest
-                                    ? 'Você pode comparar produtos e mercados próximos. Para salvar listas e alertas, entre como usuário.'
-                                    : 'Compare produtos, acompanhe mercados próximos e deixe o UniMarket avisar quando o preço ficar bom.'}
-                            </p>
-                        </div>
+                <section className="mb-6 overflow-hidden rounded-lg border border-primary/10 bg-card/95 shadow-sm backdrop-blur">
+                    <div className="relative p-5 sm:p-6">
+                        <div className="pointer-events-none absolute -right-16 -top-20 h-48 w-48 rounded-full bg-primary/10 blur-3xl" />
+                        <div className="pointer-events-none absolute bottom-0 right-10 hidden h-20 w-20 rounded-full bg-uniyellow/30 blur-2xl sm:block" />
 
-                        <div className="grid grid-cols-3 gap-3 text-center">
-                            <div className="rounded-lg border border-border bg-background/70 px-4 py-3">
-                                <p className="text-lg font-semibold tabular-nums text-foreground">{filteredProducts.length}</p>
-                                <p className="text-xs text-muted-foreground">produtos</p>
+                        <div className="relative flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+                            <div className="max-w-3xl">
+                                <div className="flex flex-wrap items-center gap-2">
+                                    <Badge variant="secondary" className="gap-1 rounded-full bg-primary/10 text-primary hover:bg-primary/10">
+                                        <MapPin className="w-3 h-3" />
+                                        {locationLabel}
+                                    </Badge>
+                                    <Badge variant="outline" className="rounded-full bg-background/70">
+                                        {isGuest ? 'Modo exploração' : 'Compra inteligente'}
+                                    </Badge>
+                                </div>
+                                <h1 className="mt-4 text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
+                                    {isGuest ? 'Vamos caçar bons preços?' : `Bora economizar, ${displayName.split(' ')[0] || displayName}?`}
+                                </h1>
+                                <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">
+                                    {isGuest
+                                        ? 'Compare mercados próximos e monte sua rota antes de sair de casa.'
+                                        : 'Sua próxima compra pode começar mais leve: compare, salve favoritos e deixe os alertas trabalharem por você.'}
+                                </p>
                             </div>
-                            <div className="rounded-lg border border-border bg-background/70 px-4 py-3">
-                                <p className="text-lg font-semibold tabular-nums text-foreground">{activeAlertCount}</p>
-                                <p className="text-xs text-muted-foreground">alertas</p>
-                            </div>
-                            <div className="rounded-lg border border-border bg-background/70 px-4 py-3">
-                                <p className="text-lg font-semibold tabular-nums text-primary">R$ {totalListSavings.toFixed(2)}</p>
-                                <p className="text-xs text-muted-foreground">economia</p>
+
+                            <div className="rounded-lg border border-primary/10 bg-background/80 p-4 shadow-sm">
+                                <div className="flex items-center gap-3">
+                                    <div className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-primary text-primary-foreground shadow-sm">
+                                        <CircleDollarSign className="h-5 w-5" />
+                                    </div>
+                                    <div>
+                                        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Dica rápida</p>
+                                        <p className="mt-0.5 text-sm font-semibold text-foreground">
+                                            {activeAlertCount > 0
+                                                ? `${activeAlertCount} alerta${activeAlertCount !== 1 ? 's' : ''} monitorando preço`
+                                                : 'Crie alertas nos produtos que você compra sempre'}
+                                        </p>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
 
-                    <div className="mt-5 flex flex-col gap-3 border-t border-border pt-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex flex-col gap-3 border-t border-primary/10 bg-background/55 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
                         <div className="flex flex-wrap gap-2">
                             {canUseShoppingLists && (
-                                <Button size="sm" onClick={() => setShowListPanel(true)}>
+                                <Button size="sm" onClick={openShoppingListPanel} className="rounded-full">
                                     <ShoppingCart className="w-4 h-4" />
                                     Minhas listas
                                 </Button>
                             )}
-                            <Button variant="outline" size="sm" onClick={handleOpenProfile}>
+                            <Button variant="outline" size="sm" onClick={handleOpenProfile} className="rounded-full bg-background/80">
                                 <User className="w-4 h-4" />
                                 {isGuest ? 'Salvar preferências' : 'Perfil e preferências'}
                             </Button>
                         </div>
-                        <div className="text-xs text-muted-foreground">
-                            {unreadCount > 0 ? `${unreadCount} notificação${unreadCount !== 1 ? 'ões' : ''} aguardando leitura` : 'Tudo em dia nas notificações'}
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                            <span className={`h-2 w-2 rounded-full ${unreadCount > 0 ? 'bg-uniyellow' : 'bg-green-500'}`} />
+                            {unreadCount > 0 ? `${unreadCount} notificação${unreadCount !== 1 ? 'ões' : ''} aguardando leitura` : 'Sem novidades pendentes'}
                         </div>
                     </div>
                 </section>
@@ -1124,12 +1282,17 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
                                     </p>
                                     <input
                                         type="range" min={1} max={10} value={maxDistance}
-                                        onChange={e => setMaxDistance(Number(e.target.value))}
+                                        onChange={e => {
+                                            setMaxDistance(Number(e.target.value))
+                                            setIsDistanceFilterActive(true)
+                                        }}
                                         className="w-full accent-primary"
                                     />
                                     <div className="flex justify-between text-xs text-muted-foreground mt-1">
                                         <span>1 km</span>
-                                        <span className="text-primary font-medium">{maxDistance} km</span>
+                                        <span className="text-primary font-medium">
+                                            {isDistanceFilterActive ? `${maxDistance} km` : 'Todos'}
+                                        </span>
                                         <span>10 km</span>
                                     </div>
                                 </div>
@@ -1140,12 +1303,17 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
                                     </p>
                                     <input
                                         type="range" min={5} max={200} value={maxPrice}
-                                        onChange={e => setMaxPrice(Number(e.target.value))}
+                                        onChange={e => {
+                                            setMaxPrice(Number(e.target.value))
+                                            setIsMaxPriceFilterActive(true)
+                                        }}
                                         className="w-full accent-primary"
                                     />
                                     <div className="flex justify-between text-xs text-muted-foreground mt-1">
                                         <span>R$ 5</span>
-                                        <span className="text-primary font-medium">R$ {maxPrice}</span>
+                                        <span className="text-primary font-medium">
+                                            {isMaxPriceFilterActive ? `R$ ${maxPrice}` : 'Todos'}
+                                        </span>
                                         <span>R$ 200</span>
                                     </div>
                                 </div>
@@ -1172,7 +1340,14 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
 
                                 <Button
                                     variant="outline" size="sm" className="w-full text-xs"
-                                    onClick={() => { setSelectedCategory('all'); setMaxDistance(5); setMaxPrice(100); setSortBy('lowest-price') }}
+                                    onClick={() => {
+                                        setSelectedCategory('all')
+                                        setMaxDistance(5)
+                                        setMaxPrice(100)
+                                        setIsDistanceFilterActive(false)
+                                        setIsMaxPriceFilterActive(false)
+                                        setSortBy('lowest-price')
+                                    }}
                                 >
                                     Limpar filtros
                                 </Button>
@@ -1303,21 +1478,35 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
 
                     {/*PAINEL DE LISTAS*/}
                     {showListPanel && (
-                        <aside className="w-full shrink-0 lg:w-80">
-                            <Card className="border-border p-4 sticky top-32">
-                                <div className="flex items-center justify-between mb-4">
-                                    <div className="flex items-center gap-2">
-                                        <ShoppingCart className="w-4 h-4 text-primary" />
-                                        <span className="font-semibold text-foreground text-sm">Minhas Listas</span>
+                        <aside ref={shoppingListPanelRef} className="w-full shrink-0 scroll-mt-28 lg:w-80">
+                            <Card className="sticky top-32 overflow-hidden border-primary/10 p-0 shadow-sm">
+                                <div className="bg-primary/5 p-4">
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-3">
+                                            <div className="grid h-10 w-10 place-items-center rounded-full bg-primary text-primary-foreground shadow-sm">
+                                                <ShoppingCart className="w-4 h-4" />
+                                            </div>
+                                            <div>
+                                                <span className="font-semibold text-foreground text-sm">Minhas listas</span>
+                                                <p className="text-xs text-muted-foreground">
+                                                    {totalListItems > 0 ? `${totalListItems} item${totalListItems !== 1 ? 's' : ''} salvos` : 'Monte sua próxima compra'}
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowListPanel(false)}
+                                            className="rounded-full p-1.5 text-muted-foreground transition hover:bg-background hover:text-foreground"
+                                            aria-label="Fechar listas de compras"
+                                        >
+                                            <X className="w-4 h-4" />
+                                        </button>
                                     </div>
-                                    <button onClick={() => setShowListPanel(false)} className="text-muted-foreground hover:text-foreground">
-                                        <X className="w-4 h-4" />
-                                    </button>
                                 </div>
 
-                                <div className="space-y-3">
+                                <div className="space-y-3 p-4">
                                     {!canUseShoppingLists ? (
-                                        <div className="rounded-lg border border-border bg-muted/40 p-4 text-center">
+                                        <div className="rounded-lg border border-dashed border-primary/25 bg-muted/30 p-4 text-center">
                                             <div className="mx-auto mb-3 grid h-10 w-10 place-items-center rounded-full bg-primary/10 text-primary">
                                                 <Lock className="h-5 w-5" />
                                             </div>
@@ -1334,8 +1523,10 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
                                             <Skeleton key={index} className="h-20 w-full" />
                                         ))
                                     ) : shoppingLists.length === 0 ? (
-                                        <div className="rounded-lg border border-border bg-muted/40 p-3 text-sm text-muted-foreground">
-                                            Nenhuma lista criada. Comece pela lista da semana ou do mês.
+                                        <div className="rounded-lg border border-dashed border-primary/25 bg-primary/5 p-4 text-center text-sm text-muted-foreground">
+                                            <List className="mx-auto mb-2 h-5 w-5 text-primary" />
+                                            Nenhuma lista criada ainda.
+                                            <span className="mt-1 block text-xs">Comece pela lista da semana ou do mês.</span>
                                         </div>
                                     ) : shoppingLists.map(list => {
                                         const stats = shoppingListStats.get(list.id) ?? { items: 0, total: 0 }
@@ -1346,31 +1537,34 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
                                                 key={list.id}
                                                 type="button"
                                                 onClick={() => setSelectedShoppingListId(list.id)}
-                                                className={`w-full rounded-lg border p-3 text-left transition-colors ${selected ? 'border-primary bg-primary/5' : 'border-border bg-muted hover:bg-primary/10'}`}
+                                                className={`w-full rounded-lg border p-3 text-left transition-all hover:-translate-y-0.5 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${selected ? 'border-primary bg-primary/10 shadow-sm' : 'border-border bg-background hover:bg-primary/5'}`}
                                             >
                                                 <div className="mb-2 flex items-center justify-between gap-2">
                                                     <p className="truncate text-sm font-medium text-foreground">{list.name}</p>
-                                                    <Badge variant="secondary" className="text-[10px]">{stats.items} itens</Badge>
+                                                    <Badge variant="secondary" className="rounded-full text-[10px]">{stats.items} itens</Badge>
                                                 </div>
                                                 <div className="flex justify-between text-xs">
                                                     <span className="text-muted-foreground">Total estimado</span>
-                                                    <span className="font-medium text-foreground">R$ {stats.total.toFixed(2)}</span>
+                                                    <span className="font-semibold text-foreground">R$ {stats.total.toFixed(2)}</span>
                                                 </div>
                                             </button>
                                         )
                                     })}
+
+                                    {canUseShoppingLists && (
+                                        <Button size="sm" className="w-full rounded-full text-xs gap-1.5" onClick={() => setNewListOpen(true)}>
+                                            <Plus className="w-3.5 h-3.5" /> Nova lista
+                                        </Button>
+                                    )}
                                 </div>
 
-                                {canUseShoppingLists && (
-                                    <Button size="sm" className="w-full mt-4 text-xs gap-1.5" onClick={() => setNewListOpen(true)}>
-                                        <Plus className="w-3.5 h-3.5" /> Nova Lista
-                                    </Button>
-                                )}
-
                                 {canUseShoppingLists && selectedShoppingListId && (
-                                    <div className="mt-4 rounded-lg border border-border bg-background/70">
+                                    <div className="mx-4 rounded-lg border border-border bg-background/80">
                                         <div className="flex items-center justify-between border-b border-border p-3">
-                                            <span className="text-xs font-semibold text-foreground">Itens da lista</span>
+                                            <div>
+                                                <span className="text-xs font-semibold text-foreground">Itens da lista</span>
+                                                <p className="text-[10px] text-muted-foreground">{selectedListItems.length} item{selectedListItems.length !== 1 ? 's' : ''} selecionado{selectedListItems.length !== 1 ? 's' : ''}</p>
+                                            </div>
                                             <Button
                                                 variant="ghost"
                                                 size="icon-xs"
@@ -1383,12 +1577,15 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
                                         </div>
                                         <div className="max-h-64 divide-y divide-border overflow-auto">
                                             {selectedListItems.length === 0 ? (
-                                                <p className="p-3 text-xs text-muted-foreground">Adicione produtos para comparar o total.</p>
+                                                <div className="p-4 text-center text-xs text-muted-foreground">
+                                                    <Package className="mx-auto mb-2 h-5 w-5 opacity-40" />
+                                                    Adicione produtos para comparar o total.
+                                                </div>
                                             ) : selectedListItems.map(item => (
-                                                <div key={item.id} className="p-3">
+                                                <div key={item.id} className="p-3 transition-colors hover:bg-muted/40">
                                                     <div className="flex items-start justify-between gap-2">
                                                         <div className="min-w-0">
-                                                            <p className="truncate text-xs font-semibold text-foreground">{item.productName}</p>
+                                                            <p className="line-clamp-2 text-xs font-semibold text-foreground">{item.productName}</p>
                                                             <p className="mt-1 text-[11px] text-muted-foreground">{item.marketName} • {item.quantity} un.</p>
                                                         </div>
                                                         <Button
@@ -1401,7 +1598,9 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
                                                             <X className="h-3 w-3" />
                                                         </Button>
                                                     </div>
-                                                    <p className="mt-2 text-xs font-semibold text-primary">R$ {(Number(item.price) * item.quantity).toFixed(2)}</p>
+                                                    <p className="mt-2 inline-flex rounded-full bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary">
+                                                        R$ {(Number(item.price) * item.quantity).toFixed(2)}
+                                                    </p>
                                                 </div>
                                             ))}
                                         </div>
@@ -1409,15 +1608,17 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
                                 )}
 
                                 {canUseShoppingLists && (
-                                    <div className="mt-4 p-3 bg-primary/10 rounded-lg">
-                                        <div className="flex items-center gap-1.5 mb-1">
-                                            <CircleDollarSign className="w-3.5 h-3.5 text-primary" />
-                                            <span className="text-xs font-semibold text-primary">Total selecionado</span>
+                                    <div className="m-4 rounded-lg bg-primary p-4 text-primary-foreground shadow-sm">
+                                        <div className="mb-1 flex items-center gap-1.5">
+                                            <CircleDollarSign className="w-3.5 h-3.5" />
+                                            <span className="text-xs font-semibold">Total selecionado</span>
                                         </div>
-                                        <p className="text-xl font-bold text-primary">
+                                        <p className="text-2xl font-bold">
                                             R$ {selectedListTotal.toFixed(2)}
                                         </p>
-                                        <p className="text-[10px] text-muted-foreground mt-0.5">economia estimada: R$ {totalListSavings.toFixed(2)}</p>
+                                        <p className="mt-1 text-[11px] text-primary-foreground/80">
+                                            Economia estimada: R$ {totalListSavings.toFixed(2)}
+                                        </p>
                                     </div>
                                 )}
                             </Card>

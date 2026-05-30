@@ -1,6 +1,7 @@
 package com.unimarket.backend.entity;
 
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 
 import org.hibernate.annotations.SQLDelete;
 import org.hibernate.annotations.SQLRestriction;
@@ -38,6 +39,8 @@ import lombok.Setter;
 )
 @Schema(description = "Entidade representando o vínculo entre um mercado e um produto")
 public class MarketProduct {
+
+    private static final ZoneId APPLICATION_ZONE = ZoneId.of("America/Sao_Paulo");
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -84,13 +87,18 @@ public class MarketProduct {
     @PrePersist
     public void prePersist() {
         // define a data no momento do save
-        this.createdAt = LocalDateTime.now();
-        this.updatedAt = LocalDateTime.now();
+        LocalDateTime now = nowInApplicationZone();
+        this.createdAt = now;
+        this.updatedAt = now;
     }
 
     @PreUpdate
     public void preUpdate() {
         // atualiza a data a cada alteração no registro
-        this.updatedAt = LocalDateTime.now();
+        this.updatedAt = nowInApplicationZone();
+    }
+
+    private LocalDateTime nowInApplicationZone() {
+        return LocalDateTime.now(APPLICATION_ZONE);
     }
 }

@@ -1,14 +1,18 @@
 package com.unimarket.backend.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.Optional;
+import java.util.TimeZone;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -101,6 +105,34 @@ class MarketProductServiceTest {
         RuntimeException exception = assertThrows(RuntimeException.class, () -> service.createProduct(request, 1L));
 
         assertEquals("Categoria não encontrada. Selecione uma categoria manualmente.", exception.getMessage());
+    }
+
+    @Test
+    void marketProductTimestampsUseApplicationTimezone() {
+        ZoneId applicationZone = ZoneId.of("America/Sao_Paulo");
+        TimeZone originalTimeZone = TimeZone.getDefault();
+        TimeZone.setDefault(TimeZone.getTimeZone("UTC"));
+
+        try {
+            LocalDateTime before = LocalDateTime.now(applicationZone).minusSeconds(1);
+
+            MarketProduct marketProduct = new MarketProduct();
+            marketProduct.prePersist();
+
+            LocalDateTime after = LocalDateTime.now(applicationZone).plusSeconds(1);
+
+            assertFalse(marketProduct.getCreatedAt().isBefore(before));
+            assertFalse(marketProduct.getCreatedAt().isAfter(after));
+            assertEquals(marketProduct.getCreatedAt(), marketProduct.getUpdatedAt());
+
+            LocalDateTime firstUpdate = marketProduct.getUpdatedAt();
+            marketProduct.preUpdate();
+
+            assertTrue(!marketProduct.getUpdatedAt().isBefore(firstUpdate));
+            assertFalse(marketProduct.getUpdatedAt().isAfter(LocalDateTime.now(applicationZone).plusSeconds(1)));
+        } finally {
+            TimeZone.setDefault(originalTimeZone);
+        }
     }
 
     private ProductRequestDTO productRequest() {

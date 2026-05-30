@@ -16,6 +16,7 @@ import org.springframework.stereotype.Service;
 import com.unimarket.backend.dto.MarketDTO;
 import com.unimarket.backend.dto.MarketProfileUpdateDTO;
 import com.unimarket.backend.dto.MarketResponseDTO;
+import com.unimarket.backend.dto.location.CepLocationResponseDTO;
 import com.unimarket.backend.dto.location.CnpjLocationData;
 import com.unimarket.backend.dto.location.Coordinates;
 import com.unimarket.backend.entity.Market;
@@ -44,6 +45,9 @@ public class MarketService {
 
     @Autowired
     private GoogleMapsGeocodingService googleMapsGeocodingService;
+
+    @Autowired
+    private LocationService locationService;
 
     // Cadastro publico do supermercado, com normalizacao de CNPJ e enriquecimento inicial.
     public Market register(MarketDTO dto) {
@@ -232,12 +236,47 @@ public class MarketService {
         brasilApiCnpjService.findLocationByCnpj(market.getCnpj())
                 .ifPresent(location -> applyCnpjLocation(market, location));
 
+        if (!hasCoordinates(market) && hasText(market.getZipCode())) {
+            try {
+                applyCepLocation(market, locationService.findByCep(market.getZipCode()));
+            } catch (RuntimeException exception) {
+                // Mantem o fluxo com o fallback de geocodificacao por endereco abaixo.
+            }
+        }
+
         if (!hasCoordinates(market)) {
             Optional<Coordinates> coordinates = googleMapsGeocodingService.geocode(buildAddressQuery(market));
             coordinates.ifPresent(location -> {
                 market.setLatitude(location.latitude());
                 market.setLongitude(location.longitude());
             });
+        }
+    }
+
+    private void applyCepLocation(Market market, CepLocationResponseDTO location) {
+        if (isBlankOrPending(market.getStreetAddress()) && hasText(location.streetAddress())) {
+            market.setStreetAddress(location.streetAddress());
+        }
+
+        if (isBlankOrPending(market.getNeighborhood()) && hasText(location.neighborhood())) {
+            market.setNeighborhood(location.neighborhood());
+        }
+
+        if (!hasText(market.getCity()) && hasText(location.city())) {
+            market.setCity(location.city());
+        }
+
+        if (!hasText(market.getState()) && hasText(location.state())) {
+            market.setState(location.state());
+        }
+
+        if (!hasText(market.getZipCode()) && hasText(location.zipCode())) {
+            market.setZipCode(onlyDigits(location.zipCode()));
+        }
+
+        if (Boolean.TRUE.equals(location.hasCoordinates())) {
+            market.setLatitude(location.latitude());
+            market.setLongitude(location.longitude());
         }
     }
 

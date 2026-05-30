@@ -106,8 +106,8 @@ export function EditProductDialog({ product, marketId, onSuccess }: EditProductD
                     </DialogDescription>
                 </DialogHeader>
 
-                <form onSubmit={handleSubmit} className="space-y-4">
-                    <div className="flex gap-3 rounded-lg border border-border bg-muted/30 p-3">
+                <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4">
+                    <div className="flex min-w-0 items-start gap-3 rounded-lg border border-border bg-muted/30 p-3">
                         {product.imageUrl ? (
                             <img src={product.imageUrl} alt="" className="h-14 w-14 shrink-0 rounded-md border border-border object-cover" />
                         ) : (
@@ -116,21 +116,21 @@ export function EditProductDialog({ product, marketId, onSuccess }: EditProductD
                             </div>
                         )}
                         <div className="min-w-0 flex-1">
-                            <div className="flex flex-wrap items-center gap-2">
-                                <p className="truncate text-sm font-semibold text-foreground">{product.productName}</p>
+                            <div className="flex min-w-0 flex-col gap-1 sm:flex-row sm:flex-wrap sm:items-center sm:gap-2">
+                                <p className="line-clamp-2 text-sm font-semibold leading-snug text-foreground">{product.productName}</p>
                                 {product.categoryName && (
-                                    <Badge variant="secondary" className="font-normal">
+                                    <Badge variant="secondary" className="w-fit max-w-full truncate font-normal">
                                         {product.categoryName}
                                     </Badge>
                                 )}
                             </div>
-                            <p className="mt-1 truncate text-xs text-muted-foreground">
+                            <p className="mt-1 break-words text-xs text-muted-foreground">
                                 {[product.brand, product.barCode ? `EAN ${product.barCode}` : null].filter(Boolean).join(' • ') || 'Produto do catálogo'}
                             </p>
                         </div>
                     </div>
 
-                    <div className="grid gap-4 sm:grid-cols-2">
+                    <div className="grid min-w-0 gap-3 sm:grid-cols-2 sm:gap-4">
                         <div className="space-y-1.5">
                             <Label htmlFor="price">Preço (R$)</Label>
                             <div className="relative">
@@ -167,22 +167,22 @@ export function EditProductDialog({ product, marketId, onSuccess }: EditProductD
                         </div>
                     </div>
 
-                    <div className="grid gap-3 rounded-lg border border-border bg-card p-3 sm:grid-cols-2">
+                    <div className="grid min-w-0 gap-3 rounded-lg border border-border bg-card p-3 sm:grid-cols-2">
                         <div className="flex items-center gap-2 text-sm text-muted-foreground">
                             <Barcode className="h-4 w-4 text-primary" />
-                            {product.barCode || 'Sem código de barras'}
+                            <span className="min-w-0 truncate">{product.barCode || 'Sem código de barras'}</span>
                         </div>
-                        <div className="text-sm sm:text-right">
+                        <div className="min-w-0 text-sm sm:text-right">
                             <span className="text-muted-foreground">Valor em estoque: </span>
-                            <span className="font-semibold tabular-nums text-foreground">{inventoryValue}</span>
+                            <span className="break-words font-semibold tabular-nums text-foreground">{inventoryValue}</span>
                         </div>
                     </div>
 
-                    <DialogFooter className="gap-2 pt-2">
-                        <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+                    <DialogFooter className="pt-2">
+                        <Button type="button" variant="outline" className="w-full sm:w-auto" onClick={() => setOpen(false)}>
                             Cancelar
                         </Button>
-                        <Button type="submit" disabled={loading}>
+                        <Button type="submit" className="w-full sm:w-auto" disabled={loading}>
                             {loading && <Loader2 className="h-4 w-4 animate-spin" />}
                             {loading ? 'Salvando...' : 'Salvar'}
                         </Button>

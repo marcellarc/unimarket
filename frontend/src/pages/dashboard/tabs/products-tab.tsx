@@ -238,7 +238,51 @@ export function ProductsTab() {
                 </Card>
             )}
 
-            <Card className="overflow-hidden">
+            <div className="space-y-3 md:hidden">
+                {isLoading || isSearching ? (
+                    Array.from({ length: 4 }).map((_, index) => (
+                        <Card key={index} className="gap-3 p-4">
+                            <div className="flex gap-3">
+                                <Skeleton className="h-12 w-12 shrink-0 rounded-md" />
+                                <div className="min-w-0 flex-1 space-y-2">
+                                    <Skeleton className="h-4 w-4/5" />
+                                    <Skeleton className="h-3 w-3/5" />
+                                </div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-2">
+                                <Skeleton className="h-14 w-full" />
+                                <Skeleton className="h-14 w-full" />
+                            </div>
+                        </Card>
+                    ))
+                ) : filteredProducts.length === 0 ? (
+                    <Card className="p-6 text-center">
+                        <div className="flex flex-col items-center gap-3 text-muted-foreground">
+                            <Archive className="h-9 w-9 opacity-30" />
+                            <div>
+                                <p className="font-medium text-foreground">
+                                    {searchQuery ? 'Nenhum item encontrado' : 'Nenhum produto no estoque'}
+                                </p>
+                                <p className="mt-1 text-sm">
+                                    {searchQuery ? `NÃ£o hÃ¡ resultados para "${searchQuery}".` : 'Cadastre o primeiro produto para comeÃ§ar a gestÃ£o.'}
+                                </p>
+                            </div>
+                            {!searchQuery && <ProductFormDialog marketId={marketId} />}
+                        </div>
+                    </Card>
+                ) : filteredProducts.map((product) => (
+                    <MobileProductCard
+                        key={product.id}
+                        product={product}
+                        marketId={marketId}
+                        deletePending={deleteMutation.isPending}
+                        onDelete={handleDelete}
+                        onInventoryChanged={handleInventoryChanged}
+                    />
+                ))}
+            </div>
+
+            <Card className="hidden overflow-hidden md:block">
                 {isLoading || isSearching ? (
                     <div className="space-y-3 p-5">
                         {Array.from({ length: 5 }).map((_, index) => (
@@ -385,6 +429,82 @@ function InventoryMetric({
                 </div>
                 <div className={`grid h-10 w-10 place-items-center rounded-md ${tone === 'warning' ? 'bg-amber-50 text-amber-700' : 'bg-primary/10 text-primary'}`}>
                     <Icon className="h-5 w-5" />
+                </div>
+            </div>
+        </Card>
+    )
+}
+
+function MobileProductCard({
+    product,
+    marketId,
+    deletePending,
+    onDelete,
+    onInventoryChanged,
+}: {
+    product: MarketProductResponse
+    marketId: number
+    deletePending: boolean
+    onDelete: (product: MarketProductResponse) => void
+    onInventoryChanged: () => void
+}) {
+    const stockStatus = getStockStatus(product.stockQuantity)
+
+    return (
+        <Card className="gap-4 p-4">
+            <div className="flex min-w-0 items-start gap-3">
+                {product.imageUrl ? (
+                    <img src={product.imageUrl} alt="" className="h-12 w-12 shrink-0 rounded-md border border-border object-cover" />
+                ) : (
+                    <div className="grid h-12 w-12 shrink-0 place-items-center rounded-md border border-border bg-muted text-muted-foreground">
+                        <Barcode className="h-4 w-4" />
+                    </div>
+                )}
+                <div className="min-w-0 flex-1">
+                    <p className="line-clamp-2 text-sm font-semibold leading-snug text-foreground">{product.productName}</p>
+                    <p className="mt-1 break-words text-xs text-muted-foreground">
+                        {[product.brand, product.barCode ? `EAN ${product.barCode}` : null].filter(Boolean).join(' â€¢ ') || 'Produto do catÃ¡logo'}
+                    </p>
+                </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+                <div className="rounded-md border border-border bg-muted/30 p-3">
+                    <p className="text-[11px] font-medium text-muted-foreground">PreÃ§o</p>
+                    <p className="mt-1 break-words text-sm font-semibold tabular-nums text-foreground">{formatCurrency(product.price)}</p>
+                </div>
+                <div className="rounded-md border border-border bg-muted/30 p-3">
+                    <p className="text-[11px] font-medium text-muted-foreground">Estoque</p>
+                    <p className="mt-1 text-sm font-semibold tabular-nums text-foreground">{product.stockQuantity ?? 0} un.</p>
+                </div>
+            </div>
+
+            <div className="flex flex-wrap items-center justify-between gap-2">
+                <Badge variant="secondary" className="max-w-full truncate font-normal">
+                    {product.categoryName || 'Sem categoria'}
+                </Badge>
+                <span className={`inline-flex w-fit rounded-md border px-2 py-0.5 text-[11px] font-medium ${stockStatus.className}`}>
+                    {stockStatus.label}
+                </span>
+            </div>
+
+            <div className="flex items-center justify-between gap-2 border-t border-border pt-3">
+                <div className="flex min-w-0 items-center gap-1.5 text-muted-foreground">
+                    <Clock className="h-3.5 w-3.5 shrink-0" />
+                    <span className="truncate text-xs tabular-nums">{formatDate(product.updatedAt)}</span>
+                </div>
+                <div className="flex shrink-0 items-center gap-1">
+                    <EditProductDialog product={product} marketId={marketId} onSuccess={onInventoryChanged} />
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-muted-foreground hover:bg-transparent hover:text-destructive"
+                        title="Remover do estoque"
+                        onClick={() => onDelete(product)}
+                        disabled={deletePending}
+                    >
+                        <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
                 </div>
             </div>
         </Card>
