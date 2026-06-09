@@ -5,7 +5,8 @@ import { listProducts } from '@/services/product'
 import type { MarketProductResponse } from '@/types/product'
 import { useQuery } from '@tanstack/react-query'
 import Cookies from 'js-cookie'
-import { ArrowRight, Boxes, Package, TrendingUp } from 'lucide-react'
+import { Boxes, Package, TrendingUp } from 'lucide-react'
+import { useMemo } from 'react'
 
 const currency = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' })
 
@@ -21,6 +22,7 @@ const formatDate = (dateString: string | null | undefined) => {
 function getInventoryStats(products: MarketProductResponse[]) {
     const totalProducts = products.length
     const inStock = products.filter((product) => (product.stockQuantity ?? 0) > 0).length
+    const outOfStock = products.filter((product) => (product.stockQuantity ?? 0) <= 0).length
     const lowStock = products.filter((product) => {
         const stock = product.stockQuantity ?? 0
         return stock > 0 && stock <= 5
@@ -41,7 +43,7 @@ function getInventoryStats(products: MarketProductResponse[]) {
         ? Math.round((products.filter((product) => (product.price ?? 0) > 0).length / totalProducts) * 100)
         : 0
 
-    return { averagePrice, catalogQuality, inStock, inventoryValue, lowStock, pricingCoverage, stockCoverage, totalProducts }
+    return { averagePrice, catalogQuality, inStock, inventoryValue, lowStock, outOfStock, pricingCoverage, stockCoverage, totalProducts }
 }
 
 interface OverviewTabProps {
@@ -58,10 +60,12 @@ export function OverviewTab({ onNavigateToProducts }: OverviewTabProps) {
         enabled: !!marketId,
     })
 
-    const stats = getInventoryStats(products)
-    const recentProducts = [...products]
+    const stats = useMemo(() => getInventoryStats(products), [products])
+    const recentProducts = useMemo(() => [...products]
         .sort((first, second) => new Date(second.updatedAt ?? 0).getTime() - new Date(first.updatedAt ?? 0).getTime())
-        .slice(0, 5)
+        .slice(0, 5),
+        [products],
+    )
 
     return (
         <div className="space-y-6">
@@ -74,17 +78,13 @@ export function OverviewTab({ onNavigateToProducts }: OverviewTabProps) {
                             Acompanhe a qualidade do catálogo, o saldo disponível e os preços que aparecem para clientes.
                         </p>
                     </div>
-                    <Button variant="outline" size="sm" className="w-full sm:w-auto" onClick={onNavigateToProducts}>
-                        Gerenciar estoque
-                        <ArrowRight className="h-4 w-4" />
-                    </Button>
                 </div>
             </section>
 
             <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
                 <StatCard icon={Package} label="Catálogo" value={String(stats.totalProducts)} detail="Produtos ativos no mercado" />
                 <StatCard icon={Boxes} label="Disponibilidade" value={`${stats.stockCoverage}%`} detail={`${stats.inStock} item(ns) com estoque`} tone={stats.stockCoverage < 60 ? 'warning' : 'success'} />
-                <StatCard label="Valor em estoque" value={currency.format(stats.inventoryValue)} detail={`${stats.lowStock} item(ns) precisam atenção`} tone={stats.lowStock > 0 ? 'warning' : 'default'} />
+                <StatCard label="Valor em estoque" value={currency.format(stats.inventoryValue)} detail={`${stats.outOfStock} sem estoque · ${stats.lowStock} baixo`} tone={stats.lowStock + stats.outOfStock > 0 ? 'warning' : 'default'} />
                 <StatCard icon={TrendingUp} label="Preço médio" value={currency.format(stats.averagePrice)} detail="Média dos produtos cadastrados" />
             </div>
 
@@ -95,9 +95,6 @@ export function OverviewTab({ onNavigateToProducts }: OverviewTabProps) {
                             <h3 className="text-base font-semibold text-foreground">Atualizações recentes</h3>
                             <p className="mt-1 text-sm text-muted-foreground">Últimos produtos alterados no inventário.</p>
                         </div>
-                        <Button variant="ghost" size="sm" onClick={onNavigateToProducts}>
-                            Ver tudo
-                        </Button>
                     </div>
 
                     {isLoading ? (
@@ -169,12 +166,12 @@ export function OverviewTab({ onNavigateToProducts }: OverviewTabProps) {
                     <Card className="p-5">
                         <h3 className="text-base font-semibold text-foreground">Próxima ação recomendada</h3>
                         <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-                            {stats.lowStock > 0
-                                ? `Revise os ${stats.lowStock} produto(s) com estoque baixo para manter a disponibilidade visível.`
+                            {stats.lowStock + stats.outOfStock > 0
+                                ? `Revise ${stats.lowStock + stats.outOfStock} produto(s) com estoque zerado ou baixo para manter a disponibilidade visível.`
                                 : 'Mantenha preços e estoque atualizados para melhorar a confiança dos clientes.'}
                         </p>
                         <Button className="mt-4 w-full" onClick={onNavigateToProducts}>
-                            Abrir estoque
+                            {stats.lowStock + stats.outOfStock > 0 ? 'Revisar estoque' : 'Gerenciar estoque'}
                         </Button>
                     </Card>
                 </aside>

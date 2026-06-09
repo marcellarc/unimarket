@@ -186,7 +186,7 @@ export function ProductFormDialog({ marketId }: ProductFormDialogProps) {
                 return nextCategories.sort((first, second) => first.name.localeCompare(second.name))
             })
             return createdCategory
-        } catch (error) {
+        } catch {
             const refreshedCategories = (await refetchCategories()).data ?? []
             return findSimilarCategory(refreshedCategories, suggestedName)
         }

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { memo, useCallback, useDeferredValue, useMemo, useState } from 'react'
 import type { ComponentType } from 'react'
 import {
     AlertCircle,
@@ -65,10 +65,19 @@ function getInventorySummary(products: MarketProductResponse[]) {
     return { totalItems, outOfStock, lowStock, totalStock, totalValue }
 }
 
+type StockFilter = 'all' | 'attention'
+
+function needsStockAttention(product: MarketProductResponse) {
+    const stock = product.stockQuantity ?? 0
+    return stock <= 5
+}
+
 export function ProductsTab() {
     const [searchQuery, setSearchQuery] = useState('')
     const [selectedCategory, setSelectedCategory] = useState('all')
+    const [stockFilter, setStockFilter] = useState<StockFilter>('all')
     const [showFilters, setShowFilters] = useState(false)
+    const deferredSearchQuery = useDeferredValue(searchQuery)
     const queryClient = useQueryClient()
 
     const marketIdStr = Cookies.get('marketId')
@@ -90,9 +99,9 @@ export function ProductsTab() {
         data: searchedProducts = [],
         isLoading: isSearching,
     } = useQuery({
-        queryKey: ['searchProductsByMarketId', marketId, searchQuery],
-        queryFn: () => searchProductsByMarketId(marketId, { name: searchQuery }),
-        enabled: searchQuery.trim().length > 0 && !!marketId,
+        queryKey: ['searchProductsByMarketId', marketId, deferredSearchQuery],
+        queryFn: () => searchProductsByMarketId(marketId, { name: deferredSearchQuery.trim() }),
+        enabled: deferredSearchQuery.trim().length > 0 && !!marketId,
     })
 
     const deleteMutation = useMutation({
@@ -107,34 +116,48 @@ export function ProductsTab() {
         },
     })
 
-    const categories = useMemo(() => {
-        const categoryNames = products
-            .map((product) => product.categoryName || 'Sem categoria')
-            .filter(Boolean)
-            .sort((first, second) => first.localeCompare(second, 'pt-BR'))
+    const categoryCounts = useMemo(() => {
+        const counts = new Map<string, number>()
 
-        return ['all', ...Array.from(new Set(categoryNames))]
+        products.forEach((product) => {
+            const categoryName = product.categoryName || 'Sem categoria'
+            counts.set(categoryName, (counts.get(categoryName) ?? 0) + 1)
+        })
+
+        return counts
     }, [products])
 
-    const displayProducts = searchQuery.trim().length > 0 ? searchedProducts : products
+    const categories = useMemo(() =>
+        ['all', ...Array.from(categoryCounts.keys()).sort((first, second) => first.localeCompare(second, 'pt-BR'))],
+        [categoryCounts],
+    )
+
+    const displayProducts = useMemo(() =>
+        deferredSearchQuery.trim().length > 0 ? searchedProducts : products,
+        [deferredSearchQuery, products, searchedProducts],
+    )
     const filteredProducts = useMemo(() => displayProducts.filter((product) => {
         const categoryName = product.categoryName || 'Sem categoria'
-        return selectedCategory === 'all' || categoryName === selectedCategory
-    }), [displayProducts, selectedCategory])
+        const matchesCategory = selectedCategory === 'all' || categoryName === selectedCategory
+        const matchesStock = stockFilter === 'all' || needsStockAttention(product)
+
+        return matchesCategory && matchesStock
+    }), [displayProducts, selectedCategory, stockFilter])
 
     const summary = useMemo(() => getInventorySummary(products), [products])
+    const attentionCount = summary.lowStock + summary.outOfStock
 
-    function handleDelete(product: MarketProductResponse) {
+    const handleDelete = useCallback((product: MarketProductResponse) => {
         const confirmed = window.confirm(`Remover "${product.productName}" do estoque deste mercado?`)
         if (!confirmed) return
 
         deleteMutation.mutate(product.productId)
-    }
+    }, [deleteMutation])
 
-    function handleInventoryChanged() {
+    const handleInventoryChanged = useCallback(() => {
         refetch()
         queryClient.invalidateQueries({ queryKey: ['searchProductsByMarketId', marketId] })
-    }
+    }, [marketId, queryClient, refetch])
 
     if (isError) {
         return (
@@ -179,7 +202,16 @@ export function ProductsTab() {
             <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
                 <InventoryMetric icon={Package} label="Produtos ativos" value={summary.totalItems.toString()} />
                 <InventoryMetric icon={Boxes} label="Unidades em estoque" value={summary.totalStock.toString()} />
-                <InventoryMetric icon={AlertCircle} label="Atenção no estoque" value={(summary.lowStock + summary.outOfStock).toString()} tone={summary.lowStock + summary.outOfStock > 0 ? 'warning' : 'default'} />
+                <InventoryMetric
+                    icon={AlertCircle}
+                    label="Atenção no estoque"
+                    value={attentionCount.toString()}
+                    detail={`${summary.outOfStock} sem estoque · ${summary.lowStock} baixo`}
+                    tone={attentionCount > 0 ? 'warning' : 'default'}
+                    active={stockFilter === 'attention'}
+                    disabled={attentionCount === 0}
+                    onClick={() => setStockFilter(current => current === 'attention' ? 'all' : 'attention')}
+                />
                 <InventoryMetric icon={TrendingUp} label="Valor em estoque" value={formatCurrency(summary.totalValue)} />
             </div>
 
@@ -199,6 +231,11 @@ export function ProductsTab() {
                         Categoria: <span className="font-medium text-foreground">{selectedCategory}</span>
                     </p>
                 )}
+                {stockFilter === 'attention' && (
+                    <p className="text-sm text-muted-foreground">
+                        Exibindo produtos sem estoque ou com até 5 unidades.
+                    </p>
+                )}
             </div>
 
             {showFilters && (
@@ -215,7 +252,7 @@ export function ProductsTab() {
                                 {categories.map((category) => {
                                     const count = category === 'all'
                                         ? products.length
-                                        : products.filter((product) => (product.categoryName || 'Sem categoria') === category).length
+                                        : categoryCounts.get(category) ?? 0
 
                                     return (
                                         <SelectItem key={category} value={category}>
@@ -231,7 +268,10 @@ export function ProductsTab() {
                         variant="outline"
                         size="sm"
                         className="w-fit text-xs"
-                        onClick={() => setSelectedCategory('all')}
+                        onClick={() => {
+                            setSelectedCategory('all')
+                            setStockFilter('all')
+                        }}
                     >
                         Limpar filtros
                     </Button>
@@ -264,7 +304,7 @@ export function ProductsTab() {
                                     {searchQuery ? 'Nenhum item encontrado' : 'Nenhum produto no estoque'}
                                 </p>
                                 <p className="mt-1 text-sm">
-                                    {searchQuery ? `NÃ£o hÃ¡ resultados para "${searchQuery}".` : 'Cadastre o primeiro produto para comeÃ§ar a gestÃ£o.'}
+                                    {searchQuery ? `Não há resultados para "${searchQuery}".` : 'Cadastre o primeiro produto para começar a gestão.'}
                                 </p>
                             </div>
                             {!searchQuery && <ProductFormDialog marketId={marketId} />}
@@ -365,7 +405,7 @@ export function ProductsTab() {
                                             <TableCell>
                                                 <div className="flex flex-col gap-1">
                                                     <span className="text-sm font-semibold tabular-nums text-foreground">{product.stockQuantity ?? 0} un.</span>
-                                                    <span className={`inline-flex w-fit rounded-md border px-2 py-0.5 text-[11px] font-medium ${stockStatus.className}`}>
+                                                    <span className={`inline-flex w-fit rounded-md border px-2 py-1 text-xs font-medium ${stockStatus.className}`}>
                                                         {stockStatus.label}
                                                     </span>
                                                 </div>
@@ -373,7 +413,7 @@ export function ProductsTab() {
                                             <TableCell className="hidden text-right lg:table-cell">
                                                 <div className="flex items-center justify-end gap-1.5 text-muted-foreground">
                                                     <Clock className="h-3.5 w-3.5" />
-                                                    <span className="text-xs tabular-nums">{formatDate(product.updatedAt)}</span>
+                                                    <span className="text-sm tabular-nums">{formatDate(product.updatedAt)}</span>
                                                 </div>
                                             </TableCell>
                                             <TableCell className="pr-5">
@@ -413,29 +453,74 @@ function InventoryMetric({
     icon: Icon,
     label,
     value,
+    detail,
+    tone = 'default',
+    active = false,
+    disabled = false,
+    onClick,
+}: {
+    icon: ComponentType<{ className?: string }>
+    label: string
+    value: string
+    detail?: string
+    tone?: 'default' | 'warning'
+    active?: boolean
+    disabled?: boolean
+    onClick?: () => void
+}) {
+    const interactive = Boolean(onClick)
+    const metricClassName = `rounded-lg border bg-card/95 p-4 py-5 text-card-foreground shadow-sm backdrop-blur transition ${active ? 'border-primary bg-primary/5 ring-1 ring-primary/20' : ''} ${interactive && !disabled ? 'cursor-pointer hover:border-primary/40 hover:bg-primary/5' : ''} ${disabled ? 'opacity-70' : ''}`
+
+    if (interactive) {
+        return (
+            <button
+                type="button"
+                onClick={onClick}
+                disabled={disabled}
+                className={`${metricClassName} text-left`}
+                aria-pressed={active}
+                aria-label={`${label}: ${value}${detail ? `. ${detail}` : ''}`}
+            >
+                <InventoryMetricContent icon={Icon} label={label} value={value} detail={detail} tone={tone} />
+            </button>
+        )
+    }
+
+    return (
+        <Card className="p-4">
+            <InventoryMetricContent icon={Icon} label={label} value={value} detail={detail} tone={tone} />
+        </Card>
+    )
+}
+
+function InventoryMetricContent({
+    icon: Icon,
+    label,
+    value,
+    detail,
     tone = 'default',
 }: {
     icon: ComponentType<{ className?: string }>
     label: string
     value: string
+    detail?: string
     tone?: 'default' | 'warning'
 }) {
     return (
-        <Card className="p-4">
             <div className="flex items-center justify-between gap-3">
                 <div>
-                    <p className="text-xs font-medium text-muted-foreground">{label}</p>
+                    <p className="text-sm font-medium text-muted-foreground">{label}</p>
                     <p className="mt-1 text-2xl font-semibold tracking-tight text-foreground">{value}</p>
+                    {detail && <p className="mt-1 text-xs text-muted-foreground">{detail}</p>}
                 </div>
                 <div className={`grid h-10 w-10 place-items-center rounded-md ${tone === 'warning' ? 'bg-amber-50 text-amber-700' : 'bg-primary/10 text-primary'}`}>
                     <Icon className="h-5 w-5" />
                 </div>
             </div>
-        </Card>
     )
 }
 
-function MobileProductCard({
+const MobileProductCard = memo(function MobileProductCard({
     product,
     marketId,
     deletePending,
@@ -462,19 +547,19 @@ function MobileProductCard({
                 )}
                 <div className="min-w-0 flex-1">
                     <p className="line-clamp-2 text-sm font-semibold leading-snug text-foreground">{product.productName}</p>
-                    <p className="mt-1 break-words text-xs text-muted-foreground">
-                        {[product.brand, product.barCode ? `EAN ${product.barCode}` : null].filter(Boolean).join(' â€¢ ') || 'Produto do catÃ¡logo'}
+                    <p className="mt-1 break-words text-sm text-muted-foreground">
+                        {[product.brand, product.barCode ? `EAN ${product.barCode}` : null].filter(Boolean).join(' • ') || 'Produto do catálogo'}
                     </p>
                 </div>
             </div>
 
             <div className="grid grid-cols-2 gap-2">
                 <div className="rounded-md border border-border bg-muted/30 p-3">
-                    <p className="text-[11px] font-medium text-muted-foreground">PreÃ§o</p>
+                    <p className="text-sm font-medium text-muted-foreground">Preço</p>
                     <p className="mt-1 break-words text-sm font-semibold tabular-nums text-foreground">{formatCurrency(product.price)}</p>
                 </div>
                 <div className="rounded-md border border-border bg-muted/30 p-3">
-                    <p className="text-[11px] font-medium text-muted-foreground">Estoque</p>
+                    <p className="text-sm font-medium text-muted-foreground">Estoque</p>
                     <p className="mt-1 text-sm font-semibold tabular-nums text-foreground">{product.stockQuantity ?? 0} un.</p>
                 </div>
             </div>
@@ -483,7 +568,7 @@ function MobileProductCard({
                 <Badge variant="secondary" className="max-w-full truncate font-normal">
                     {product.categoryName || 'Sem categoria'}
                 </Badge>
-                <span className={`inline-flex w-fit rounded-md border px-2 py-0.5 text-[11px] font-medium ${stockStatus.className}`}>
+                <span className={`inline-flex w-fit rounded-md border px-2 py-1 text-xs font-medium ${stockStatus.className}`}>
                     {stockStatus.label}
                 </span>
             </div>
@@ -491,7 +576,7 @@ function MobileProductCard({
             <div className="flex items-center justify-between gap-2 border-t border-border pt-3">
                 <div className="flex min-w-0 items-center gap-1.5 text-muted-foreground">
                     <Clock className="h-3.5 w-3.5 shrink-0" />
-                    <span className="truncate text-xs tabular-nums">{formatDate(product.updatedAt)}</span>
+                    <span className="truncate text-sm tabular-nums">{formatDate(product.updatedAt)}</span>
                 </div>
                 <div className="flex shrink-0 items-center gap-1">
                     <EditProductDialog product={product} marketId={marketId} onSuccess={onInventoryChanged} />
@@ -509,4 +594,4 @@ function MobileProductCard({
             </div>
         </Card>
     )
-}
+})

@@ -20,7 +20,7 @@ import {
     Store,
     type LucideIcon
 } from 'lucide-react';
-import { useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { OverviewTab, ProductsTab, ReviewsTab, SettingsTab } from './tabs';
 
 type TabType = 'overview' | 'products' | 'reviews' | 'competitors' | 'reports' | 'settings';
@@ -54,7 +54,10 @@ export default function MarketDashboard() {
     })
     const locationLabel = [marketProfile?.city, marketProfile?.state].filter(Boolean).join(', ') || 'Localização pendente'
 
-    const renderContent = () => {
+    const activeMenuItem = useMemo(() => menuItems.find(item => item.id === activeTab), [activeTab])
+    const navigateToProducts = useCallback(() => setActiveTab('products'), [])
+
+    const renderContent = useCallback(() => {
         if (!isLogged && (activeTab === 'products' || activeTab === 'settings')) {
             return (
                 <div className="flex flex-col items-center justify-center py-20 text-center">
@@ -63,7 +66,7 @@ export default function MarketDashboard() {
                     </div>
                     <h2 className="text-xl font-bold text-foreground mb-2">Acesso Restrito</h2>
                     <p className="text-muted-foreground mb-6 max-w-md">
-                        A aba de {menuItems.find(m => m.id === activeTab)?.label} é exclusiva para supermercados parceiros. Faça login para gerenciar sua loja.
+                        A aba de {activeMenuItem?.label} é exclusiva para supermercados parceiros. Faça login para gerenciar sua loja.
                     </p>
                     <Button onClick={() => navigate({ to: '/login' })}>
                         Fazer Login
@@ -74,7 +77,7 @@ export default function MarketDashboard() {
 
 
         switch (activeTab) {
-            case 'overview': return <OverviewTab onNavigateToProducts={() => setActiveTab('products')} />;
+            case 'overview': return <OverviewTab onNavigateToProducts={navigateToProducts} />;
             case 'products': return <ProductsTab />;
             case 'reviews': return <ReviewsTab />;
             case 'settings': return <SettingsTab />;
@@ -82,11 +85,11 @@ export default function MarketDashboard() {
                 return (
                     <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
                         <Package className="w-12 h-12 mb-4 opacity-20" />
-                        <p>Módulo de {menuItems.find(m => m.id === activeTab)?.label} em desenvolvimento...</p>
+                        <p>Módulo de {activeMenuItem?.label} em desenvolvimento...</p>
                     </div>
                 );
         }
-    };
+    }, [activeMenuItem, activeTab, isLogged, navigate, navigateToProducts]);
 
     return (
         <div className="app-gradient-bg flex h-screen overflow-hidden">
@@ -103,7 +106,7 @@ export default function MarketDashboard() {
                     {isSidebarOpen && (
                         <span className="font-semibold text-lg text-foreground ml-2 truncate transition-opacity duration-300">
                             UniMarket
-                            <span className="ml-2 rounded-full bg-uniyellow/20 px-2 py-0.5 text-[10px] font-semibold text-primary">
+                            <span className="ml-2 rounded-full bg-uniyellow/20 px-2 py-0.5 text-xs font-semibold text-primary">
                                 Parceiro
                             </span>
                         </span>
@@ -125,7 +128,7 @@ export default function MarketDashboard() {
                                     <>
                                         <span className="text-sm font-medium truncate">{item.label}</span>
                                         {item.badge && (
-                                            <Badge variant={isActive ? 'default' : 'secondary'} className="ml-auto text-[10px] px-1.5 py-0 h-5">
+                                            <Badge variant={isActive ? 'default' : 'secondary'} className="ml-auto h-5 px-1.5 py-0 text-xs">
                                                 {item.badge}
                                             </Badge>
                                         )}
@@ -145,7 +148,7 @@ export default function MarketDashboard() {
                         </Button>
                         <div className="hidden min-w-0 sm:block">
                             <p className="text-xs font-semibold uppercase text-primary">Central UniMarket</p>
-                            <p className="truncate text-sm font-medium text-foreground">{menuItems.find(m => m.id === activeTab)?.label}</p>
+                            <p className="truncate text-sm font-medium text-foreground">{activeMenuItem?.label}</p>
                         </div>
                     </div>
 

@@ -156,7 +156,7 @@ export const ProductCard = memo(function ProductCard({
                         <p className="text-xs font-medium text-muted-foreground">Mercados que vendem este produto</p>
                         {product.markets.map((market) => (
                             <MarketRow
-                                key={`${market.name}-${market.price}-${market.distance}`}
+                                key={market.id}
                                 market={market}
                                 isCheapest={market === product.markets[0]}
                             />

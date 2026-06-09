@@ -200,6 +200,7 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
     const [selectedShoppingListId, setSelectedShoppingListId] = useState<number | null>(null)
     const [listProduct, setListProduct] = useState<TransformedProduct | null>(null)
     const [listQuantity, setListQuantity] = useState(1)
+    const [selectedListMarketProductId, setSelectedListMarketProductId] = useState<number | null>(null)
     const [selectedMarketId, setSelectedMarketId] = useState(marketId)
     const [userLatitude, setUserLatitude] = useState<number | null>(null)
     const [userLongitude, setUserLongitude] = useState<number | null>(null)
@@ -315,7 +316,10 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
         })),
     })
 
-    const unreadCount = notifications.filter(notification => !notification.read).length
+    const unreadCount = useMemo(() =>
+        notifications.filter(notification => !notification.read).length,
+        [notifications],
+    )
 
     const activeAlertByProductId = useMemo(() => {
         return new Set(
@@ -544,12 +548,12 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
 
     const addItemMutation = useMutation({
         mutationFn: () => {
-            if (!listProduct || !selectedShoppingListId) {
+            if (!listProduct || !selectedShoppingListId || !selectedListMarketProductId) {
                 throw new Error('Selecione uma lista para adicionar o produto.')
             }
 
             return addShoppingListItem(selectedShoppingListId, {
-                marketProductId: listProduct.id,
+                marketProductId: selectedListMarketProductId,
                 quantity: listQuantity,
             })
         },
@@ -557,6 +561,7 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
             toast.success('Produto adicionado à lista.')
             setListProduct(null)
             setListQuantity(1)
+            setSelectedListMarketProductId(null)
             openShoppingListPanel()
             await queryClient.invalidateQueries({ queryKey: ['shoppingListItems', selectedShoppingListId] })
         },
@@ -726,16 +731,38 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
             : []
     }, [selectedShoppingListId, shoppingListItemQueries, shoppingLists])
 
-    const selectedListTotal = selectedListItems.reduce((sum, item) => sum + (Number(item.price) * item.quantity), 0)
-    const totalListItems = Array.from(shoppingListStats.values()).reduce((total, list) => total + list.items, 0)
-    const totalListSavings = filteredProducts.reduce((sum, product) => {
-        const selectedQuantity = selectedListItems
-            .filter(item => item.productName === product.name)
-            .reduce((quantity, item) => quantity + item.quantity, 0)
+    const selectedListTotal = useMemo(() =>
+        selectedListItems.reduce((sum, item) => sum + (Number(item.price) * item.quantity), 0),
+        [selectedListItems],
+    )
+    const totalListItems = useMemo(() =>
+        Array.from(shoppingListStats.values()).reduce((total, list) => total + list.items, 0),
+        [shoppingListStats],
+    )
+    const selectedListMarketCount = useMemo(() =>
+        new Set(selectedListItems.map(item => item.marketName)).size,
+        [selectedListItems],
+    )
+    const savingsByProductName = useMemo(() => {
+        const savings = new Map<string, number>()
 
-        return sum + (selectedQuantity * Math.max(product.averagePrice - product.lowestPrice, 0))
-    }, 0)
-    const activeAlertCount = priceAlerts.filter(alert => alert.active).length
+        filteredProducts.forEach(product => {
+            savings.set(product.name, Math.max(product.averagePrice - product.lowestPrice, 0))
+        })
+
+        return savings
+    }, [filteredProducts])
+    const totalListSavings = useMemo(() =>
+        selectedListItems.reduce((sum, item) => {
+            const unitSavings = savingsByProductName.get(item.productName) ?? 0
+            return sum + (unitSavings * item.quantity)
+        }, 0),
+        [savingsByProductName, selectedListItems],
+    )
+    const activeAlertCount = useMemo(() =>
+        priceAlerts.filter(alert => alert.active).length,
+        [priceAlerts],
+    )
     const isProductsLoading = isLoading
     const currentCatalogPage = catalogPage?.number ?? catalogPageNumber
     const totalCatalogPages = catalogPage?.totalPages ?? 0
@@ -747,7 +774,7 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
         : showFilters || showListPanel
             ? 'grid grid-cols-1 items-start gap-4 sm:grid-cols-2 xl:grid-cols-3'
             : 'grid grid-cols-1 items-start gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'
-    const nearbyMarketsView = nearbyMarketResults.map(market => ({
+    const nearbyMarketsView = useMemo(() => nearbyMarketResults.map(market => ({
         id: market.id,
         name: market.name,
         distance: formatDistance(market),
@@ -755,7 +782,12 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
         open: true,
         googleMapsUrl: market.googleMapsUrl,
         address: formatMarketAddress(market),
-    }))
+    })), [nearbyMarketResults])
+
+    const selectedListMarketOffer = useMemo(() =>
+        listProduct?.markets.find(market => market.id === selectedListMarketProductId) ?? listProduct?.markets[0] ?? null,
+        [listProduct, selectedListMarketProductId],
+    )
 
     const toggleExpand = useCallback(
         (id: number) => setExpandedId(prev => prev === id ? null : id),
@@ -838,12 +870,14 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
 
         if (shoppingLists.length === 0) {
             setListProduct(product)
+            setSelectedListMarketProductId(product.markets[0]?.id ?? null)
             setNewListOpen(true)
             toast.info('Crie uma lista antes de adicionar produtos.')
             return
         }
 
         setListProduct(product)
+        setSelectedListMarketProductId(product.markets[0]?.id ?? null)
         setSelectedShoppingListId(current => current ?? shoppingLists[0].id)
         setListQuantity(1)
         openShoppingListPanel()
@@ -872,13 +906,18 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
             return
         }
 
+        if (!selectedListMarketProductId) {
+            toast.error('Selecione um mercado para adicionar o produto.')
+            return
+        }
+
         if (listQuantity < 1) {
             toast.error('Informe uma quantidade válida.')
             return
         }
 
         addItemMutation.mutate()
-    }, [addItemMutation, listQuantity, selectedShoppingListId])
+    }, [addItemMutation, listQuantity, selectedListMarketProductId, selectedShoppingListId])
 
     const handleMarkNotificationsAsRead = useCallback((event: React.MouseEvent<HTMLButtonElement>) => {
         event.preventDefault()
@@ -1478,7 +1517,7 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
 
                     {/*PAINEL DE LISTAS*/}
                     {showListPanel && (
-                        <aside ref={shoppingListPanelRef} className="w-full shrink-0 scroll-mt-28 lg:w-80">
+                        <aside ref={shoppingListPanelRef} className="w-full shrink-0 scroll-mt-28 lg:w-96">
                             <Card className="sticky top-32 overflow-hidden border-primary/10 p-0 shadow-sm">
                                 <div className="bg-primary/5 p-4">
                                     <div className="flex items-center justify-between">
@@ -1487,8 +1526,8 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
                                                 <ShoppingCart className="w-4 h-4" />
                                             </div>
                                             <div>
-                                                <span className="font-semibold text-foreground text-sm">Minhas listas</span>
-                                                <p className="text-xs text-muted-foreground">
+                                                <span className="text-base font-semibold text-foreground">Minhas listas</span>
+                                                <p className="text-sm text-muted-foreground">
                                                     {totalListItems > 0 ? `${totalListItems} item${totalListItems !== 1 ? 's' : ''} salvos` : 'Monte sua próxima compra'}
                                                 </p>
                                             </div>
@@ -1510,11 +1549,11 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
                                             <div className="mx-auto mb-3 grid h-10 w-10 place-items-center rounded-full bg-primary/10 text-primary">
                                                 <Lock className="h-5 w-5" />
                                             </div>
-                                            <p className="text-sm font-semibold text-foreground">Listas disponíveis após login</p>
-                                            <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                                            <p className="text-base font-semibold text-foreground">Listas disponíveis após login</p>
+                                            <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
                                                 Entre como usuário para criar listas de compras, salvar produtos e comparar o total.
                                             </p>
-                                            <Button size="sm" className="mt-4 w-full text-xs" onClick={() => navigate({ to: '/login' })}>
+                                            <Button size="sm" className="mt-4 w-full" onClick={() => navigate({ to: '/login' })}>
                                                 Fazer login
                                             </Button>
                                         </div>
@@ -1526,7 +1565,7 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
                                         <div className="rounded-lg border border-dashed border-primary/25 bg-primary/5 p-4 text-center text-sm text-muted-foreground">
                                             <List className="mx-auto mb-2 h-5 w-5 text-primary" />
                                             Nenhuma lista criada ainda.
-                                            <span className="mt-1 block text-xs">Comece pela lista da semana ou do mês.</span>
+                                            <span className="mt-1 block text-sm">Comece pela lista da semana ou do mês.</span>
                                         </div>
                                     ) : shoppingLists.map(list => {
                                         const stats = shoppingListStats.get(list.id) ?? { items: 0, total: 0 }
@@ -1540,10 +1579,10 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
                                                 className={`w-full rounded-lg border p-3 text-left transition-all hover:-translate-y-0.5 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${selected ? 'border-primary bg-primary/10 shadow-sm' : 'border-border bg-background hover:bg-primary/5'}`}
                                             >
                                                 <div className="mb-2 flex items-center justify-between gap-2">
-                                                    <p className="truncate text-sm font-medium text-foreground">{list.name}</p>
-                                                    <Badge variant="secondary" className="rounded-full text-[10px]">{stats.items} itens</Badge>
+                                                    <p className="truncate text-base font-medium text-foreground">{list.name}</p>
+                                                    <Badge variant="secondary" className="rounded-full">{stats.items} itens</Badge>
                                                 </div>
-                                                <div className="flex justify-between text-xs">
+                                                <div className="flex justify-between text-sm">
                                                     <span className="text-muted-foreground">Total estimado</span>
                                                     <span className="font-semibold text-foreground">R$ {stats.total.toFixed(2)}</span>
                                                 </div>
@@ -1552,7 +1591,7 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
                                     })}
 
                                     {canUseShoppingLists && (
-                                        <Button size="sm" className="w-full rounded-full text-xs gap-1.5" onClick={() => setNewListOpen(true)}>
+                                        <Button size="sm" className="w-full rounded-full gap-1.5" onClick={() => setNewListOpen(true)}>
                                             <Plus className="w-3.5 h-3.5" /> Nova lista
                                         </Button>
                                     )}
@@ -1562,8 +1601,8 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
                                     <div className="mx-4 rounded-lg border border-border bg-background/80">
                                         <div className="flex items-center justify-between border-b border-border p-3">
                                             <div>
-                                                <span className="text-xs font-semibold text-foreground">Itens da lista</span>
-                                                <p className="text-[10px] text-muted-foreground">{selectedListItems.length} item{selectedListItems.length !== 1 ? 's' : ''} selecionado{selectedListItems.length !== 1 ? 's' : ''}</p>
+                                                <span className="text-sm font-semibold text-foreground">Itens da lista</span>
+                                                <p className="text-sm text-muted-foreground">{selectedListItems.length} item{selectedListItems.length !== 1 ? 's' : ''} selecionado{selectedListItems.length !== 1 ? 's' : ''}</p>
                                             </div>
                                             <Button
                                                 variant="ghost"
@@ -1577,7 +1616,7 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
                                         </div>
                                         <div className="max-h-64 divide-y divide-border overflow-auto">
                                             {selectedListItems.length === 0 ? (
-                                                <div className="p-4 text-center text-xs text-muted-foreground">
+                                                <div className="p-4 text-center text-sm text-muted-foreground">
                                                     <Package className="mx-auto mb-2 h-5 w-5 opacity-40" />
                                                     Adicione produtos para comparar o total.
                                                 </div>
@@ -1585,8 +1624,8 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
                                                 <div key={item.id} className="p-3 transition-colors hover:bg-muted/40">
                                                     <div className="flex items-start justify-between gap-2">
                                                         <div className="min-w-0">
-                                                            <p className="line-clamp-2 text-xs font-semibold text-foreground">{item.productName}</p>
-                                                            <p className="mt-1 text-[11px] text-muted-foreground">{item.marketName} • {item.quantity} un.</p>
+                                                            <p className="line-clamp-2 text-sm font-semibold text-foreground">{item.productName}</p>
+                                                            <p className="mt-1 text-xs text-muted-foreground">{item.marketName} • {item.quantity} un.</p>
                                                         </div>
                                                         <Button
                                                             variant="ghost"
@@ -1598,7 +1637,7 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
                                                             <X className="h-3 w-3" />
                                                         </Button>
                                                     </div>
-                                                    <p className="mt-2 inline-flex rounded-full bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary">
+                                                    <p className="mt-2 inline-flex rounded-full bg-primary/10 px-2.5 py-1 text-sm font-semibold text-primary">
                                                         R$ {(Number(item.price) * item.quantity).toFixed(2)}
                                                     </p>
                                                 </div>
@@ -1611,12 +1650,17 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
                                     <div className="m-4 rounded-lg bg-primary p-4 text-primary-foreground shadow-sm">
                                         <div className="mb-1 flex items-center gap-1.5">
                                             <CircleDollarSign className="w-3.5 h-3.5" />
-                                            <span className="text-xs font-semibold">Total selecionado</span>
+                                            <span className="text-sm font-semibold">Total selecionado</span>
                                         </div>
                                         <p className="text-2xl font-bold">
                                             R$ {selectedListTotal.toFixed(2)}
                                         </p>
-                                        <p className="mt-1 text-[11px] text-primary-foreground/80">
+                                        <p className="mt-1 text-sm text-primary-foreground/85">
+                                            {selectedListMarketCount > 0
+                                                ? `${selectedListMarketCount} mercado${selectedListMarketCount !== 1 ? 's' : ''} envolvido${selectedListMarketCount !== 1 ? 's' : ''} nesta lista`
+                                                : 'Nenhum mercado selecionado'}
+                                        </p>
+                                        <p className="mt-1 text-sm text-primary-foreground/85">
                                             Economia estimada: R$ {totalListSavings.toFixed(2)}
                                         </p>
                                     </div>
@@ -1758,26 +1802,71 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
                 </DialogContent>
             </Dialog>
 
-            <Dialog open={!!listProduct && shoppingLists.length > 0} onOpenChange={(open) => !open && setListProduct(null)}>
-                <DialogContent className="sm:max-w-md">
+            <Dialog
+                open={!!listProduct && shoppingLists.length > 0}
+                onOpenChange={(open) => {
+                    if (!open) {
+                        setListProduct(null)
+                        setSelectedListMarketProductId(null)
+                    }
+                }}
+            >
+                <DialogContent className="sm:max-w-xl">
                     <DialogHeader>
                         <DialogTitle>Adicionar à lista</DialogTitle>
                         <DialogDescription>
-                            Escolha a lista e a quantidade para comparar o valor total da compra.
+                            Escolha a oferta do mercado que entrará no total da sua compra.
                         </DialogDescription>
                     </DialogHeader>
 
                     {listProduct && (
                         <div className="space-y-4">
                             <div className="rounded-lg border border-border p-3">
-                                <p className="text-sm font-medium text-foreground">{listProduct.name}</p>
-                                <p className="mt-1 text-xs text-muted-foreground">
-                                    Melhor oferta exibida: R$ {listProduct.lowestPrice.toFixed(2)}
+                                <p className="text-base font-medium text-foreground">{listProduct.name}</p>
+                                <p className="mt-1 text-sm text-muted-foreground">
+                                    Compare preço e distância antes de salvar o item.
                                 </p>
                             </div>
 
                             <div className="space-y-2">
-                                <label htmlFor="shoppingListTarget" className="text-xs font-medium text-muted-foreground">
+                                <p className="text-sm font-medium text-muted-foreground">Mercado</p>
+                                <div className="grid max-h-56 gap-2 overflow-auto pr-1">
+                                    {listProduct.markets.map((market, index) => {
+                                        const selected = selectedListMarketProductId === market.id
+                                        const isCheapest = index === 0
+
+                                        return (
+                                            <button
+                                                key={market.id}
+                                                type="button"
+                                                onClick={() => setSelectedListMarketProductId(market.id)}
+                                                className={`grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-lg border p-3 text-left transition hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${selected ? 'border-primary bg-primary/10' : 'border-border bg-background'}`}
+                                            >
+                                                <span className="min-w-0">
+                                                    <span className="flex items-center gap-2">
+                                                        <Store className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                                                        <span className="truncate text-base font-semibold text-foreground">{market.name}</span>
+                                                        {isCheapest && (
+                                                            <Badge variant="secondary" className="rounded-full">
+                                                                Melhor preço
+                                                            </Badge>
+                                                        )}
+                                                    </span>
+                                                    <span className="mt-1 flex items-center gap-1 text-sm text-muted-foreground">
+                                                        <MapPin className="h-3 w-3" /> {market.distance}
+                                                    </span>
+                                                </span>
+                                                <span className="text-right text-base font-semibold tabular-nums text-primary">
+                                                    R$ {market.price.toFixed(2)}
+                                                </span>
+                                            </button>
+                                        )
+                                    })}
+                                </div>
+                            </div>
+
+                            <div className="space-y-2">
+                                <label htmlFor="shoppingListTarget" className="text-sm font-medium text-muted-foreground">
                                     Lista
                                 </label>
                                 <Select
@@ -1798,7 +1887,7 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
                             </div>
 
                             <div className="space-y-2">
-                                <label htmlFor="listQuantity" className="text-xs font-medium text-muted-foreground">
+                                <label htmlFor="listQuantity" className="text-sm font-medium text-muted-foreground">
                                     Quantidade
                                 </label>
                                 <Input
@@ -1814,11 +1903,21 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
                     )}
 
                     <DialogFooter>
-                        <Button variant="outline" onClick={() => setListProduct(null)}>
+                        <Button
+                            variant="outline"
+                            onClick={() => {
+                                setListProduct(null)
+                                setSelectedListMarketProductId(null)
+                            }}
+                        >
                             Cancelar
                         </Button>
                         <Button onClick={handleConfirmAddToList} disabled={addItemMutation.isPending}>
-                            {addItemMutation.isPending ? 'Adicionando...' : 'Adicionar'}
+                            {addItemMutation.isPending
+                                ? 'Adicionando...'
+                                : selectedListMarketOffer
+                                    ? `Adicionar por R$ ${(selectedListMarketOffer.price * listQuantity).toFixed(2)}`
+                                    : 'Adicionar'}
                         </Button>
                     </DialogFooter>
                 </DialogContent>
