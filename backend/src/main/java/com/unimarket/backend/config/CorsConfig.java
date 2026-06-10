@@ -17,7 +17,7 @@ public class CorsConfig {
                         .allowedOriginPatterns(
                                 "http://localhost:*",
                                 "http://127.0.0.1:*",
-                                "https://unimarket-kappa.vercel.app",
+                                "https://unimarket-app.vercel.app",
                                 "https://unimarket-marcellarcs-projects.vercel.app",
                                 "https://unimarket-git-production-marcellarcs-projects.vercel.app",
                                 "https://unimarket-develop.vercel.app",

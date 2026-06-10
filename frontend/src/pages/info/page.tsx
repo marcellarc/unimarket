@@ -23,19 +23,19 @@ const team = [
         initials: 'BS',
         name: 'Beatriz Duarte Sibilio',
         imageSrc: '/team/beatriz.jpeg',
-        role: 'Desenvolvedora backend, responsável pela construção das APIs, regras de negócio e integração de serviços utilizando Java, Spring Boot e Swagger.',
+        role: 'Responsável por estruturar regras do sistema, fluxos de dados e integrações que sustentam o funcionamento da plataforma.',
     },
     {
         initials: 'KC',
         name: 'Kayo Campos Silva',
         imageSrc: '/team/kayo.jpeg',
-        role: 'Desenvolvedor backend e responsável pela infraestrutura do projeto, deploy da aplicação, hospedagem do backend e banco de dados, além do desenvolvimento de rotas e suporte à arquitetura do sistema com Java, Spring Boot e PostgreSQL.',
+        role: 'Responsável pela base técnica da aplicação, organização dos ambientes, estabilidade dos serviços e apoio à arquitetura do sistema.',
     },
     {
         initials: 'MM',
         name: 'Marcella Ricoy Curci de Moura',
         imageSrc: '/team/marcella.jpeg',
-        role: 'Desenvolvedora frontend, responsável pela interface, experiência do usuário e integração com backend.',
+        role: 'Responsável pela interface, experiência de uso, organização visual das telas e integração dos fluxos da plataforma.',
     },
 ] as const
 
@@ -172,7 +172,7 @@ function AboutContent() {
                         ))}
                     </div>
                     <p className="mt-6 text-sm leading-7 text-muted-foreground">
-                        Trabalho de Conclusão de Curso desenvolvido na Fatec Rubens Lara, com orientação de Rui Silvestrin. A equipe atuou em análise de requisitos, experiência do usuário, frontend, backend, banco de dados e integrações externas.
+                        Trabalho de Conclusão de Curso desenvolvido na Fatec Rubens Lara, com orientação de Rui Silvestrin. A equipe atuou em análise de requisitos, experiência do usuário, organização dos dados, integração de serviços e evolução do produto.
                     </p>
                 </section>
             </div>

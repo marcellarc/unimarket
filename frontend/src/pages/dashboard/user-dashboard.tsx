@@ -222,6 +222,8 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
     const displayName = isGuest ? 'visitante' : userName
     const canUseNotifications = isLogged && userRole === 'USER'
     const hasSavedLocation = Boolean((userZipCode || userCity) && userState)
+    const hasPreciseLocation = userLatitude != null && userLongitude != null
+    const hasLocationForProximity = hasPreciseLocation || hasSavedLocation
     const locationLabel = [userCity, userState].filter(Boolean).join(', ') || 'Localidade não informada'
 
     const userZipCodeDigits = onlyDigits(userZipCode)
@@ -361,6 +363,15 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
     }, [userProfile])
 
     useEffect(() => {
+        if (hasLocationForProximity) {
+            return
+        }
+
+        setIsDistanceFilterActive(false)
+        setSortBy(current => current === 'distance' ? 'lowest-price' : current)
+    }, [hasLocationForProximity])
+
+    useEffect(() => {
         if (!zipLocation?.hasCoordinates || zipLocation.latitude == null || zipLocation.longitude == null) {
             return
         }
@@ -458,7 +469,7 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
             })
         },
         onSuccess: async () => {
-            toast.success('Alerta de preço criado')
+            toast.success('Alerta criado. Vamos avisar quando o preço chegar lá.')
             setAlertProduct(null)
             setDesiredPrice('')
             await queryClient.invalidateQueries({ queryKey: ['priceAlerts'] })
@@ -469,7 +480,7 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
             }
         },
         onError: () => {
-            toast.error('Não foi possível criar o alerta')
+            toast.error('Não foi possível criar o alerta agora. Tente novamente em instantes.')
         },
     })
 
@@ -490,7 +501,7 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
             })
         },
         onSuccess: async () => {
-            toast.success('Feedback enviado ao mercado.')
+            toast.success('Feedback enviado. Obrigado por ajudar outros clientes.')
             setFeedbackProduct(null)
             setFeedbackMarketId(null)
             setFeedbackRating(5)
@@ -505,7 +516,7 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
             }
         },
         onError: (feedbackError: unknown) => {
-            toast.error(getApiErrorMessage(feedbackError, 'Não foi possível enviar o feedback.'))
+            toast.error(getApiErrorMessage(feedbackError, 'Não foi possível enviar o feedback agora.'))
         },
     })
 
@@ -526,7 +537,7 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
                 queryClient.setQueryData(['notifications'], context.previousNotifications)
             }
 
-            toast.error('Não foi possível marcar as notificações como lidas')
+            toast.error('Não foi possível marcar as notificações como lidas agora.')
         },
         onSettled: () => queryClient.invalidateQueries({ queryKey: ['notifications'] }),
     })
@@ -538,11 +549,11 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
             setNewListName('')
             setNewListOpen(false)
             openShoppingListPanel()
-            toast.success('Lista de compras criada.')
+            toast.success('Lista criada. Agora você pode adicionar produtos por mercado.')
             await queryClient.invalidateQueries({ queryKey: ['shoppingLists', clientId] })
         },
         onError: (listError: unknown) => {
-            toast.error(getApiErrorMessage(listError, 'Não foi possível criar a lista.'))
+            toast.error(getApiErrorMessage(listError, 'Não foi possível criar a lista agora.'))
         },
     })
 
@@ -558,7 +569,7 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
             })
         },
         onSuccess: async () => {
-            toast.success('Produto adicionado à lista.')
+            toast.success('Produto adicionado à lista com o mercado escolhido.')
             setListProduct(null)
             setListQuantity(1)
             setSelectedListMarketProductId(null)
@@ -566,18 +577,18 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
             await queryClient.invalidateQueries({ queryKey: ['shoppingListItems', selectedShoppingListId] })
         },
         onError: (itemError: unknown) => {
-            toast.error(getApiErrorMessage(itemError, 'Não foi possível adicionar o produto.'))
+            toast.error(getApiErrorMessage(itemError, 'Não foi possível adicionar o produto agora.'))
         },
     })
 
     const deleteListMutation = useMutation({
         mutationFn: (listId: number) => deleteShoppingList(clientId!, listId),
         onSuccess: async () => {
-            toast.success('Lista removida.')
+            toast.success('Lista removida com sucesso.')
             await queryClient.invalidateQueries({ queryKey: ['shoppingLists', clientId] })
         },
         onError: (listError: unknown) => {
-            toast.error(getApiErrorMessage(listError, 'Não foi possível remover a lista.'))
+            toast.error(getApiErrorMessage(listError, 'Não foi possível remover a lista agora.'))
         },
     })
 
@@ -588,7 +599,7 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
             await queryClient.invalidateQueries({ queryKey: ['shoppingListItems', variables.listId] })
         },
         onError: (itemError: unknown) => {
-            toast.error(getApiErrorMessage(itemError, 'Não foi possível remover o item.'))
+            toast.error(getApiErrorMessage(itemError, 'Não foi possível remover o item agora.'))
         },
     })
 
@@ -730,6 +741,10 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
             ? ((shoppingListItemQueries[selectedIndex]?.data ?? []) as ShoppingListItem[])
             : []
     }, [selectedShoppingListId, shoppingListItemQueries, shoppingLists])
+    const selectedShoppingList = useMemo(() =>
+        shoppingLists.find(list => list.id === selectedShoppingListId) ?? null,
+        [selectedShoppingListId, shoppingLists],
+    )
 
     const selectedListTotal = useMemo(() =>
         selectedListItems.reduce((sum, item) => sum + (Number(item.price) * item.quantity), 0),
@@ -802,7 +817,7 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
 
     const handleCreateAlert = useCallback((product: TransformedProduct) => {
         if (!canUseNotifications) {
-            toast.info('Entre como usuário para criar alertas de preço.')
+            toast.info('Entre como cliente para criar alertas de preço.')
             navigate({ to: '/login' })
             return
         }
@@ -813,13 +828,13 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
 
     const handleCreateFeedback = useCallback((product: TransformedProduct) => {
         if (!canUseFeedback) {
-            toast.info('Entre como usuário para enviar feedbacks aos mercados.')
+            toast.info('Entre como cliente para enviar feedbacks aos mercados.')
             navigate({ to: '/login' })
             return
         }
 
         if (product.markets.length === 0) {
-            toast.info('Este produto ainda não possui mercado disponível para avaliação.')
+            toast.info('Este produto ainda não tem mercado disponível para avaliação.')
             return
         }
 
@@ -833,17 +848,17 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
         const trimmedComment = feedbackComment.trim()
 
         if (!feedbackProduct || !feedbackMarketId) {
-            toast.error('Selecione um mercado para avaliar.')
+            toast.error('Selecione o mercado que será avaliado.')
             return
         }
 
         if (feedbackRating < 1 || feedbackRating > 5) {
-            toast.error('Selecione uma nota entre 1 e 5.')
+            toast.error('Escolha uma nota entre 1 e 5.')
             return
         }
 
         if (trimmedComment.length < 3) {
-            toast.error('Escreva um comentário para o feedback.')
+            toast.error('Escreva um comentário antes de enviar o feedback.')
             return
         }
 
@@ -854,7 +869,7 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
         const numericPrice = Number(desiredPrice)
 
         if (!alertProduct || !Number.isFinite(numericPrice) || numericPrice <= 0) {
-            toast.error('Informe um preço desejado válido.')
+            toast.error('Informe um preço desejado válido para criar o alerta.')
             return
         }
 
@@ -863,7 +878,7 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
 
     const handleAddToList = useCallback((product: TransformedProduct) => {
         if (!canUseShoppingLists) {
-            toast.info('Entre como usuário para criar listas de compras.')
+            toast.info('Entre como cliente para criar listas de compras.')
             navigate({ to: '/login' })
             return
         }
@@ -872,7 +887,7 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
             setListProduct(product)
             setSelectedListMarketProductId(product.markets[0]?.id ?? null)
             setNewListOpen(true)
-            toast.info('Crie uma lista antes de adicionar produtos.')
+            toast.info('Crie uma lista para salvar este produto.')
             return
         }
 
@@ -887,12 +902,12 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
         const trimmedName = newListName.trim()
 
         if (trimmedName.length < 3) {
-            toast.error('Informe um nome para a lista.')
+            toast.error('Dê um nome para a lista antes de continuar.')
             return
         }
 
         if (!canUseShoppingLists) {
-            toast.info('Entre como usuário para salvar listas de compras.')
+            toast.info('Entre como cliente para salvar listas de compras.')
             navigate({ to: '/login' })
             return
         }
@@ -902,17 +917,17 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
 
     const handleConfirmAddToList = useCallback(() => {
         if (!selectedShoppingListId) {
-            toast.error('Selecione uma lista.')
+            toast.error('Selecione a lista que receberá o produto.')
             return
         }
 
         if (!selectedListMarketProductId) {
-            toast.error('Selecione um mercado para adicionar o produto.')
+            toast.error('Selecione o mercado antes de adicionar o produto.')
             return
         }
 
         if (listQuantity < 1) {
-            toast.error('Informe uma quantidade válida.')
+            toast.error('Informe uma quantidade válida para o produto.')
             return
         }
 
@@ -936,7 +951,7 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
 
     const handleUseCurrentLocation = useCallback(() => {
         if (typeof navigator === 'undefined' || !navigator.geolocation) {
-            toast.error('Localização indisponível neste navegador')
+            toast.error('Localização indisponível neste navegador.')
             return
         }
 
@@ -946,7 +961,7 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
                 setUserLatitude(latitude)
                 setUserLongitude(longitude)
 
-                toast.success('Localização atualizada. Os mercados próximos foram recalculados.')
+                toast.success('Localização atualizada. Recalculamos os mercados próximos.')
             },
             () => {
                 setUserLatitude(null)
@@ -959,6 +974,39 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
             { enableHighAccuracy: true, timeout: 10000 },
         )
     }, [hasSavedLocation])
+
+    const requestLocationForProximity = useCallback(() => {
+        toast.info('Ative sua localização ou informe um CEP no perfil para filtrar por proximidade.')
+
+        if (typeof navigator !== 'undefined' && navigator.geolocation) {
+            handleUseCurrentLocation()
+            return
+        }
+
+        if (isLogged) {
+            navigate({ to: '/profile' })
+        }
+    }, [handleUseCurrentLocation, isLogged, navigate])
+
+    const handleDistanceFilterChange = useCallback((nextDistance: number) => {
+        if (!hasLocationForProximity) {
+            setIsDistanceFilterActive(false)
+            requestLocationForProximity()
+            return
+        }
+
+        setMaxDistance(nextDistance)
+        setIsDistanceFilterActive(true)
+    }, [hasLocationForProximity, requestLocationForProximity])
+
+    const handleSortChange = useCallback((nextSort: SortMode) => {
+        if (nextSort === 'distance' && !hasLocationForProximity) {
+            requestLocationForProximity()
+            return
+        }
+
+        setSortBy(nextSort)
+    }, [hasLocationForProximity, requestLocationForProximity])
 
     const handleOpenMarketsMap = useCallback(() => {
         if (userLatitude == null && userLongitude == null && !hasSavedLocation) {
@@ -1179,7 +1227,7 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
                                             <User className="w-4 h-4 mr-2" /> Meu Perfil
                                         </DropdownMenuItem>
                                     )}
-                                    {canUseShoppingLists && (
+                                    {canUseShoppingLists && shoppingLists.length > 0 && (
                                         <DropdownMenuItem onClick={openShoppingListPanel} className="cursor-pointer">
                                             <List className="w-4 h-4 mr-2" /> Minhas Listas
                                         </DropdownMenuItem>
@@ -1244,6 +1292,21 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
                                         ? 'Compare mercados próximos e monte sua rota antes de sair de casa.'
                                         : 'Sua próxima compra pode começar mais leve: compare, salve favoritos e deixe os alertas trabalharem por você.'}
                                 </p>
+                            </div>
+
+                            <div className="hidden gap-3 sm:grid-cols-3 lg:w-[460px]">
+                                <div className="rounded-lg border border-border bg-background/70 px-4 py-3">
+                                    <p className="text-xs text-muted-foreground">Itens salvos</p>
+                                    <p className="mt-1 text-lg font-semibold tabular-nums text-foreground">{totalListItems}</p>
+                                </div>
+                                <div className="rounded-lg border border-border bg-background/70 px-4 py-3">
+                                    <p className="text-xs text-muted-foreground">Alertas ativos</p>
+                                    <p className="mt-1 text-lg font-semibold tabular-nums text-foreground">{activeAlertCount}</p>
+                                </div>
+                                <div className="rounded-lg border border-border bg-background/70 px-4 py-3">
+                                    <p className="text-xs text-muted-foreground">Economia</p>
+                                    <p className="mt-1 text-lg font-semibold tabular-nums text-primary">R$ {totalListSavings.toFixed(2)}</p>
+                                </div>
                             </div>
 
                             <div className="rounded-lg border border-primary/10 bg-background/80 p-4 shadow-sm">
@@ -1322,8 +1385,7 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
                                     <input
                                         type="range" min={1} max={10} value={maxDistance}
                                         onChange={e => {
-                                            setMaxDistance(Number(e.target.value))
-                                            setIsDistanceFilterActive(true)
+                                            handleDistanceFilterChange(Number(e.target.value))
                                         }}
                                         className="w-full accent-primary"
                                     />
@@ -1334,6 +1396,20 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
                                         </span>
                                         <span>10 km</span>
                                     </div>
+                                    {!hasLocationForProximity && (
+                                        <div className="mt-3 rounded-md border border-primary/15 bg-primary/5 p-3 text-xs leading-relaxed text-muted-foreground">
+                                            <p>Ative a localização ou informe um CEP no perfil para usar proximidade.</p>
+                                            <Button
+                                                type="button"
+                                                variant="outline"
+                                                size="sm"
+                                                className="mt-2 h-8 rounded-full text-xs"
+                                                onClick={requestLocationForProximity}
+                                            >
+                                                Ativar localização
+                                            </Button>
+                                        </div>
+                                    )}
                                 </div>
 
                                 <div>
@@ -1365,7 +1441,7 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
                                         {sortOptions.map(opt => (
                                             <button
                                                 key={opt.id}
-                                                onClick={() => setSortBy(opt.id)}
+                                                onClick={() => handleSortChange(opt.id)}
                                                 className={`w-full text-left px-3 py-1.5 rounded text-xs transition-colors ${sortBy === opt.id
                                                     ? 'bg-primary/10 text-primary font-medium'
                                                     : 'text-muted-foreground hover:bg-muted'
@@ -1426,7 +1502,7 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end">
                                     {sortOptions.map(option => (
-                                        <DropdownMenuItem key={option.id} onClick={() => setSortBy(option.id)}>
+                                        <DropdownMenuItem key={option.id} onClick={() => handleSortChange(option.id)}>
                                             {option.label}
                                         </DropdownMenuItem>
                                     ))}
@@ -1459,10 +1535,29 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
                                 <p className="text-sm">Tente recarregar a página</p>
                             </div>
                         ) : filteredProducts.length === 0 ? (
-                            <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
-                                <Package className="w-12 h-12 mb-4 opacity-20" />
-                                <p className="font-medium">Nenhum produto encontrado</p>
-                                <p className="text-sm">Tente ajustar os filtros ou busca</p>
+                            <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-border bg-card/80 px-6 py-16 text-center text-muted-foreground">
+                                <div className="mb-4 grid h-12 w-12 place-items-center rounded-full bg-muted">
+                                    <Package className="h-6 w-6 text-muted-foreground" />
+                                </div>
+                                <p className="font-semibold text-foreground">Nenhum produto encontrado</p>
+                                <p className="mt-1 max-w-sm text-sm leading-relaxed">
+                                    Ajuste busca, categoria, distância ou preço máximo para ampliar os resultados.
+                                </p>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="mt-4 rounded-full"
+                                    onClick={() => {
+                                        setSelectedCategory('all')
+                                        setMaxDistance(5)
+                                        setMaxPrice(100)
+                                        setIsDistanceFilterActive(false)
+                                        setIsMaxPriceFilterActive(false)
+                                        setSortBy('lowest-price')
+                                    }}
+                                >
+                                    Limpar filtros
+                                </Button>
                             </div>
                         ) : (
                             <>
@@ -1517,7 +1612,7 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
 
                     {/*PAINEL DE LISTAS*/}
                     {showListPanel && (
-                        <aside ref={shoppingListPanelRef} className="w-full shrink-0 scroll-mt-28 lg:w-96">
+                        <aside ref={shoppingListPanelRef} className="w-full shrink-0 scroll-mt-28 lg:w-[420px]">
                             <Card className="sticky top-32 overflow-hidden border-primary/10 p-0 shadow-sm">
                                 <div className="bg-primary/5 p-4">
                                     <div className="flex items-center justify-between">
@@ -1543,6 +1638,29 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
                                     </div>
                                 </div>
 
+                                {canUseShoppingLists && (
+                                    <div className="hidden mx-4 mt-4 gap-3 rounded-lg border border-border bg-background/80 p-3 sm:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3">
+                                        <div>
+                                            <p className="text-xs text-muted-foreground">Lista ativa</p>
+                                            <p className="mt-1 truncate text-sm font-semibold text-foreground">
+                                                {selectedShoppingList?.name ?? 'Nenhuma lista'}
+                                            </p>
+                                        </div>
+                                        <div>
+                                            <p className="text-xs text-muted-foreground">Total</p>
+                                            <p className="mt-1 text-sm font-semibold tabular-nums text-foreground">
+                                                R$ {selectedListTotal.toFixed(2)}
+                                            </p>
+                                        </div>
+                                        <div>
+                                            <p className="text-xs text-muted-foreground">Economia</p>
+                                            <p className="mt-1 text-sm font-semibold tabular-nums text-primary">
+                                                R$ {totalListSavings.toFixed(2)}
+                                            </p>
+                                        </div>
+                                    </div>
+                                )}
+
                                 <div className="space-y-3 p-4">
                                     {!canUseShoppingLists ? (
                                         <div className="rounded-lg border border-dashed border-primary/25 bg-muted/30 p-4 text-center">
@@ -1562,10 +1680,22 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
                                             <Skeleton key={index} className="h-20 w-full" />
                                         ))
                                     ) : shoppingLists.length === 0 ? (
-                                        <div className="rounded-lg border border-dashed border-primary/25 bg-primary/5 p-4 text-center text-sm text-muted-foreground">
-                                            <List className="mx-auto mb-2 h-5 w-5 text-primary" />
+                                        <div className="rounded-lg border border-dashed border-primary/25 bg-primary/5 p-5 text-center text-sm text-muted-foreground">
+                                            <div className="mx-auto mb-3 grid h-11 w-11 place-items-center rounded-full bg-primary/10 text-primary">
+                                                <List className="h-5 w-5" />
+                                            </div>
+                                            <p className="text-base font-semibold text-foreground">Crie sua primeira lista</p>
+                                            <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+                                                Organize produtos por mercado e acompanhe o total antes de comprar.
+                                            </p>
+                                            <Button size="sm" className="mt-4 rounded-full" onClick={() => setNewListOpen(true)}>
+                                                <Plus className="h-3.5 w-3.5" />
+                                                Criar lista
+                                            </Button>
+                                            <span className="sr-only">
                                             Nenhuma lista criada ainda.
                                             <span className="mt-1 block text-sm">Comece pela lista da semana ou do mês.</span>
+                                            </span>
                                         </div>
                                     ) : shoppingLists.map(list => {
                                         const stats = shoppingListStats.get(list.id) ?? { items: 0, total: 0 }
@@ -1590,7 +1720,7 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
                                         )
                                     })}
 
-                                    {canUseShoppingLists && (
+                                    {canUseShoppingLists && shoppingLists.length > 0 && (
                                         <Button size="sm" className="w-full rounded-full gap-1.5" onClick={() => setNewListOpen(true)}>
                                             <Plus className="w-3.5 h-3.5" /> Nova lista
                                         </Button>
@@ -1616,9 +1746,14 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
                                         </div>
                                         <div className="max-h-64 divide-y divide-border overflow-auto">
                                             {selectedListItems.length === 0 ? (
-                                                <div className="p-4 text-center text-sm text-muted-foreground">
-                                                    <Package className="mx-auto mb-2 h-5 w-5 opacity-40" />
-                                                    Adicione produtos para comparar o total.
+                                                <div className="p-5 text-center text-sm text-muted-foreground">
+                                                    <div className="mx-auto mb-3 grid h-10 w-10 place-items-center rounded-full bg-muted text-muted-foreground">
+                                                        <Package className="h-5 w-5" />
+                                                    </div>
+                                                    <p className="font-semibold text-foreground">Lista pronta para receber produtos</p>
+                                                    <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+                                                        Use os cards de produto para escolher o mercado e montar o total da compra.
+                                                    </p>
                                                 </div>
                                             ) : selectedListItems.map(item => (
                                                 <div key={item.id} className="p-3 transition-colors hover:bg-muted/40">
@@ -1821,8 +1956,8 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
 
                     {listProduct && (
                         <div className="space-y-4">
-                            <div className="rounded-lg border border-border p-3">
-                                <p className="text-base font-medium text-foreground">{listProduct.name}</p>
+                            <div className="rounded-lg border border-primary/15 bg-primary/5 p-3">
+                                <p className="text-base font-semibold text-foreground">{listProduct.name}</p>
                                 <p className="mt-1 text-sm text-muted-foreground">
                                     Compare preço e distância antes de salvar o item.
                                 </p>
@@ -1899,6 +2034,23 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
                                     onChange={(event) => setListQuantity(Math.max(1, Number(event.target.value) || 1))}
                                 />
                             </div>
+
+                            {selectedListMarketOffer && (
+                                <div className="rounded-lg border border-border bg-background/80 p-3">
+                                    <div className="flex items-center justify-between gap-3">
+                                        <div>
+                                            <p className="text-xs text-muted-foreground">Oferta selecionada</p>
+                                            <p className="mt-1 text-sm font-semibold text-foreground">{selectedListMarketOffer.name}</p>
+                                        </div>
+                                        <div className="text-right">
+                                            <p className="text-xs text-muted-foreground">Subtotal</p>
+                                            <p className="mt-1 text-base font-semibold tabular-nums text-primary">
+                                                R$ {(selectedListMarketOffer.price * listQuantity).toFixed(2)}
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     )}
 

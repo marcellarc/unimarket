@@ -1,8 +1,9 @@
 import {
     Badge, Button, Card,
     Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
-    Input, Label, Skeleton,
+    Input, Label, Skeleton, Switch,
 } from '@/components/ui'
+import { SettingsSectionNav } from '@/components/settings-section-nav'
 import { getApiErrorMessage } from '@/lib/api-error'
 import {
     deleteMarketAccount,
@@ -18,6 +19,7 @@ import Cookies from 'js-cookie'
 import {
     AlertTriangle,
     BadgeCheck,
+    Bell,
     ExternalLink,
     KeyRound,
     Loader2,
@@ -25,6 +27,7 @@ import {
     MapPin,
     RefreshCw,
     Save,
+    SlidersHorizontal,
     Trash2,
 } from 'lucide-react'
 import { type ReactNode, useEffect, useMemo, useState } from 'react'
@@ -72,6 +75,7 @@ export function SettingsTab() {
     const [weeklyReportEnabled, setWeeklyReportEnabled] = useState(true)
     const [showSecurityForm, setShowSecurityForm] = useState(false)
     const [deleteAccountOpen, setDeleteAccountOpen] = useState(false)
+    const [activeSettingsSection, setActiveSettingsSection] = useState('market-registration-section')
 
     const { data: profile, isLoading } = useQuery({
         queryKey: ['marketProfile'],
@@ -99,6 +103,39 @@ export function SettingsTab() {
         const fields = [name, email, profile?.cnpj, streetAddress, neighborhood, city, state, zipCode]
         return Math.round((fields.filter(Boolean).length / fields.length) * 100)
     }, [city, email, name, neighborhood, profile?.cnpj, state, streetAddress, zipCode])
+
+    const settingsSections = useMemo(() => [
+        {
+            id: 'market-registration-section',
+            label: 'Cadastro',
+            description: 'Dados comerciais e CNPJ da loja.',
+            icon: BadgeCheck,
+        },
+        {
+            id: 'market-security-section',
+            label: 'Segurança',
+            description: 'Alteração protegida da senha.',
+            icon: KeyRound,
+        },
+        {
+            id: 'market-location-section',
+            label: 'Endereço',
+            description: 'Localização exibida para clientes.',
+            icon: MapPin,
+        },
+        {
+            id: 'market-preferences-section',
+            label: 'Preferências',
+            description: 'Alertas, avaliações e relatórios.',
+            icon: Bell,
+        },
+        {
+            id: 'market-account-section',
+            label: 'Conta',
+            description: 'Visualização pública e exclusão.',
+            icon: SlidersHorizontal,
+        },
+    ], [])
 
     const saveMutation = useMutation({
         mutationFn: () => updateCurrentMarketProfile({
@@ -243,12 +280,12 @@ export function SettingsTab() {
 
     return (
         <div className="space-y-6">
-            <section className="rounded-lg border border-border bg-card/95 p-5 shadow-sm backdrop-blur">
-                <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
-                    <div>
+            <section className="overflow-hidden rounded-lg border border-border bg-card/95 shadow-sm backdrop-blur">
+                <div className="flex flex-col gap-5 p-5 lg:flex-row lg:items-center lg:justify-between">
+                    <div className="min-w-0">
                         <p className="text-xs font-semibold uppercase tracking-wide text-primary">Configurações</p>
                         <div className="mt-2 flex flex-wrap items-center gap-2">
-                            <h2 className="text-2xl font-semibold tracking-tight text-foreground">{profile?.name ?? 'Minha loja'}</h2>
+                            <h2 className="truncate text-2xl font-semibold tracking-tight text-foreground">{profile?.name ?? 'Minha loja'}</h2>
                             <Badge variant={profile?.registrationStatus?.toLowerCase() === 'ativa' ? 'default' : 'secondary'} className="font-normal">
                                 <BadgeCheck className="h-3 w-3" />
                                 {profile?.registrationStatus ?? 'Cadastro informado'}
@@ -259,16 +296,34 @@ export function SettingsTab() {
                         </p>
                     </div>
 
-                    <div className="w-full rounded-lg border border-border bg-background/70 px-4 py-3 text-left sm:w-auto">
-                        <p className="text-lg font-semibold tabular-nums text-primary">{completeness}%</p>
-                        <p className="text-xs text-muted-foreground">perfil preenchido</p>
+                    <div className="grid gap-3 sm:grid-cols-2 lg:w-[430px]">
+                        <div className="rounded-lg border border-border bg-background/70 px-4 py-3">
+                            <p className="text-xs font-medium text-muted-foreground">Localização pública</p>
+                            <p className="mt-1 truncate text-sm font-semibold text-foreground">
+                                {[city, state].filter(Boolean).join(', ') || 'Pendente'}
+                            </p>
+                        </div>
+                        <div className="rounded-lg border border-border bg-background/70 px-4 py-3">
+                            <p className="text-xs font-medium text-muted-foreground">Cadastro preenchido</p>
+                            <p className="mt-1 text-lg font-semibold tabular-nums text-primary">{completeness}%</p>
+                        </div>
                     </div>
                 </div>
             </section>
 
-            <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
-                <div className="space-y-6">
-                    <Card className="gap-0 p-0">
+            <div className="grid gap-6 lg:grid-cols-[280px_minmax(0,1fr)] lg:items-start">
+            <SettingsSectionNav
+                activeId={activeSettingsSection}
+                ariaLabel="Seções das configurações do mercado"
+                className="lg:sticky lg:top-24"
+                items={settingsSections}
+                onChange={setActiveSettingsSection}
+            />
+
+            <div className="min-w-0">
+                <div className={activeSettingsSection === 'market-account-section' ? 'hidden' : 'space-y-6'}>
+                    {activeSettingsSection === 'market-registration-section' && (
+                    <Card id="market-registration-section" role="tabpanel" aria-labelledby="market-registration-section-tab" className="gap-0 p-0">
                         <div className="flex flex-col gap-3 border-b border-border p-5 sm:flex-row sm:items-center sm:justify-between">
                             <div>
                                 <h3 className="text-base font-semibold text-foreground">Dados da loja</h3>
@@ -306,8 +361,10 @@ export function SettingsTab() {
                             </div>
                         </div>
                     </Card>
+                    )}
 
-                    <Card className="gap-0 p-0">
+                    {activeSettingsSection === 'market-security-section' && (
+                    <Card id="market-security-section" role="tabpanel" aria-labelledby="market-security-section-tab" className="gap-0 p-0">
                         <div className="flex flex-col gap-3 border-b border-border p-5 sm:flex-row sm:items-center sm:justify-between">
                             <div className="flex items-center gap-2">
                                 <KeyRound className="h-4 w-4 text-primary" />
@@ -398,8 +455,10 @@ export function SettingsTab() {
                             )}
                         </div>
                     </Card>
+                    )}
 
-                    <Card className="gap-0 p-0">
+                    {activeSettingsSection === 'market-location-section' && (
+                    <Card id="market-location-section" role="tabpanel" aria-labelledby="market-location-section-tab" className="gap-0 p-0">
                         <div className="border-b border-border p-5">
                             <h3 className="text-base font-semibold text-foreground">Endereço e atendimento</h3>
                             <p className="mt-1 text-sm text-muted-foreground">
@@ -450,6 +509,47 @@ export function SettingsTab() {
                             </div>
                         </div>
                     </Card>
+                    )}
+
+                    {activeSettingsSection === 'market-preferences-section' && (
+                    <Card id="market-preferences-section" role="tabpanel" aria-labelledby="market-preferences-section-tab" className="gap-0 p-0">
+                        <div className="border-b border-border p-5">
+                            <div className="flex items-center gap-2">
+                                <Bell className="h-4 w-4 text-primary" />
+                                <div>
+                                    <h3 className="text-base font-semibold text-foreground">Preferências de acompanhamento</h3>
+                                    <p className="mt-1 text-sm text-muted-foreground">
+                                        Defina quais avisos ajudam a manter estoque, preços e avaliações sob controle.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="grid gap-3 p-5 md:grid-cols-3">
+                            <MarketPreferenceSwitch
+                                checked={priceAlertsEnabled}
+                                description="Receber avisos quando produtos cadastrados tiverem variações relevantes de preço."
+                                id="market-price-alerts"
+                                label="Alertas de preço"
+                                onCheckedChange={setPriceAlertsEnabled}
+                            />
+                            <MarketPreferenceSwitch
+                                checked={reviewAlertsEnabled}
+                                description="Acompanhar novos feedbacks de clientes sobre a experiência com a loja."
+                                id="market-review-alerts"
+                                label="Avaliações"
+                                onCheckedChange={setReviewAlertsEnabled}
+                            />
+                            <MarketPreferenceSwitch
+                                checked={weeklyReportEnabled}
+                                description="Receber um resumo semanal com indicadores da operação no UniMarket."
+                                id="market-weekly-report"
+                                label="Relatório semanal"
+                                onCheckedChange={setWeeklyReportEnabled}
+                            />
+                        </div>
+                    </Card>
+                    )}
 
                     <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
                         <Button variant="ghost" onClick={() => queryClient.invalidateQueries({ queryKey: ['marketProfile'] })}>
@@ -466,7 +566,8 @@ export function SettingsTab() {
                     </div>
                 </div>
 
-                <aside className="space-y-6">
+                {activeSettingsSection === 'market-account-section' && (
+                <section id="market-account-section" role="tabpanel" aria-labelledby="market-account-section-tab" className="grid gap-6 lg:grid-cols-2">
                     <Card className="gap-4 p-5">
                         <div className="flex items-center gap-2">
                             <MapPin className="h-4 w-4 text-muted-foreground" />
@@ -508,7 +609,9 @@ export function SettingsTab() {
                             Excluir supermercado
                         </Button>
                     </Card>
-                </aside>
+                </section>
+                )}
+            </div>
             </div>
 
             <Dialog open={deleteAccountOpen} onOpenChange={setDeleteAccountOpen}>
@@ -533,6 +636,37 @@ export function SettingsTab() {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+        </div>
+    )
+}
+
+function MarketPreferenceSwitch({
+    checked,
+    description,
+    id,
+    label,
+    onCheckedChange,
+}: {
+    checked: boolean
+    description: string
+    id: string
+    label: string
+    onCheckedChange: (checked: boolean) => void
+}) {
+    return (
+        <div className="flex h-full flex-col justify-between gap-4 rounded-lg border border-border bg-background/70 p-4">
+            <div>
+                <Label htmlFor={id} className="text-sm font-semibold text-foreground">
+                    {label}
+                </Label>
+                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{description}</p>
+            </div>
+            <div className="flex items-center justify-between gap-3 border-t border-border pt-3">
+                <span className="text-xs font-medium text-muted-foreground">
+                    {checked ? 'Ativado' : 'Desativado'}
+                </span>
+                <Switch id={id} checked={checked} onCheckedChange={onCheckedChange} aria-label={label} />
+            </div>
         </div>
     )
 }

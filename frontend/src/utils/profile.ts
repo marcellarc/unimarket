@@ -1,5 +1,5 @@
 export const MAX_PROFILE_NAME_LENGTH = 60
-export const MAX_PROFILE_IMAGE_FILE_SIZE_MB = 1
+export const MAX_PROFILE_IMAGE_FILE_SIZE_MB = 5
 export const MAX_PROFILE_IMAGE_FILE_SIZE_BYTES = MAX_PROFILE_IMAGE_FILE_SIZE_MB * 1024 * 1024
 
 export function validateStrongPassword(password: string) {

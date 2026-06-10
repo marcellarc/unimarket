@@ -39,7 +39,7 @@ public class ClientProfileUpdateDTO {
 
     private String locationSource;
 
-    @Size(max = 2_000_000, message = "A imagem de perfil deve ter ate 1 MB")
+    @Size(max = 7_000_000, message = "A imagem de perfil deve ter ate 5 MB")
     private String profileImageUrl;
 
     private Double searchRadiusKm;

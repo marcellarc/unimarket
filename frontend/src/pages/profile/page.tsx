@@ -1,4 +1,5 @@
 import logoImg from '@/assets/logo-unimarket-auth.png'
+import { SettingsSectionNav } from '@/components/settings-section-nav'
 import {
     Badge, Button, Card,
     Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
@@ -106,6 +107,7 @@ export function ProfilePage() {
     const [browserPushEnabled, setBrowserPushEnabled] = useState(false)
     const [showSecurityForm, setShowSecurityForm] = useState(false)
     const [deleteAccountOpen, setDeleteAccountOpen] = useState(false)
+    const [activeSettingsSection, setActiveSettingsSection] = useState('client-account-section')
 
     const { data: profile, isLoading: isProfileLoading } = useQuery({
         queryKey: ['userProfile'],
@@ -165,6 +167,39 @@ export function ProfilePage() {
         const enabledPreferences = [priceAlertsEnabled, weeklySummaryEnabled, browserPushEnabled].filter(Boolean).length
         return Math.min(100, Math.round(((filledFields + enabledPreferences) / 10) * 100))
     }, [browserPushEnabled, city, email, name, neighborhood, priceAlertsEnabled, profileImageUrl, state, weeklySummaryEnabled, zipCode])
+
+    const settingsSections = useMemo(() => [
+        {
+            id: 'client-account-section',
+            label: 'Dados',
+            description: 'Nome, e-mail e foto usados na conta.',
+            icon: ShieldCheck,
+        },
+        {
+            id: 'client-security-section',
+            label: 'Segurança',
+            description: 'Alteração protegida da senha de acesso.',
+            icon: KeyRound,
+        },
+        {
+            id: 'client-preferences-section',
+            label: 'Preferências',
+            description: 'Alertas de preço e avisos da conta.',
+            icon: Bell,
+        },
+        {
+            id: 'client-location-section',
+            label: 'Localidade',
+            description: 'Região usada para mercados próximos.',
+            icon: MapPin,
+        },
+        {
+            id: 'client-account-danger-section',
+            label: 'Conta',
+            description: 'Resumo, retorno ao dashboard e exclusão.',
+            icon: SlidersHorizontal,
+        },
+    ], [])
 
     const showProfileImage = Boolean(profileImageUrl) && !profileImageFailed
 
@@ -491,10 +526,10 @@ export function ProfilePage() {
             </header>
 
             <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:py-8">
-                <section className="mb-6 rounded-lg border border-border bg-card/95 p-5 shadow-sm backdrop-blur">
-                    <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-                        <div className="flex items-center gap-4">
-                            <div className="relative flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-primary/15 bg-primary/10 text-lg font-semibold text-primary">
+                <section className="mb-6 overflow-hidden rounded-lg border border-border bg-card/95 shadow-sm backdrop-blur">
+                    <div className="flex flex-col gap-5 p-5 lg:flex-row lg:items-center lg:justify-between">
+                        <div className="flex min-w-0 items-center gap-4">
+                            <div className="relative flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-primary/15 bg-primary/10 text-base font-semibold text-primary">
                                 {showProfileImage ? (
                                     <img
                                         src={profileImageUrl}
@@ -507,9 +542,10 @@ export function ProfilePage() {
                                     getInitials(name)
                                 )}
                             </div>
-                            <div>
+                            <div className="min-w-0">
+                                <p className="text-xs font-semibold uppercase tracking-wide text-primary">Configurações da conta</p>
                                 <div className="flex flex-wrap items-center gap-2">
-                                    <h1 className="text-2xl font-semibold tracking-tight text-foreground">{name || 'Meu perfil'}</h1>
+                                    <h1 className="truncate text-2xl font-semibold tracking-tight text-foreground">{name || 'Meu perfil'}</h1>
                                     <Badge variant="secondary" className="gap-1">
                                         <CheckCircle2 className="h-3 w-3" />
                                         Cliente
@@ -521,17 +557,34 @@ export function ProfilePage() {
                             </div>
                         </div>
 
-                        <div className="grid grid-cols-3 gap-3 text-center">
-                            <MetricTile label="completo" value={`${profileScore}%`} tone="primary" />
-                            <MetricTile label="alertas" value={String(activeAlerts.length)} />
-                            <MetricTile label="novas" value={String(unreadNotifications)} />
+                        <div className="grid gap-3 sm:grid-cols-2 lg:w-[430px]">
+                            <div className="rounded-lg border border-border bg-background/70 px-4 py-3">
+                                <p className="text-xs font-medium text-muted-foreground">Localidade de compra</p>
+                                <p className="mt-1 truncate text-sm font-semibold text-foreground">
+                                    {[city, state].filter(Boolean).join(', ') || 'Não informada'}
+                                </p>
+                            </div>
+                            <div className="rounded-lg border border-border bg-background/70 px-4 py-3">
+                                <p className="text-xs font-medium text-muted-foreground">Perfil preenchido</p>
+                                <p className="mt-1 text-lg font-semibold tabular-nums text-primary">{profileScore}%</p>
+                            </div>
                         </div>
                     </div>
                 </section>
 
-                <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
-                    <div className="space-y-6">
-                        <Card className="gap-0 overflow-hidden bg-card/95 p-0 shadow-sm backdrop-blur">
+                <div className="grid gap-6 lg:grid-cols-[280px_minmax(0,1fr)] lg:items-start">
+                <SettingsSectionNav
+                    activeId={activeSettingsSection}
+                    ariaLabel="Seções das configurações do cliente"
+                    className="lg:sticky lg:top-24"
+                    items={settingsSections}
+                    onChange={setActiveSettingsSection}
+                />
+
+                <div className="min-w-0">
+                    <div className={activeSettingsSection === 'client-account-danger-section' ? 'hidden' : 'space-y-6'}>
+                        {activeSettingsSection === 'client-account-section' && (
+                        <Card id="client-account-section" role="tabpanel" aria-labelledby="client-account-section-tab" className="gap-0 overflow-hidden bg-card/95 p-0 shadow-sm backdrop-blur">
                             <div className="border-b border-border bg-muted/20 p-5">
                                 <div className="flex items-center gap-2">
                                     <ShieldCheck className="h-5 w-5 text-primary" />
@@ -668,8 +721,10 @@ export function ProfilePage() {
                                 )}
                             </div>
                         </Card>
+                        )}
 
-                        <Card className="gap-0 overflow-hidden bg-card/95 p-0 shadow-sm backdrop-blur">
+                        {activeSettingsSection === 'client-security-section' && (
+                        <Card id="client-security-section" role="tabpanel" aria-labelledby="client-security-section-tab" className="gap-0 overflow-hidden bg-card/95 p-0 shadow-sm backdrop-blur">
                             <div className="flex flex-col gap-3 border-b border-border bg-muted/20 p-5 sm:flex-row sm:items-center sm:justify-between">
                                 <div className="flex items-center gap-2">
                                     <KeyRound className="h-5 w-5 text-primary" />
@@ -766,8 +821,10 @@ export function ProfilePage() {
                                 )}
                             </div>
                         </Card>
+                        )}
 
-                        <Card className="gap-0 overflow-hidden bg-card/95 p-0 shadow-sm backdrop-blur">
+                        {activeSettingsSection === 'client-preferences-section' && (
+                        <Card id="client-preferences-section" role="tabpanel" aria-labelledby="client-preferences-section-tab" className="gap-0 overflow-hidden bg-card/95 p-0 shadow-sm backdrop-blur">
                             <div className="border-b border-border bg-muted/20 p-5">
                                 <div className="flex items-center gap-2">
                                     <Bell className="h-5 w-5 text-primary" />
@@ -859,8 +916,10 @@ export function ProfilePage() {
                                 </div>
                             </div>
                         </Card>
+                        )}
 
-                        <Card className="gap-0 overflow-hidden bg-card/95 p-0 shadow-sm backdrop-blur">
+                        {activeSettingsSection === 'client-location-section' && (
+                        <Card id="client-location-section" role="tabpanel" aria-labelledby="client-location-section-tab" className="gap-0 overflow-hidden bg-card/95 p-0 shadow-sm backdrop-blur">
                             <div className="border-b border-border bg-muted/20 p-5">
                                 <div className="flex items-center gap-2">
                                     <MapPin className="h-5 w-5 text-primary" />
@@ -1000,9 +1059,11 @@ export function ProfilePage() {
                                 </div>
                             </div>
                         </Card>
+                        )}
                     </div>
 
-                    <aside className="space-y-6 lg:sticky lg:top-20 lg:self-start">
+                    {activeSettingsSection === 'client-account-danger-section' && (
+                    <section id="client-account-danger-section" role="tabpanel" aria-labelledby="client-account-danger-section-tab" className="grid gap-6 lg:grid-cols-2">
                         <Card className="gap-4 bg-card/95 p-5 shadow-sm backdrop-blur">
                             <div className="flex items-center justify-between">
                                 <div>
@@ -1062,7 +1123,9 @@ export function ProfilePage() {
                             <Navigation className="h-4 w-4" />
                             Voltar para comparar preços
                         </Button>
-                    </aside>
+                    </section>
+                    )}
+                </div>
                 </div>
             </main>
 
@@ -1097,23 +1160,6 @@ interface PreferenceSwitchProps {
     description: string
     label: string
     onCheckedChange: (checked: boolean) => void
-}
-
-function MetricTile({
-    label,
-    value,
-    tone = 'default',
-}: {
-    label: string
-    value: string
-    tone?: 'default' | 'primary'
-}) {
-    return (
-        <div className="rounded-lg border border-border bg-background/70 px-4 py-3">
-            <p className={`text-lg font-semibold tabular-nums ${tone === 'primary' ? 'text-primary' : 'text-foreground'}`}>{value}</p>
-            <p className="text-xs text-muted-foreground">{label}</p>
-        </div>
-    )
 }
 
 function PreferenceSwitch({ checked, description, label, onCheckedChange }: PreferenceSwitchProps) {

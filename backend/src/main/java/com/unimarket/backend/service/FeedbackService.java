@@ -155,6 +155,7 @@ public class FeedbackService {
         response.setId(feedback.getCdFeedback());
         response.setClientId(feedback.getCliente().getId());
         response.setClientName(feedback.getCliente().getName());
+        response.setClientProfileImageUrl(feedback.getCliente().getProfileImageUrl());
         response.setProductId(feedback.getProduct().getId());
         response.setProductName(feedback.getProduct().getName());
 

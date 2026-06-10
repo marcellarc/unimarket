@@ -34,6 +34,27 @@ function getInitials(value: string) {
         .join('') || 'U'
 }
 
+function ClientAvatar({ imageUrl, name }: { imageUrl?: string | null; name: string }) {
+    const [imageFailed, setImageFailed] = useState(false)
+    const showImage = Boolean(imageUrl) && !imageFailed
+
+    return (
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-md border border-primary/15 bg-primary/10 text-sm font-semibold text-primary">
+            {showImage ? (
+                <img
+                    src={imageUrl ?? undefined}
+                    alt={`Foto de ${name}`}
+                    referrerPolicy="no-referrer"
+                    className="h-full w-full object-cover"
+                    onError={() => setImageFailed(true)}
+                />
+            ) : (
+                getInitials(name)
+            )}
+        </div>
+    )
+}
+
 function hasReply(feedback: FeedbackResponse) {
     return Boolean(feedback.marketReply?.trim())
 }
@@ -141,7 +162,7 @@ export function ReviewsTab() {
                         <p className="text-xs font-semibold uppercase tracking-wide text-primary">Relacionamento</p>
                         <h2 className="mt-2 text-2xl font-semibold tracking-tight text-foreground">Feedbacks de clientes</h2>
                         <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">
-                            Feedbacks carregados da API do mercado. Responda comentários pendentes e acompanhe a percepção dos clientes sobre os produtos.
+                            Acompanhe as avaliações recebidas, responda comentários pendentes e entenda a percepção dos clientes sobre os produtos.
                         </p>
                     </div>
                     <div className="grid grid-cols-3 gap-3 text-center">
@@ -272,7 +293,7 @@ export function ReviewsTab() {
                     <Card className="p-5">
                         <h3 className="text-base font-semibold text-foreground">Critério de atendimento</h3>
                         <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-                            Responda primeiro feedbacks pendentes e comentários com nota baixa. A resposta fica salva no backend e aparece junto do feedback.
+                            Responda primeiro feedbacks pendentes e comentários com nota baixa. Sua resposta fica visível junto ao comentário do cliente.
                         </p>
                     </Card>
                 </aside>
@@ -323,9 +344,7 @@ function FeedbackItem({
         <Card className="gap-0 p-0">
             <div className="flex flex-col gap-3 border-b border-border p-4 sm:flex-row sm:items-start sm:justify-between">
                 <div className="flex min-w-0 items-start gap-3">
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-primary/10 text-sm font-semibold text-primary">
-                        {getInitials(feedback.clientName)}
-                    </div>
+                    <ClientAvatar imageUrl={feedback.clientProfileImageUrl} name={feedback.clientName} />
                     <div className="min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
                             <p className="text-sm font-semibold text-foreground">{feedback.clientName}</p>

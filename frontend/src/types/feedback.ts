@@ -2,6 +2,7 @@ export interface FeedbackResponse {
     id: number
     clientId: number
     clientName: string
+    clientProfileImageUrl?: string | null
     productId: number
     productName: string
     marketId: number

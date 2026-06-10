@@ -16,6 +16,7 @@ public class FeedbackResponseDTO {
     // cliente que realizou o feedback
     private Long clientId;
     private String clientName;
+    private String clientProfileImageUrl;
 
     // produto avaliado
     private Long productId;

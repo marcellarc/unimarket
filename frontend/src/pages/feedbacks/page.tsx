@@ -311,6 +311,27 @@ function SummaryRow({ label, value }: { label: string; value: string }) {
     )
 }
 
+function ClientAvatar({ imageUrl, name }: { imageUrl?: string | null; name: string }) {
+    const [imageFailed, setImageFailed] = useState(false)
+    const showImage = Boolean(imageUrl) && !imageFailed
+
+    return (
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-md border border-primary/15 bg-primary/10 text-sm font-semibold text-primary">
+            {showImage ? (
+                <img
+                    src={imageUrl ?? undefined}
+                    alt={`Foto de ${name}`}
+                    referrerPolicy="no-referrer"
+                    className="h-full w-full object-cover"
+                    onError={() => setImageFailed(true)}
+                />
+            ) : (
+                getInitials(name)
+            )}
+        </div>
+    )
+}
+
 function FeedbackCard({
     feedback,
     isOwnFeedback,
@@ -327,9 +348,7 @@ function FeedbackCard({
         <Card className="gap-0 overflow-hidden p-0">
             <div className="flex flex-col gap-4 border-b border-border p-5 sm:flex-row sm:items-start sm:justify-between">
                 <div className="flex min-w-0 gap-3">
-                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md bg-primary/10 text-sm font-semibold text-primary">
-                        {getInitials(feedback.clientName)}
-                    </div>
+                    <ClientAvatar imageUrl={feedback.clientProfileImageUrl} name={feedback.clientName} />
                     <div className="min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
                             <h2 className="text-base font-semibold text-foreground">{feedback.productName}</h2>
