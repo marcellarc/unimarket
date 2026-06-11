@@ -224,7 +224,9 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
     const hasSavedLocation = Boolean((userZipCode || userCity) && userState)
     const hasPreciseLocation = userLatitude != null && userLongitude != null
     const hasLocationForProximity = hasPreciseLocation || hasSavedLocation
-    const locationLabel = [userCity, userState].filter(Boolean).join(', ') || 'Localidade não informada'
+    const locationLabel = hasPreciseLocation
+        ? 'Localização atual'
+        : [userCity, userState].filter(Boolean).join(', ') || 'Localidade não informada'
 
     const userZipCodeDigits = onlyDigits(userZipCode)
     const shouldResolveZipCoordinates = isLogged
@@ -638,7 +640,7 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
                     distance: formatDistanceKm(distanceKm),
                     distanceKm,
                 }
-            }).filter(market => !isDistanceFilterActive || market.distanceKm == null || market.distanceKm <= maxDistance)
+            }).filter(market => !isDistanceFilterActive || (market.distanceKm != null && market.distanceKm <= maxDistance))
 
             if (marketRows.length === 0) {
                 return []
@@ -1661,7 +1663,7 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
                                     </div>
                                 )}
 
-                                <div className="space-y-3 p-4">
+                                <div className="max-h-[28rem] space-y-3 overflow-y-auto p-4">
                                     {!canUseShoppingLists ? (
                                         <div className="rounded-lg border border-dashed border-primary/25 bg-muted/30 p-4 text-center">
                                             <div className="mx-auto mb-3 grid h-10 w-10 place-items-center rounded-full bg-primary/10 text-primary">

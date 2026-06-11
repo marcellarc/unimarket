@@ -178,7 +178,7 @@ export function ProfilePage() {
         {
             id: 'client-security-section',
             label: 'Segurança',
-            description: 'Alteração protegida da senha de acesso.',
+            description: 'Senha e exclusão da conta.',
             icon: KeyRound,
         },
         {
@@ -819,6 +819,24 @@ export function ProfilePage() {
                                         </p>
                                     </div>
                                 )}
+
+                                <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-4">
+                                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                                        <div className="flex items-start gap-3">
+                                            <AlertTriangle className="mt-0.5 h-4 w-4 text-destructive" />
+                                            <div>
+                                                <p className="text-sm font-semibold text-foreground">Excluir conta</p>
+                                                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                                                    Remove seu cadastro de cliente e encerra o acesso a listas, alertas e preferências salvas.
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <Button variant="destructive" onClick={() => setDeleteAccountOpen(true)} disabled={!profile}>
+                                            <Trash2 className="h-4 w-4" />
+                                            Excluir conta
+                                        </Button>
+                                    </div>
+                                </div>
                             </div>
                         </Card>
                         )}
@@ -1103,20 +1121,6 @@ export function ProfilePage() {
                                     </p>
                                 </div>
                             </div>
-                        </Card>
-
-                        <Card className="gap-4 border-destructive/30 bg-card/95 p-5 shadow-sm backdrop-blur">
-                            <div className="flex items-center gap-2">
-                                <AlertTriangle className="h-5 w-5 text-destructive" />
-                                <h2 className="text-base font-semibold text-foreground">Excluir conta</h2>
-                            </div>
-                            <p className="text-sm leading-relaxed text-muted-foreground">
-                                Remove seu cadastro de cliente e encerra o acesso a listas, alertas e preferências salvas.
-                            </p>
-                            <Button variant="destructive" onClick={() => setDeleteAccountOpen(true)} disabled={!profile}>
-                                <Trash2 className="h-4 w-4" />
-                                Excluir minha conta
-                            </Button>
                         </Card>
 
                         <Button className="w-full" onClick={() => navigate({ to: '/dashboard' })}>

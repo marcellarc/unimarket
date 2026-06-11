@@ -12,7 +12,30 @@ import {
     Trash2,
     TrendingUp,
 } from 'lucide-react'
-import { Badge, Button, Card, Input, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Skeleton, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui'
+import {
+    Badge,
+    Button,
+    Card,
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+    Input,
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+    Skeleton,
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from '@/components/ui'
 import { deleteMarketProduct, listProducts, searchProductsByMarketId } from '@/services/product'
 import { ProductFormDialog } from '@/pages/dashboard/product-form-dialog'
 import { EditProductDialog } from '@/pages/dashboard/edit-product-dialog'
@@ -77,6 +100,7 @@ export function ProductsTab() {
     const [selectedCategory, setSelectedCategory] = useState('all')
     const [stockFilter, setStockFilter] = useState<StockFilter>('all')
     const [showFilters, setShowFilters] = useState(false)
+    const [productPendingDelete, setProductPendingDelete] = useState<MarketProductResponse | null>(null)
     const deferredSearchQuery = useDeferredValue(searchQuery)
     const queryClient = useQueryClient()
 
@@ -107,6 +131,7 @@ export function ProductsTab() {
     const deleteMutation = useMutation({
         mutationFn: (productId: number) => deleteMarketProduct(marketId, productId),
         onSuccess: () => {
+            setProductPendingDelete(null)
             queryClient.invalidateQueries({ queryKey: ['products', marketId] })
             queryClient.invalidateQueries({ queryKey: ['searchProductsByMarketId', marketId] })
             toast.success('Produto removido do estoque.')
@@ -148,11 +173,14 @@ export function ProductsTab() {
     const attentionCount = summary.lowStock + summary.outOfStock
 
     const handleDelete = useCallback((product: MarketProductResponse) => {
-        const confirmed = window.confirm(`Remover "${product.productName}" do estoque deste mercado?`)
-        if (!confirmed) return
+        setProductPendingDelete(product)
+    }, [])
 
-        deleteMutation.mutate(product.productId)
-    }, [deleteMutation])
+    const handleConfirmDelete = useCallback(() => {
+        if (!productPendingDelete) return
+
+        deleteMutation.mutate(productPendingDelete.productId)
+    }, [deleteMutation, productPendingDelete])
 
     const handleInventoryChanged = useCallback(() => {
         refetch()
@@ -445,6 +473,30 @@ export function ProductsTab() {
                     Exibindo {filteredProducts.length} de {products.length} produto{products.length !== 1 ? 's' : ''}
                 </p>
             )}
+
+            <Dialog open={!!productPendingDelete} onOpenChange={(open) => !open && setProductPendingDelete(null)}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <div className="mb-2 grid h-11 w-11 place-items-center rounded-lg bg-destructive/10 text-destructive">
+                            <Trash2 className="h-5 w-5" />
+                        </div>
+                        <DialogTitle>Remover produto do estoque?</DialogTitle>
+                        <DialogDescription>
+                            {productPendingDelete
+                                ? `O item "${productPendingDelete.productName}" deixará de aparecer para os clientes deste mercado.`
+                                : 'Confirme para remover este item do estoque.'}
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setProductPendingDelete(null)} disabled={deleteMutation.isPending}>
+                            Cancelar
+                        </Button>
+                        <Button variant="destructive" onClick={handleConfirmDelete} disabled={deleteMutation.isPending || !productPendingDelete}>
+                            {deleteMutation.isPending ? 'Removendo...' : 'Remover produto'}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     )
 }

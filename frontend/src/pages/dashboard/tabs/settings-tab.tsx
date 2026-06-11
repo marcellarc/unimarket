@@ -1,7 +1,7 @@
 import {
     Badge, Button, Card,
     Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
-    Input, Label, Skeleton, Switch,
+    Input, Label, Skeleton,
 } from '@/components/ui'
 import { SettingsSectionNav } from '@/components/settings-section-nav'
 import { getApiErrorMessage } from '@/lib/api-error'
@@ -19,7 +19,6 @@ import Cookies from 'js-cookie'
 import {
     AlertTriangle,
     BadgeCheck,
-    Bell,
     ExternalLink,
     KeyRound,
     Loader2,
@@ -27,7 +26,6 @@ import {
     MapPin,
     RefreshCw,
     Save,
-    SlidersHorizontal,
     Trash2,
 } from 'lucide-react'
 import { type ReactNode, useEffect, useMemo, useState } from 'react'
@@ -104,6 +102,24 @@ export function SettingsTab() {
         return Math.round((fields.filter(Boolean).length / fields.length) * 100)
     }, [city, email, name, neighborhood, profile?.cnpj, state, streetAddress, zipCode])
 
+    const publicLocationQuery = useMemo(() => {
+        if (latitude.trim() && longitude.trim()) {
+            return `${latitude.trim()},${longitude.trim()}`
+        }
+
+        return [streetAddress, neighborhood, city, state, zipCode]
+            .map(value => value.trim())
+            .filter(Boolean)
+            .join(', ')
+    }, [city, latitude, longitude, neighborhood, state, streetAddress, zipCode])
+
+    const publicGoogleMapsUrl = publicLocationQuery
+        ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(publicLocationQuery)}`
+        : ''
+    const publicDirectionsUrl = publicLocationQuery
+        ? `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(publicLocationQuery)}`
+        : ''
+
     const settingsSections = useMemo(() => [
         {
             id: 'market-registration-section',
@@ -114,7 +130,7 @@ export function SettingsTab() {
         {
             id: 'market-security-section',
             label: 'Segurança',
-            description: 'Alteração protegida da senha.',
+            description: 'Senha e exclusão da conta.',
             icon: KeyRound,
         },
         {
@@ -124,16 +140,10 @@ export function SettingsTab() {
             icon: MapPin,
         },
         {
-            id: 'market-preferences-section',
-            label: 'Preferências',
-            description: 'Alertas, avaliações e relatórios.',
-            icon: Bell,
-        },
-        {
             id: 'market-account-section',
             label: 'Conta',
-            description: 'Visualização pública e exclusão.',
-            icon: SlidersHorizontal,
+            description: 'Visualização pública da loja.',
+            icon: ExternalLink,
         },
     ], [])
 
@@ -453,6 +463,24 @@ export function SettingsTab() {
                                     </p>
                                 </div>
                             )}
+
+                            <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-4">
+                                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                                    <div className="flex items-start gap-3">
+                                        <AlertTriangle className="mt-0.5 h-4 w-4 text-destructive" />
+                                        <div>
+                                            <p className="text-sm font-semibold text-foreground">Excluir supermercado</p>
+                                            <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                                                Remove o supermercado e seus vínculos de produtos do UniMarket.
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <Button variant="destructive" onClick={() => setDeleteAccountOpen(true)} disabled={!profile}>
+                                        <Trash2 className="h-4 w-4" />
+                                        Excluir conta
+                                    </Button>
+                                </div>
+                            </div>
                         </div>
                     </Card>
                     )}
@@ -511,46 +539,6 @@ export function SettingsTab() {
                     </Card>
                     )}
 
-                    {activeSettingsSection === 'market-preferences-section' && (
-                    <Card id="market-preferences-section" role="tabpanel" aria-labelledby="market-preferences-section-tab" className="gap-0 p-0">
-                        <div className="border-b border-border p-5">
-                            <div className="flex items-center gap-2">
-                                <Bell className="h-4 w-4 text-primary" />
-                                <div>
-                                    <h3 className="text-base font-semibold text-foreground">Preferências de acompanhamento</h3>
-                                    <p className="mt-1 text-sm text-muted-foreground">
-                                        Defina quais avisos ajudam a manter estoque, preços e avaliações sob controle.
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="grid gap-3 p-5 md:grid-cols-3">
-                            <MarketPreferenceSwitch
-                                checked={priceAlertsEnabled}
-                                description="Receber avisos quando produtos cadastrados tiverem variações relevantes de preço."
-                                id="market-price-alerts"
-                                label="Alertas de preço"
-                                onCheckedChange={setPriceAlertsEnabled}
-                            />
-                            <MarketPreferenceSwitch
-                                checked={reviewAlertsEnabled}
-                                description="Acompanhar novos feedbacks de clientes sobre a experiência com a loja."
-                                id="market-review-alerts"
-                                label="Avaliações"
-                                onCheckedChange={setReviewAlertsEnabled}
-                            />
-                            <MarketPreferenceSwitch
-                                checked={weeklyReportEnabled}
-                                description="Receber um resumo semanal com indicadores da operação no UniMarket."
-                                id="market-weekly-report"
-                                label="Relatório semanal"
-                                onCheckedChange={setWeeklyReportEnabled}
-                            />
-                        </div>
-                    </Card>
-                    )}
-
                     <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
                         <Button variant="ghost" onClick={() => queryClient.invalidateQueries({ queryKey: ['marketProfile'] })}>
                             Cancelar
@@ -579,35 +567,21 @@ export function SettingsTab() {
                         <div className="flex flex-col gap-2">
                             <Button
                                 variant="outline"
-                                disabled={!profile?.googleMapsUrl}
-                                onClick={() => profile?.googleMapsUrl && window.open(profile.googleMapsUrl, '_blank', 'noopener,noreferrer')}
+                                disabled={!publicGoogleMapsUrl}
+                                onClick={() => publicGoogleMapsUrl && window.open(publicGoogleMapsUrl, '_blank', 'noopener,noreferrer')}
                             >
                                 <ExternalLink className="h-4 w-4" />
                                 Abrir localização
                             </Button>
                             <Button
                                 variant="outline"
-                                disabled={!profile?.directionsUrl}
-                                onClick={() => profile?.directionsUrl && window.open(profile.directionsUrl, '_blank', 'noopener,noreferrer')}
+                                disabled={!publicDirectionsUrl}
+                                onClick={() => publicDirectionsUrl && window.open(publicDirectionsUrl, '_blank', 'noopener,noreferrer')}
                             >
                                 <MapPin className="h-4 w-4" />
                                 Ver rota até a loja
                             </Button>
                         </div>
-                    </Card>
-
-                    <Card className="gap-4 border-destructive/30 p-5">
-                        <div className="flex items-center gap-2">
-                            <AlertTriangle className="h-4 w-4 text-destructive" />
-                            <h3 className="text-base font-semibold text-foreground">Excluir conta</h3>
-                        </div>
-                        <p className="text-sm leading-relaxed text-muted-foreground">
-                            Remove o supermercado e seus vínculos de produtos do UniMarket.
-                        </p>
-                        <Button variant="destructive" onClick={() => setDeleteAccountOpen(true)} disabled={!profile}>
-                            <Trash2 className="h-4 w-4" />
-                            Excluir supermercado
-                        </Button>
                     </Card>
                 </section>
                 )}
@@ -636,37 +610,6 @@ export function SettingsTab() {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
-        </div>
-    )
-}
-
-function MarketPreferenceSwitch({
-    checked,
-    description,
-    id,
-    label,
-    onCheckedChange,
-}: {
-    checked: boolean
-    description: string
-    id: string
-    label: string
-    onCheckedChange: (checked: boolean) => void
-}) {
-    return (
-        <div className="flex h-full flex-col justify-between gap-4 rounded-lg border border-border bg-background/70 p-4">
-            <div>
-                <Label htmlFor={id} className="text-sm font-semibold text-foreground">
-                    {label}
-                </Label>
-                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{description}</p>
-            </div>
-            <div className="flex items-center justify-between gap-3 border-t border-border pt-3">
-                <span className="text-xs font-medium text-muted-foreground">
-                    {checked ? 'Ativado' : 'Desativado'}
-                </span>
-                <Switch id={id} checked={checked} onCheckedChange={onCheckedChange} aria-label={label} />
-            </div>
         </div>
     )
 }
