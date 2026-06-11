@@ -20,7 +20,7 @@ import {
     markNotificationsAsRead,
 } from '@/services/notification'
 import type { PriceNotificationResponse } from '@/types/notification'
-import { findLocationByCep } from '@/services/location'
+import { findLocationByCep, findLocationByCoordinates } from '@/services/location'
 import { listAllMarketProducts, searchGeneralProducts } from '@/services/product'
 import {
     addShoppingListItem,
@@ -31,7 +31,7 @@ import {
     listShoppingLists,
 } from '@/services/shopping-list'
 import { listNearbyMarkets } from '@/services/supermarket'
-import { getCurrentUserProfile } from '@/services/user'
+import { getCurrentUserProfile, updateCurrentUserProfile } from '@/services/user'
 import type { MarketProductResponse } from '@/types/product'
 import type { ShoppingListItem } from '@/types/shopping-list'
 import type { MarketResponse } from '@/types/supermarket'
@@ -123,6 +123,16 @@ function formatDistanceKm(distanceKm?: number | null) {
     return distanceKm == null ? 'Distância indisponível' : `${distanceKm.toFixed(1)} km`
 }
 
+function formatLocationLabel(city?: string | null, state?: string | null) {
+    const normalizedCity = (city ?? '')
+        .trim()
+        .toLocaleLowerCase('pt-BR')
+        .replace(/(^|\s|-)(\p{L})/gu, (_, separator: string, letter: string) => `${separator}${letter.toLocaleUpperCase('pt-BR')}`)
+    const normalizedState = (state ?? '').trim().toLocaleUpperCase('pt-BR')
+
+    return [normalizedCity, normalizedState].filter(Boolean).join(' - ')
+}
+
 function formatNotificationTime(value: string) {
     const createdAt = new Date(value).getTime()
 
@@ -207,6 +217,7 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
     const [userCity, setUserCity] = useState('')
     const [userState, setUserState] = useState('')
     const [userZipCode, setUserZipCode] = useState('')
+    const [isResolvingPreciseLocation, setIsResolvingPreciseLocation] = useState(false)
     const [expandedId, setExpandedId] = useState<number | null>(null)
     const [alertProduct, setAlertProduct] = useState<TransformedProduct | null>(null)
     const [desiredPrice, setDesiredPrice] = useState('')
@@ -224,10 +235,6 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
     const hasSavedLocation = Boolean((userZipCode || userCity) && userState)
     const hasPreciseLocation = userLatitude != null && userLongitude != null
     const hasLocationForProximity = hasPreciseLocation || hasSavedLocation
-    const locationLabel = hasPreciseLocation
-        ? 'Localização atual'
-        : [userCity, userState].filter(Boolean).join(', ') || 'Localidade não informada'
-
     const userZipCodeDigits = onlyDigits(userZipCode)
     const shouldResolveZipCoordinates = isLogged
         && userRole === 'USER'
@@ -246,7 +253,14 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
     const { data: nearbyMarketResults = [], isLoading: isLoadingMarkets } = useQuery({
         queryKey: ['nearbyMarkets', nearbyMarketParams],
         queryFn: () => listNearbyMarkets(nearbyMarketParams),
+        enabled: hasLocationForProximity,
     })
+
+    const locationLabel = isResolvingPreciseLocation
+        ? 'Identificando cidade...'
+        : formatLocationLabel(userCity, userState)
+        || (hasPreciseLocation ? 'Localidade não identificada' : '')
+        || 'Localidade não informada'
 
     const distanceMarketParams = useMemo(() => ({
         latitude: userLatitude ?? undefined,
@@ -259,6 +273,7 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
     const { data: distanceMarketResults = [] } = useQuery({
         queryKey: ['marketDistanceIndex', distanceMarketParams],
         queryFn: () => listNearbyMarkets(distanceMarketParams),
+        enabled: hasLocationForProximity,
     })
 
     const { data: userProfile } = useQuery({
@@ -284,7 +299,7 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
     const showProfileImage = Boolean(profileImageUrl) && !avatarImageFailed
 
     const deferredSearch = useDeferredValue(searchQuery)
-    const catalogQueryPageSize = sortBy === 'distance' ? PROXIMITY_PRODUCT_PAGE_SIZE : PRODUCT_PAGE_SIZE
+    const catalogQueryPageSize = sortBy === 'distance' || isDistanceFilterActive ? PROXIMITY_PRODUCT_PAGE_SIZE : PRODUCT_PAGE_SIZE
 
     const { data: catalogPage, isLoading, isFetching, error } = useQuery({
         queryKey: ['globalMarketProducts', deferredSearch, catalogPageNumber, catalogQueryPageSize],
@@ -336,7 +351,7 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
     useEffect(() => {
         setCatalogPageNumber(0)
         setExpandedId(null)
-    }, [catalogQueryPageSize, deferredSearch])
+    }, [catalogQueryPageSize, deferredSearch, maxDistance])
 
     useEffect(() => {
         setAvatarImageFailed(false)
@@ -519,6 +534,45 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
         },
         onError: (feedbackError: unknown) => {
             toast.error(getApiErrorMessage(feedbackError, 'Não foi possível enviar o feedback agora.'))
+        },
+    })
+
+    const preciseLocationMutation = useMutation({
+        mutationFn: ({ latitude, longitude }: { latitude: number; longitude: number }) =>
+            findLocationByCoordinates(latitude, longitude),
+        onMutate: () => {
+            setIsResolvingPreciseLocation(true)
+        },
+        onSuccess: async (location) => {
+            const resolvedCity = location.city ?? ''
+            const resolvedState = location.state ?? ''
+            const resolvedZipCode = location.zipCode ?? ''
+
+            if (resolvedCity && resolvedState) {
+                setUserCity(resolvedCity)
+                setUserState(resolvedState)
+                setUserZipCode(resolvedZipCode)
+
+                if (isLogged && userRole === 'USER') {
+                    await updateCurrentUserProfile({
+                        city: resolvedCity,
+                        state: resolvedState,
+                        zipCode: resolvedZipCode || undefined,
+                        latitude: location.latitude ?? userLatitude ?? undefined,
+                        longitude: location.longitude ?? userLongitude ?? undefined,
+                        locationSource: location.source ?? 'BROWSER_GEOLOCATION',
+                    })
+                    await queryClient.invalidateQueries({ queryKey: ['userProfile'] })
+                }
+            } else {
+                toast.info('Localização precisa ativa, mas o Google Maps não retornou cidade e UF para estas coordenadas.')
+            }
+        },
+        onError: () => {
+            toast.info('Não conseguimos identificar a cidade automaticamente. Verifique se a chave do Google Maps está configurada no backend.')
+        },
+        onSettled: () => {
+            setIsResolvingPreciseLocation(false)
         },
     })
 
@@ -743,11 +797,6 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
             ? ((shoppingListItemQueries[selectedIndex]?.data ?? []) as ShoppingListItem[])
             : []
     }, [selectedShoppingListId, shoppingListItemQueries, shoppingLists])
-    const selectedShoppingList = useMemo(() =>
-        shoppingLists.find(list => list.id === selectedShoppingListId) ?? null,
-        [selectedShoppingListId, shoppingLists],
-    )
-
     const selectedListTotal = useMemo(() =>
         selectedListItems.reduce((sum, item) => sum + (Number(item.price) * item.quantity), 0),
         [selectedListItems],
@@ -760,21 +809,22 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
         new Set(selectedListItems.map(item => item.marketName)).size,
         [selectedListItems],
     )
-    const savingsByProductName = useMemo(() => {
-        const savings = new Map<string, number>()
+    const lowestPriceByProductName = useMemo(() => {
+        const prices = new Map<string, number>()
 
         filteredProducts.forEach(product => {
-            savings.set(product.name, Math.max(product.averagePrice - product.lowestPrice, 0))
+            prices.set(product.name, product.lowestPrice)
         })
 
-        return savings
+        return prices
     }, [filteredProducts])
     const totalListSavings = useMemo(() =>
         selectedListItems.reduce((sum, item) => {
-            const unitSavings = savingsByProductName.get(item.productName) ?? 0
+            const lowestPrice = lowestPriceByProductName.get(item.productName)
+            const unitSavings = lowestPrice == null ? 0 : Math.max(Number(item.price) - lowestPrice, 0)
             return sum + (unitSavings * item.quantity)
         }, 0),
-        [savingsByProductName, selectedListItems],
+        [lowestPriceByProductName, selectedListItems],
     )
     const activeAlertCount = useMemo(() =>
         priceAlerts.filter(alert => alert.active).length,
@@ -962,6 +1012,7 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
                 const { latitude, longitude } = position.coords
                 setUserLatitude(latitude)
                 setUserLongitude(longitude)
+                preciseLocationMutation.mutate({ latitude, longitude })
 
                 toast.success('Localização atualizada. Recalculamos os mercados próximos.')
             },
@@ -975,15 +1026,20 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
             },
             { enableHighAccuracy: true, timeout: 10000 },
         )
-    }, [hasSavedLocation])
+    }, [hasSavedLocation, preciseLocationMutation])
+
+    const guideLocationForProximity = useCallback(() => {
+        toast.info('Para ordenar por proximidade, use o botão "Ativar localização" ou informe um CEP no perfil.')
+        setShowFilters(true)
+    }, [])
 
     const requestLocationForProximity = useCallback(() => {
-        toast.info('Ative sua localização ou informe um CEP no perfil para filtrar por proximidade.')
-
         if (typeof navigator !== 'undefined' && navigator.geolocation) {
             handleUseCurrentLocation()
             return
         }
+
+        toast.info('Informe um CEP no perfil para filtrar por proximidade.')
 
         if (isLogged) {
             navigate({ to: '/profile' })
@@ -993,22 +1049,22 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
     const handleDistanceFilterChange = useCallback((nextDistance: number) => {
         if (!hasLocationForProximity) {
             setIsDistanceFilterActive(false)
-            requestLocationForProximity()
+            guideLocationForProximity()
             return
         }
 
         setMaxDistance(nextDistance)
         setIsDistanceFilterActive(true)
-    }, [hasLocationForProximity, requestLocationForProximity])
+    }, [guideLocationForProximity, hasLocationForProximity])
 
     const handleSortChange = useCallback((nextSort: SortMode) => {
         if (nextSort === 'distance' && !hasLocationForProximity) {
-            requestLocationForProximity()
+            guideLocationForProximity()
             return
         }
 
         setSortBy(nextSort)
-    }, [hasLocationForProximity, requestLocationForProximity])
+    }, [guideLocationForProximity, hasLocationForProximity])
 
     const handleOpenMarketsMap = useCallback(() => {
         if (userLatitude == null && userLongitude == null && !hasSavedLocation) {
@@ -1615,8 +1671,8 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
                     {/*PAINEL DE LISTAS*/}
                     {showListPanel && (
                         <aside ref={shoppingListPanelRef} className="w-full shrink-0 scroll-mt-28 lg:w-[420px]">
-                            <Card className="sticky top-32 overflow-hidden border-primary/10 p-0 shadow-sm">
-                                <div className="bg-primary/5 p-4">
+                            <Card className="sticky top-24 flex max-h-[calc(100vh-7rem)] overflow-hidden border-primary/10 p-0 shadow-sm">
+                                <div className="shrink-0 bg-primary/5 p-4">
                                     <div className="flex items-center justify-between">
                                         <div className="flex items-center gap-3">
                                             <div className="grid h-10 w-10 place-items-center rounded-full bg-primary text-primary-foreground shadow-sm">
@@ -1640,30 +1696,7 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
                                     </div>
                                 </div>
 
-                                {canUseShoppingLists && (
-                                    <div className="hidden mx-4 mt-4 gap-3 rounded-lg border border-border bg-background/80 p-3 sm:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3">
-                                        <div>
-                                            <p className="text-xs text-muted-foreground">Lista ativa</p>
-                                            <p className="mt-1 truncate text-sm font-semibold text-foreground">
-                                                {selectedShoppingList?.name ?? 'Nenhuma lista'}
-                                            </p>
-                                        </div>
-                                        <div>
-                                            <p className="text-xs text-muted-foreground">Total</p>
-                                            <p className="mt-1 text-sm font-semibold tabular-nums text-foreground">
-                                                R$ {selectedListTotal.toFixed(2)}
-                                            </p>
-                                        </div>
-                                        <div>
-                                            <p className="text-xs text-muted-foreground">Economia</p>
-                                            <p className="mt-1 text-sm font-semibold tabular-nums text-primary">
-                                                R$ {totalListSavings.toFixed(2)}
-                                            </p>
-                                        </div>
-                                    </div>
-                                )}
-
-                                <div className="max-h-[28rem] space-y-3 overflow-y-auto p-4">
+                                <div className="max-h-48 shrink-0 space-y-3 overflow-y-auto p-4">
                                     {!canUseShoppingLists ? (
                                         <div className="rounded-lg border border-dashed border-primary/25 bg-muted/30 p-4 text-center">
                                             <div className="mx-auto mb-3 grid h-10 w-10 place-items-center rounded-full bg-primary/10 text-primary">
@@ -1695,8 +1728,8 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
                                                 Criar lista
                                             </Button>
                                             <span className="sr-only">
-                                            Nenhuma lista criada ainda.
-                                            <span className="mt-1 block text-sm">Comece pela lista da semana ou do mês.</span>
+                                                Nenhuma lista criada ainda.
+                                                <span className="mt-1 block text-sm">Comece pela lista da semana ou do mês.</span>
                                             </span>
                                         </div>
                                     ) : shoppingLists.map(list => {
@@ -1730,7 +1763,7 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
                                 </div>
 
                                 {canUseShoppingLists && selectedShoppingListId && (
-                                    <div className="mx-4 rounded-lg border border-border bg-background/80">
+                                    <div className="mx-4 min-h-0 flex flex-1 flex-col overflow-hidden rounded-lg border border-border bg-background/80">
                                         <div className="flex items-center justify-between border-b border-border p-3">
                                             <div>
                                                 <span className="text-sm font-semibold text-foreground">Itens da lista</span>
@@ -1746,7 +1779,7 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
                                                 <Trash2 className="h-3.5 w-3.5" />
                                             </Button>
                                         </div>
-                                        <div className="max-h-64 divide-y divide-border overflow-auto">
+                                        <div className="min-h-0 flex-1 divide-y divide-border overflow-auto">
                                             {selectedListItems.length === 0 ? (
                                                 <div className="p-5 text-center text-sm text-muted-foreground">
                                                     <div className="mx-auto mb-3 grid h-10 w-10 place-items-center rounded-full bg-muted text-muted-foreground">
@@ -1784,7 +1817,7 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
                                 )}
 
                                 {canUseShoppingLists && (
-                                    <div className="m-4 rounded-lg bg-primary p-4 text-primary-foreground shadow-sm">
+                                    <div className="m-4 shrink-0 rounded-lg bg-primary p-4 text-primary-foreground shadow-sm">
                                         <div className="mb-1 flex items-center gap-1.5">
                                             <CircleDollarSign className="w-3.5 h-3.5" />
                                             <span className="text-sm font-semibold">Total selecionado</span>
@@ -1798,7 +1831,7 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
                                                 : 'Nenhum mercado selecionado'}
                                         </p>
                                         <p className="mt-1 text-sm text-primary-foreground/85">
-                                            Economia estimada: R$ {totalListSavings.toFixed(2)}
+                                            Economia potencial: R$ {totalListSavings.toFixed(2)}
                                         </p>
                                     </div>
                                 )}

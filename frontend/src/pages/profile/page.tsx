@@ -101,7 +101,6 @@ export function ProfilePage() {
     const [latitude, setLatitude] = useState<number | null>(null)
     const [longitude, setLongitude] = useState<number | null>(null)
     const [locationSource, setLocationSource] = useState('')
-    const [searchRadius, setSearchRadius] = useState(5)
     const [priceAlertsEnabled, setPriceAlertsEnabled] = useState(true)
     const [weeklySummaryEnabled, setWeeklySummaryEnabled] = useState(true)
     const [browserPushEnabled, setBrowserPushEnabled] = useState(false)
@@ -230,10 +229,6 @@ export function ProfilePage() {
             setLongitude(null)
         }
 
-        if (profile.searchRadiusKm != null) {
-            setSearchRadius(profile.searchRadiusKm)
-        }
-
         setPriceAlertsEnabled(profile.priceAlertsEnabled ?? true)
         setWeeklySummaryEnabled(profile.weeklySummaryEnabled ?? true)
         setBrowserPushEnabled(profile.browserPushEnabled ?? false)
@@ -255,7 +250,6 @@ export function ProfilePage() {
             latitude: latitude ?? undefined,
             longitude: longitude ?? undefined,
             locationSource: locationSource.trim() || undefined,
-            searchRadiusKm: searchRadius,
             priceAlertsEnabled,
             weeklySummaryEnabled,
             browserPushEnabled,
@@ -284,7 +278,6 @@ export function ProfilePage() {
             setLatitude(updatedProfile.latitude ?? null)
             setLongitude(updatedProfile.longitude ?? null)
             setLocationSource(updatedProfile.locationSource ?? '')
-            setSearchRadius(updatedProfile.searchRadiusKm ?? 5)
             setPriceAlertsEnabled(updatedProfile.priceAlertsEnabled ?? true)
             setWeeklySummaryEnabled(updatedProfile.weeklySummaryEnabled ?? true)
             setBrowserPushEnabled(updatedProfile.browserPushEnabled ?? false)
@@ -1037,22 +1030,6 @@ export function ProfilePage() {
                                     </div>
                                 </div>
 
-                                <div className="rounded-lg border border-border bg-background/70 p-4">
-                                    <div className="flex items-center justify-between">
-                                        <Label htmlFor="profile-radius">Raio de busca</Label>
-                                        <span className="text-sm font-medium text-primary">{searchRadius} km</span>
-                                    </div>
-                                    <input
-                                        id="profile-radius"
-                                        type="range"
-                                        min={1}
-                                        max={15}
-                                        value={searchRadius}
-                                        onChange={(event) => setSearchRadius(Number(event.target.value))}
-                                        className="mt-3 w-full accent-primary"
-                                    />
-                                </div>
-
                                 <div className="flex flex-col gap-3 rounded-lg border border-primary/15 bg-primary/5 p-4 sm:flex-row sm:items-center sm:justify-between">
                                     <div>
                                         <p className="text-sm font-medium text-foreground">Busca por proximidade</p>
@@ -1109,7 +1086,7 @@ export function ProfilePage() {
                                 <div className="rounded-lg border border-border bg-background/70 p-3">
                                     <p className="font-medium text-foreground">{[city, state].filter(Boolean).join(', ') || 'Localidade não informada'}</p>
                                     <p className="text-xs text-muted-foreground">
-                                        {neighborhood || 'Bairro não informado'} - {zipCode ? formatCep(zipCode) : 'CEP não informado'} - até {searchRadius} km
+                                        {neighborhood || 'Bairro não informado'} - {zipCode ? formatCep(zipCode) : 'CEP não informado'}
                                     </p>
                                 </div>
                                 <div className="rounded-lg border border-border bg-background/70 p-3">

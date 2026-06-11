@@ -38,6 +38,38 @@ public class LocationService {
                 .orElse(location);
     }
 
+    public CepLocationResponseDTO findByCoordinates(Double latitude, Double longitude) {
+        if (latitude == null || longitude == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Latitude e longitude sÃ£o obrigatÃ³rias");
+        }
+
+        return googleMapsGeocodingService.reverseGeocode(latitude, longitude)
+                .map(location -> new CepLocationResponseDTO(
+                        onlyDigits(location.zipCode()),
+                        location.streetAddress(),
+                        location.neighborhood(),
+                        location.city(),
+                        location.state(),
+                        latitude,
+                        longitude,
+                        true,
+                        "BROWSER_GEOLOCATION,GOOGLE_REVERSE_GEOCODING",
+                        "GOOGLE_GEOCODING"
+                ))
+                .orElseGet(() -> new CepLocationResponseDTO(
+                        "",
+                        null,
+                        null,
+                        null,
+                        null,
+                        latitude,
+                        longitude,
+                        true,
+                        "BROWSER_GEOLOCATION",
+                        null
+                ));
+    }
+
     private CepLocationResponseDTO withCoordinates(CepLocationResponseDTO location, Coordinates coordinates) {
         return new CepLocationResponseDTO(
                 location.zipCode(),

@@ -11,6 +11,7 @@ import static org.mockito.Mockito.when;
 
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.util.List;
 import java.util.Optional;
 import java.util.TimeZone;
 
@@ -72,6 +73,7 @@ class MarketProductServiceTest {
         when(productRepository.findByBarCode("7891910000197")).thenReturn(Optional.empty());
         when(cosmosService.findByBarCode("7891910000197")).thenReturn(cosmosProduct);
         when(categoryRepository.findByNameIgnoreCase("Refrigerantes")).thenReturn(Optional.empty());
+        when(categoryRepository.findAll()).thenReturn(List.of());
         when(categoryRepository.save(any(Category.class))).thenReturn(savedCategory);
         when(productRepository.save(any(Product.class))).thenAnswer(invocation -> {
             Product product = invocation.getArgument(0);
@@ -91,6 +93,36 @@ class MarketProductServiceTest {
         ArgumentCaptor<Product> productCaptor = ArgumentCaptor.forClass(Product.class);
         verify(productRepository).save(productCaptor.capture());
         assertSame(savedCategory, productCaptor.getValue().getCategory());
+    }
+
+    @Test
+    void createProductUsesExistingBroadCategoryBeforeCreatingSpecificCosmosCategory() {
+        ProductRequestDTO request = productRequest();
+        request.setCategoryId(null);
+        request.setBarCode("7896071007658");
+
+        Market market = market();
+        CosmosProductDTO cosmosProduct = cosmosProduct(null, "Biscoito Recheado Doce");
+        Category existingCategory = category(11L, "Biscoitos");
+
+        when(marketRepository.findById(1L)).thenReturn(Optional.of(market));
+        when(productRepository.findByBarCode("7896071007658")).thenReturn(Optional.empty());
+        when(cosmosService.findByBarCode("7896071007658")).thenReturn(cosmosProduct);
+        when(categoryRepository.findByNameIgnoreCase("Biscoitos")).thenReturn(Optional.of(existingCategory));
+        when(productRepository.save(any(Product.class))).thenAnswer(invocation -> {
+            Product product = invocation.getArgument(0);
+            product.setId(21L);
+            product.setCreatedAt(LocalDateTime.now());
+            return product;
+        });
+        when(marketProductRepository.findAnyByMarketIdAndProductId(1L, 21L)).thenReturn(Optional.empty());
+        when(marketProductRepository.save(any(MarketProduct.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        service.createProduct(request, 1L);
+
+        ArgumentCaptor<Product> productCaptor = ArgumentCaptor.forClass(Product.class);
+        verify(productRepository).save(productCaptor.capture());
+        assertSame(existingCategory, productCaptor.getValue().getCategory());
     }
 
     @Test

@@ -4,6 +4,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -25,5 +26,14 @@ public class LocationController {
     @Operation(summary = "Consultar endereço e coordenadas por CEP")
     public ResponseEntity<CepLocationResponseDTO> findByCep(@PathVariable String cep) {
         return ResponseEntity.ok(locationService.findByCep(cep));
+    }
+
+    @GetMapping("/coordinates")
+    @Operation(summary = "Consultar localidade por coordenadas")
+    public ResponseEntity<CepLocationResponseDTO> findByCoordinates(
+            @RequestParam Double latitude,
+            @RequestParam Double longitude
+    ) {
+        return ResponseEntity.ok(locationService.findByCoordinates(latitude, longitude));
     }
 }

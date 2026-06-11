@@ -1,7 +1,9 @@
 package com.unimarket.backend.service;
 
 import java.math.BigDecimal;
+import java.text.Normalizer;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -374,9 +376,10 @@ public class MarketProductService {
         String cosmosCategoryName = simplifyCategoryName(extractCosmosCategoryName(cosmosProduct));
 
         if (hasText(cosmosCategoryName)) {
-            String normalizedName = normalizeCategoryName(cosmosCategoryName);
+            String normalizedName = normalizeCategoryName(toBroadCategoryName(cosmosCategoryName));
 
             return categoryRepository.findByNameIgnoreCase(normalizedName)
+                    .or(() -> findBestExistingCategory(cosmosCategoryName))
                     .orElseGet(() -> {
                         Category category = new Category();
                         category.setName(normalizedName);
@@ -385,6 +388,23 @@ public class MarketProductService {
         }
 
         throw new RuntimeException("Categoria não encontrada. Selecione uma categoria manualmente.");
+    }
+
+    private Optional<Category> findBestExistingCategory(String sourceCategoryName) {
+        String sourceKey = categoryMatchKey(sourceCategoryName);
+        String broadKey = categoryMatchKey(toBroadCategoryName(sourceCategoryName));
+
+        return categoryRepository.findAll()
+                .stream()
+                .filter(category -> {
+                    String categoryKey = categoryMatchKey(category.getName());
+                    return hasText(categoryKey)
+                            && (categoryKey.equals(sourceKey)
+                            || categoryKey.equals(broadKey)
+                            || sourceKey.contains(categoryKey)
+                            || broadKey.contains(categoryKey));
+                })
+                .findFirst();
     }
 
     private String extractCosmosCategoryName(CosmosProductDTO cosmosProduct) {
@@ -401,6 +421,108 @@ public class MarketProductService {
 
     private String normalizeCategoryName(String value) {
         return value.trim().replaceAll("\\s+", " ");
+    }
+
+    private String toBroadCategoryName(String value) {
+        String normalizedValue = normalizeForMatching(value);
+
+        if (containsAny(normalizedValue, "biscoito", "bolacha", "cookie")) {
+            return "Biscoitos";
+        }
+
+        if (containsAny(normalizedValue, "refrigerante")) {
+            return "Refrigerantes";
+        }
+
+        if (containsAny(normalizedValue, "bebida", "suco", "agua")) {
+            return "Bebidas";
+        }
+
+        if (containsAny(normalizedValue, "leite", "iogurte", "queijo", "laticinio")) {
+            return "Laticínios";
+        }
+
+        if (containsAny(normalizedValue, "carne", "frango", "bovina", "suina", "peixe")) {
+            return "Carnes";
+        }
+
+        if (containsAny(normalizedValue, "limpeza", "detergente", "sabao", "desinfetante")) {
+            return "Limpeza";
+        }
+
+        if (containsAny(normalizedValue, "massa", "macarrao")) {
+            return "Massas";
+        }
+
+        if (containsAny(normalizedValue, "oleo", "azeite")) {
+            return "Óleos";
+        }
+
+        if (containsAny(normalizedValue, "arroz", "feijao", "acucar", "farinha", "sal")) {
+            return "Básicos";
+        }
+
+        String withoutParentheses = value.replaceAll("\\s*\\([^)]*\\)", "");
+        String firstCategory = withoutParentheses.split("\\s*[-/]\\s*")[0];
+        List<String> meaningfulWords = List.of(normalizeCategoryName(firstCategory).split("\\s+"))
+                .stream()
+                .filter(word -> !isCategoryDescriptor(word))
+                .limit(2)
+                .toList();
+
+        return meaningfulWords.isEmpty()
+                ? normalizeCategoryName(firstCategory)
+                : String.join(" ", meaningfulWords);
+    }
+
+    private boolean containsAny(String value, String... terms) {
+        for (String term : terms) {
+            if (value.contains(term)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private boolean isCategoryDescriptor(String value) {
+        String normalizedValue = normalizeForMatching(value);
+        return List.of(
+                "recheado",
+                "doce",
+                "salgado",
+                "integral",
+                "diet",
+                "light",
+                "zero",
+                "tradicional",
+                "especial",
+                "pronto",
+                "pronta",
+                "beber",
+                "sabor"
+        ).contains(normalizedValue);
+    }
+
+    private String categoryMatchKey(String value) {
+        return normalizeForMatching(value)
+                .replaceAll("\\b(recheado|doce|salgado|integral|diet|light|zero|tradicional|especial|pronto|pronta|beber|sabor)\\b", " ")
+                .replaceAll("\\s+", " ")
+                .trim()
+                .replaceAll("s\\b", "");
+    }
+
+    private String normalizeForMatching(String value) {
+        if (value == null) {
+            return "";
+        }
+
+        return Normalizer.normalize(value, Normalizer.Form.NFD)
+                .replaceAll("\\p{M}", "")
+                .replaceAll("[^\\p{Alnum}\\s]", " ")
+                .trim()
+                .toLowerCase(Locale.ROOT)
+                .replaceAll("\\s+", " ");
     }
 
     private String simplifyCategoryName(String value) {

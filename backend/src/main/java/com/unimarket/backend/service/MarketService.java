@@ -353,11 +353,30 @@ public class MarketService {
     }
 
     private String buildGoogleMapsUrl(Market market) {
-        return "https://www.google.com/maps/search/?api=1&query=" + encode(buildAddressQuery(market));
+        return "https://www.google.com/maps/search/?api=1&query=" + encode(buildMapsSearchQuery(market));
     }
 
     private String buildDirectionsUrl(Market market) {
-        return "https://www.google.com/maps/dir/?api=1&destination=" + encode(buildAddressQuery(market));
+        return "https://www.google.com/maps/dir/?api=1&destination=" + encode(buildMapsSearchQuery(market));
+    }
+
+    private String buildMapsSearchQuery(Market market) {
+        String addressQuery = String.join(", ",
+                List.of(
+                        marketDisplayName(market),
+                        safeText(market.getStreetAddress()),
+                        safeText(market.getNeighborhood()),
+                        safeText(market.getCity()),
+                        safeText(market.getState()),
+                        safeText(market.getZipCode())
+                ).stream().filter(this::hasText).toList()
+        );
+
+        if (hasText(addressQuery)) {
+            return addressQuery;
+        }
+
+        return buildAddressQuery(market);
     }
 
     private String buildAddressQuery(Market market) {

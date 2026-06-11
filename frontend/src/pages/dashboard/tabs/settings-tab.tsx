@@ -103,15 +103,17 @@ export function SettingsTab() {
     }, [city, email, name, neighborhood, profile?.cnpj, state, streetAddress, zipCode])
 
     const publicLocationQuery = useMemo(() => {
-        if (latitude.trim() && longitude.trim()) {
-            return `${latitude.trim()},${longitude.trim()}`
-        }
-
-        return [streetAddress, neighborhood, city, state, zipCode]
+        const addressQuery = [name, streetAddress, neighborhood, city, state, zipCode]
             .map(value => value.trim())
             .filter(Boolean)
             .join(', ')
-    }, [city, latitude, longitude, neighborhood, state, streetAddress, zipCode])
+
+        if (addressQuery) {
+            return addressQuery
+        }
+
+        return latitude.trim() && longitude.trim() ? `${latitude.trim()},${longitude.trim()}` : ''
+    }, [city, latitude, longitude, name, neighborhood, state, streetAddress, zipCode])
 
     const publicGoogleMapsUrl = publicLocationQuery
         ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(publicLocationQuery)}`
@@ -555,32 +557,47 @@ export function SettingsTab() {
                 </div>
 
                 {activeSettingsSection === 'market-account-section' && (
-                <section id="market-account-section" role="tabpanel" aria-labelledby="market-account-section-tab" className="grid gap-6 lg:grid-cols-2">
-                    <Card className="gap-4 p-5">
-                        <div className="flex items-center gap-2">
-                            <MapPin className="h-4 w-4 text-muted-foreground" />
-                            <h3 className="text-base font-semibold text-foreground">Como clientes veem sua loja</h3>
+                <section id="market-account-section" role="tabpanel" aria-labelledby="market-account-section-tab" className="space-y-6">
+                    <Card className="gap-0 overflow-hidden p-0">
+                        <div className="flex flex-col gap-3 border-b border-border p-5 sm:flex-row sm:items-center sm:justify-between">
+                            <div className="flex items-center gap-2">
+                                <MapPin className="h-4 w-4 text-primary" />
+                                <h3 className="text-base font-semibold text-foreground">Como clientes veem sua loja</h3>
+                            </div>
+                            <Badge variant="secondary" className="w-fit font-normal">
+                                {[city, state].filter(Boolean).join(' - ') || 'Localização pendente'}
+                            </Badge>
                         </div>
-                        <p className="text-sm leading-relaxed text-muted-foreground">
-                            Quando endereço e cidade estão completos, a loja aparece melhor nas buscas por região e nas comparações de mercado.
-                        </p>
-                        <div className="flex flex-col gap-2">
-                            <Button
-                                variant="outline"
-                                disabled={!publicGoogleMapsUrl}
-                                onClick={() => publicGoogleMapsUrl && window.open(publicGoogleMapsUrl, '_blank', 'noopener,noreferrer')}
-                            >
-                                <ExternalLink className="h-4 w-4" />
-                                Abrir localização
-                            </Button>
-                            <Button
-                                variant="outline"
-                                disabled={!publicDirectionsUrl}
-                                onClick={() => publicDirectionsUrl && window.open(publicDirectionsUrl, '_blank', 'noopener,noreferrer')}
-                            >
-                                <MapPin className="h-4 w-4" />
-                                Ver rota até a loja
-                            </Button>
+                        <div className="grid gap-5 p-5 lg:grid-cols-[minmax(0,1fr)_260px] lg:items-center">
+                            <div className="space-y-3">
+                                <p className="text-sm leading-relaxed text-muted-foreground">
+                                    Quando endereço, cidade e CEP estão completos, a loja aparece melhor nas buscas por região e nas comparações de mercado.
+                                </p>
+                                <div className="rounded-lg border border-border bg-background/70 p-4">
+                                    <p className="text-xs font-medium uppercase text-muted-foreground">Busca enviada ao Maps</p>
+                                    <p className="mt-1 break-words text-sm font-semibold text-foreground">
+                                        {publicLocationQuery || 'Complete o endereço da loja para gerar a busca.'}
+                                    </p>
+                                </div>
+                            </div>
+                            <div className="grid gap-2">
+                                <Button
+                                    variant="outline"
+                                    disabled={!publicGoogleMapsUrl}
+                                    onClick={() => publicGoogleMapsUrl && window.open(publicGoogleMapsUrl, '_blank', 'noopener,noreferrer')}
+                                >
+                                    <ExternalLink className="h-4 w-4" />
+                                    Abrir localização
+                                </Button>
+                                <Button
+                                    variant="outline"
+                                    disabled={!publicDirectionsUrl}
+                                    onClick={() => publicDirectionsUrl && window.open(publicDirectionsUrl, '_blank', 'noopener,noreferrer')}
+                                >
+                                    <MapPin className="h-4 w-4" />
+                                    Ver rota até a loja
+                                </Button>
+                            </div>
                         </div>
                     </Card>
                 </section>
