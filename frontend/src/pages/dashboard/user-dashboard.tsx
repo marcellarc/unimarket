@@ -2000,37 +2000,41 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
                             <div className="space-y-2">
                                 <p className="text-sm font-medium text-muted-foreground">Mercado</p>
                                 <div className="grid max-h-56 gap-2 overflow-auto pr-1">
-                                    {listProduct.markets.map((market, index) => {
-                                        const selected = selectedListMarketProductId === market.id
-                                        const isCheapest = index === 0
+                                    {(() => {
+                                        const lowestMarketPrice = Math.min(...listProduct.markets.map(market => market.price))
 
-                                        return (
-                                            <button
-                                                key={market.id}
-                                                type="button"
-                                                onClick={() => setSelectedListMarketProductId(market.id)}
-                                                className={`grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-lg border p-3 text-left transition hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${selected ? 'border-primary bg-primary/10' : 'border-border bg-background'}`}
-                                            >
-                                                <span className="min-w-0">
-                                                    <span className="flex items-center gap-2">
-                                                        <Store className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                                                        <span className="truncate text-base font-semibold text-foreground">{market.name}</span>
-                                                        {isCheapest && (
-                                                            <Badge variant="secondary" className="rounded-full">
-                                                                Melhor preço
-                                                            </Badge>
-                                                        )}
+                                        return listProduct.markets.map((market) => {
+                                            const selected = selectedListMarketProductId === market.id
+                                            const isCheapest = market.price === lowestMarketPrice
+
+                                            return (
+                                                <button
+                                                    key={market.id}
+                                                    type="button"
+                                                    onClick={() => setSelectedListMarketProductId(market.id)}
+                                                    className={`grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-lg border p-3 text-left transition hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${selected ? 'border-primary bg-primary/10' : 'border-border bg-background'}`}
+                                                >
+                                                    <span className="min-w-0">
+                                                        <span className="flex items-center gap-2">
+                                                            <Store className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                                                            <span className="truncate text-base font-semibold text-foreground">{market.name}</span>
+                                                            {isCheapest && (
+                                                                <Badge variant="secondary" className="rounded-full">
+                                                                    Melhor preço
+                                                                </Badge>
+                                                            )}
+                                                        </span>
+                                                        <span className="mt-1 flex items-center gap-1 text-sm text-muted-foreground">
+                                                            <MapPin className="h-3 w-3" /> {market.distance}
+                                                        </span>
                                                     </span>
-                                                    <span className="mt-1 flex items-center gap-1 text-sm text-muted-foreground">
-                                                        <MapPin className="h-3 w-3" /> {market.distance}
+                                                    <span className="text-right text-base font-semibold tabular-nums text-primary">
+                                                        R$ {market.price.toFixed(2)}
                                                     </span>
-                                                </span>
-                                                <span className="text-right text-base font-semibold tabular-nums text-primary">
-                                                    R$ {market.price.toFixed(2)}
-                                                </span>
-                                            </button>
-                                        )
-                                    })}
+                                                </button>
+                                            )
+                                        })
+                                    })()}
                                 </div>
                             </div>
 
