@@ -75,8 +75,7 @@ const sortOptions: Array<{ id: SortMode; label: string }> = [
     { id: 'savings', label: 'Maior economia' },
 ]
 
-const PRODUCT_PAGE_SIZE = 8
-const PROXIMITY_PRODUCT_PAGE_SIZE = 120
+const MARKET_PRODUCT_QUERY_PAGE_SIZE = 120
 
 function formatDistance(market?: MarketResponse | null) {
     if (!market || market.distanceKm == null) {
@@ -299,7 +298,7 @@ export function UserDashboard({ userName, isLogged, marketId, userRole }: UserDa
     const showProfileImage = Boolean(profileImageUrl) && !avatarImageFailed
 
     const deferredSearch = useDeferredValue(searchQuery)
-    const catalogQueryPageSize = sortBy === 'distance' || isDistanceFilterActive ? PROXIMITY_PRODUCT_PAGE_SIZE : PRODUCT_PAGE_SIZE
+    const catalogQueryPageSize = MARKET_PRODUCT_QUERY_PAGE_SIZE
 
     const { data: catalogPage, isLoading, isFetching, error } = useQuery({
         queryKey: ['globalMarketProducts', deferredSearch, catalogPageNumber, catalogQueryPageSize],
