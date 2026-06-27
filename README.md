@@ -1,5 +1,39 @@
 # UniMarket
 
+## Segredos e variaveis de ambiente
+
+Nao versione credenciais reais em `application.properties`, `.env`, `email.properties` ou `application-local.properties`.
+O backend de producao le segredos por variaveis de ambiente, alinhadas com o `systemd` da VM:
+
+- `SPRING_DATASOURCE_URL`
+- `SPRING_DATASOURCE_USERNAME`
+- `SPRING_DATASOURCE_PASSWORD`
+- `API_SECURITY_TOKEN_SECRET`
+- `SPRING_MAIL_HOST`
+- `SPRING_MAIL_PORT`
+- `SPRING_MAIL_USERNAME`
+- `SPRING_MAIL_PASSWORD`
+- `MAIL_FROM`
+- `APP_GOOGLE_MAPS_API_KEY`
+- `APP_GOOGLE_OAUTH_CLIENT_ID`
+- `COSMOS_API_URL`
+- `COSMOS_API_TOKEN`
+- `COSMOS_API_USER_AGENT`
+
+Antes de commitar, rode:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\check-secrets.ps1
+```
+
+Para bloquear commits locais com segredos obvios, configure os hooks versionados uma vez:
+
+```bash
+git config core.hooksPath .githooks
+```
+
+O GitHub Actions tambem executa essa checagem em `push` e `pull_request`.
+
 O UniMarket é uma aplicação web para comparação de preços em supermercados locais. O projeto conecta consumidores a mercados próximos, ajuda no planejamento de compras e oferece ferramentas para supermercados gerenciarem produtos, preços, estoque e dados cadastrais.
 
 
