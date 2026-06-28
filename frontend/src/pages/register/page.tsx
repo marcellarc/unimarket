@@ -1,5 +1,5 @@
-import { AuthHeader } from "../-components/auth-header";
-import { SiteFooter } from "../-components/site-footer";
+import { AuthHeader } from "@/components/auth/auth-header";
+import { SiteFooter } from "@/components/auth/site-footer";
 import { SignUpForm } from "./sign-up-form";
 
 export function RegisterPage() {

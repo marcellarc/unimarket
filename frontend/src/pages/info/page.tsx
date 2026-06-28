@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from 'react'
-import { AuthHeader } from '@/pages/-components/auth-header'
-import { SiteFooter } from '@/pages/-components/site-footer'
-import { Button } from '@/components/ui/button'
+import { AuthHeader } from '@/components/auth/auth-header'
+import { SiteFooter } from '@/components/auth/site-footer'
+import { Button } from '@/components/ui'
 import { Link } from '@tanstack/react-router'
 import {
     ArrowRight,

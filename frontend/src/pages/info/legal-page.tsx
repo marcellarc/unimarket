@@ -1,5 +1,5 @@
-import { AuthHeader } from '@/pages/-components/auth-header'
-import { SiteFooter } from '@/pages/-components/site-footer'
+import { AuthHeader } from '@/components/auth/auth-header'
+import { SiteFooter } from '@/components/auth/site-footer'
 
 type LegalPageProps = {
     variant: 'terms' | 'privacy'

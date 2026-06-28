@@ -21,6 +21,9 @@
 /backend/src/main/resources/application-local.properties
 /backend/src/main/resources/application-*.local.properties
 
+# Generated router/cache files
+/frontend/.tanstack/tmp/
+
 # IDEs
 .vscode
 .idea

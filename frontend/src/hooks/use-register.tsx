@@ -3,7 +3,7 @@ import { useNavigate } from '@tanstack/react-router'
 import { toast } from 'sonner'
 import { registerUser } from '@/services/user'
 import { registerMarket } from '@/services/supermarket'
-import type { RegisterFormData } from '@/pages/-components/schemas'
+import type { RegisterFormData } from '@/components/auth/schemas'
 import { getApiStatus } from '@/lib/api-error'
 
 function handleRegisterError(error: unknown) {

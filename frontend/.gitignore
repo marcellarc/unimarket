@@ -7,7 +7,7 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-# Dependências
+# Dependencias
 node_modules/
 
 # Build
@@ -22,6 +22,7 @@ build/
 
 # Arquivos locais
 *.local
+.tanstack/tmp/
 
 # Editor / IDE
 .vscode/*

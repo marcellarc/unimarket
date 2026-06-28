@@ -1,6 +1,6 @@
-import { AuthHeader } from "../-components/auth-header";
-import { Branding } from "../-components/branding";
-import { SiteFooter } from "../-components/site-footer";
+import { AuthHeader } from "@/components/auth/auth-header";
+import { Branding } from "@/components/auth/branding";
+import { SiteFooter } from "@/components/auth/site-footer";
 import { SignInForm } from "./sign-in-form";
 
 export function LoginPage() {

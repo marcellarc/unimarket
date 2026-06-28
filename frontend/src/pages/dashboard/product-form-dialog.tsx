@@ -24,7 +24,7 @@ import { Barcode, Boxes, CircleDollarSign, Loader2, Plus } from 'lucide-react'
 import { type ReactNode, useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
-import { marketProductSchema, type MarketProductFormData } from '../-components/schemas'
+import { marketProductSchema, type MarketProductFormData } from '@/components/auth/schemas'
 
 interface ProductFormDialogProps {
     marketId: number

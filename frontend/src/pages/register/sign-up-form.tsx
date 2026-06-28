@@ -11,8 +11,8 @@ import { Building2, CheckCircle2, Eye, EyeOff, FileText, Loader2, Store, User, U
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
-import { registerSchema } from '../-components/schemas'
-import type { RegisterFormData } from '../-components/type'
+import { registerSchema } from '@/components/auth/schemas'
+import type { RegisterFormData } from '@/components/auth/type'
 
 export function SignUpForm() {
     const [showPassword, setShowPassword] = useState(false)
