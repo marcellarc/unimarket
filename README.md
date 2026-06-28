@@ -1,5 +1,7 @@
 # UniMarket
 
+**Tecnologia a favor da sua economia.**
+
 O **UniMarket** é uma aplicação web desenvolvida para auxiliar consumidores na busca e comparação de preços de produtos em supermercados. A plataforma centraliza informações de produtos, preços e mercados, permitindo que o usuário planeje suas compras com mais praticidade antes de se deslocar até o estabelecimento.
 
 Além da experiência voltada ao consumidor, o sistema também oferece um painel administrativo para supermercados gerenciarem produtos, preços, estoque, avaliações e dados cadastrais.
@@ -12,7 +14,7 @@ A ideia do UniMarket surgiu ainda no 2º semestre da faculdade, a partir da perc
 
 Com o aumento do custo de vida e a necessidade de compras mais planejadas, o projeto foi desenvolvido com o objetivo de apoiar consumidores na tomada de decisão, reunindo em uma única plataforma informações como preço, mercado, localização, listas de compras e alertas.
 
-O projeto foi apresentado como Trabalho de Conclusão de Curso em Análise e Desenvolvimento de Sistemas.
+O projeto foi apresentado como Trabalho de Conclusão de Curso em Análise e Desenvolvimento de Sistemas pela Fatec da baixada santista.
 
 ---
 
@@ -128,6 +130,7 @@ Para reduzir duplicidades no cadastro, o sistema utiliza o **código de barras**
 * Maven
 * Node.js
 * npm
+* Postman
 * Figma
 * Trello
 * Vercel
@@ -163,19 +166,19 @@ O banco de dados armazena informações como:
 
 ### Rotas públicas
 
-* `/login` — login de clientes e supermercados
-* `/register` — cadastro de clientes e supermercados
-* `/about` — informações sobre o projeto
-* `/help` — central de ajuda
+* `/login` - login de clientes e supermercados
+* `/register` - cadastro de clientes e supermercados
+* `/about` - informações sobre o projeto
+* `/help` - central de ajuda
 
 ### Rotas do cliente
 
-* `/dashboard` — dashboard principal com busca e comparação de produtos
-* `/profile` — perfil do cliente
+* `/dashboard` - dashboard principal com busca e comparação de produtos
+* `/profile` - perfil do cliente
 
 ### Rotas do supermercado
 
-* `/dashboard` — painel administrativo do supermercado
+* `/dashboard` - painel administrativo do supermercado
 
 ---
 
@@ -188,7 +191,7 @@ Como o projeto já está disponível em produção, a execução local é necess
 * Java 21+
 * Maven 3.8+
 * Node.js 18+
-* PostgreSQL 13+
+* PostgreSQL 17+
 * Git
 
 ---
@@ -318,9 +321,9 @@ O UniMarket foi desenvolvido como um projeto acadêmico funcional, mas algumas e
 Melhorias futuras previstas:
 
 * histórico de preços dos produtos;
-* registro da data da última atualização de preço;
 * auditoria de alterações feitas por supermercados;
 * validação cruzada de dados;
+* automatização no cadastro de produtos;
 * sugestões automáticas da lista de compras mais econômica;
 * melhoria nos mecanismos de notificação;
 * ampliação dos testes com usuários reais;
@@ -332,9 +335,9 @@ Melhorias futuras previstas:
 
 Projeto acadêmico desenvolvido por:
 
-* Beatriz Duarte Sibilio
-* Kayo Campos Silva
-* Marcella Ricoy Curci de Moura
+* [Beatriz Duarte Sibilio](https://github.com/beatrizsibilio)
+* [Kayo Campos Silva](https://github.com/kayo0404)
+* [Marcella Ricoy Curci de Moura](https://github.com/marcellarc)
 
 Orientador:
 
@@ -350,8 +353,8 @@ E-mail de suporte do projeto:
 
 ---
 
-## Status do projeto
+## Acesse o projeto
 
-Projeto desenvolvido e apresentado como Trabalho de Conclusão de Curso.
+Projeto desenvolvido e apresentado como Trabalho de Conclusão de Curso pela Fatec Rubens Lara.
 
-Disponível em: (unimarket-app.vercel.app)
+Disponível em produção: [https://unimarket-app.vercel.app](https://unimarket-app.vercel.app)
